@@ -1,6 +1,9 @@
+import "../paginas-internas.css";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { CabecalhoPagina } from "@/components/Editorial";
+import { BuscaDiretorio } from "@/components/BuscaDiretorio";
 import { listarCidades } from "@/lib/consultas";
 import { hrefCidade, type CidadeComNegocios } from "@/lib/diretorio";
 import { NOMES_UF, type Uf } from "@/lib/dominio";
@@ -16,7 +19,7 @@ export const metadata: Metadata = metadadosDaPagina({
 
 export default function Cidades() {
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-7 sm:px-6">
+    <div className="pagina-cidades container-editorial pagina-operacional">
       <nav aria-label="Você está em" className="flex items-center gap-2 text-sm text-suave">
         <Link href="/" className="inline-flex items-center gap-1.5 font-semibold text-coral-700 hover:underline">
           <span aria-hidden="true">←</span> Início
@@ -24,12 +27,9 @@ export default function Cidades() {
         <span aria-hidden="true">/</span>
         <span aria-current="page">Cidades</span>
       </nav>
-      <h1 className="mt-6 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
-        Negócios do bem por cidade
-      </h1>
-      <p className="mt-4 max-w-2xl text-lg leading-relaxed text-pretty text-suave">
-        As cidades que já têm negócios no diretório. Não achou a sua? Indique um negócio de lá.
-      </p>
+      <CabecalhoPagina titulo="O bem também acontece na sua cidade." descricao="Escolha uma cidade para conhecer os negócios que já estão no diretório. Não achou a sua? Indique um negócio de lá.">
+        <Link href="/indicar" className="botao-claro">Indicar um negócio <span aria-hidden="true">↗</span></Link>
+      </CabecalhoPagina>
       <Suspense fallback={<div className="mt-10 h-96 animate-pulse rounded-3xl bg-superficie" aria-busy="true" />}>
         <PorEstado />
       </Suspense>
@@ -38,8 +38,9 @@ export default function Cidades() {
 }
 
 async function PorEstado() {
+  const cidades = await listarCidades();
   const porUf = new Map<string, CidadeComNegocios[]>();
-  for (const cidade of await listarCidades()) porUf.set(cidade.uf, [...(porUf.get(cidade.uf) ?? []), cidade]);
+  for (const cidade of cidades) porUf.set(cidade.uf, [...(porUf.get(cidade.uf) ?? []), cidade]);
   const estados = [...porUf.keys()].sort((a, b) => NOMES_UF[a as Uf].localeCompare(NOMES_UF[b as Uf], "pt-BR"));
 
   if (estados.length === 0) {
@@ -53,16 +54,25 @@ async function PorEstado() {
     );
   }
   return (
-    <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <>
+      <div className="cidades-busca"><BuscaDiretorio cidades={cidades} /></div>
+      <div className="cidades-orientacao">
+        <p><strong>{cidades.length.toLocaleString("pt-BR")}</strong> {cidades.length === 1 ? "cidade" : "cidades"} em <strong>{estados.length}</strong> {estados.length === 1 ? "estado" : "estados"}</p>
+        <span>Escolha um estado para ir direto à lista.</span>
+      </div>
+      <nav className="cidades-estados" aria-label="Estados com negócios no diretório">
+        {estados.map(uf => <a key={uf} href={`#estado-${uf.toLowerCase()}`}>{NOMES_UF[uf as Uf]} <span>{uf}</span></a>)}
+      </nav>
+    <div className="cidades-grade">
       {estados.map((uf) => (
-        <section key={uf} className="cartao p-5">
-          <h2 className="font-serif text-xl font-semibold">{NOMES_UF[uf as Uf]}</h2>
+        <section id={`estado-${uf.toLowerCase()}`} key={uf} className="cidade-estado cartao">
+          <header><h2>{NOMES_UF[uf as Uf]}</h2><span>{uf}</span></header>
           <ul className="mt-3 flex flex-col gap-1">
             {porUf.get(uf)!.map((cidade) => (
               <li key={cidade.cidade}>
                 <Link
                   href={hrefCidade(cidade.cidade, cidade.uf)}
-                  className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 transition hover:bg-papel"
+                  className="cidade-destino"
                 >
                   <span className="font-medium">{cidade.cidade}</span>
                   <span className="text-sm text-suave tabular-nums">
@@ -75,5 +85,6 @@ async function PorEstado() {
         </section>
       ))}
     </div>
+    </>
   );
 }

@@ -24,7 +24,9 @@ describe("ciclos gerados", () => {
   it("o gerador de scripts reproduz o CSS do cortejo", () => {
     const script = fileURLToPath(new URL("../../scripts/gerar-ciclos.mjs", import.meta.url));
     const css = readFileSync(new URL("../../src/components/cortejo/ciclos.css", import.meta.url), "utf8");
-    expect(execFileSync(process.execPath, [script], { encoding: "utf8" })).toBe(css);
+    const gerado = execFileSync(process.execPath, [script], { encoding: "utf8" });
+    // Git no Windows pode converter o arquivo para CRLF; as curvas devem ser idênticas.
+    expect(gerado.replace(/\r\n/g, "\n")).toBe(css.replace(/\r\n/g, "\n"));
   });
 });
 

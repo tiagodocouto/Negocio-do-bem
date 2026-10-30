@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense, type CSSProperties } from "react";
+import { Suspense } from "react";
 import { denunciarDepoimento } from "@/acoes/depoimentos";
 import { AvisoDaUrl } from "@/components/Avisos";
 import { CausaBadge } from "@/components/CausaBadge";
@@ -13,7 +13,6 @@ import { SeloStatus } from "@/components/SeloStatus";
 import { usuarioAtual, type UsuarioSessao } from "@/lib/auth/sessao";
 import { buscarCausa, filtrarCausas } from "@/lib/causas";
 import { buscarPerfil, ehDono, podeVerPerfil } from "@/lib/consultas";
-import { tintaDoNegocio } from "@/lib/cortejo";
 import { hrefCausa, hrefTipo, temPaginaDeTipo } from "@/lib/diretorio";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
 import { linkPerfil, normalizarUsername } from "@/lib/instagram";
@@ -21,12 +20,12 @@ import { FORA_DA_BUSCA, jsonLdDoNegocio, metadadosDaPagina, paginaDaCidade } fro
 import { formatarData, formatarWhatsapp, tempoDeLeitura } from "@/lib/texto";
 import { FormDepoimento } from "./FormDepoimento";
 import "./perfil.css";
+import "./perfil-editorial.css";
 
 export async function generateMetadata(props: PageProps<"/empresas/[usuario]">): Promise<Metadata> {
   const username = normalizarUsername((await props.params).usuario);
   const empresa = username ? await buscarPerfil(username) : null;
   if (!empresa || empresa.moderacao !== "aprovada" || empresa.oculta) return { title: "Perfil", robots: FORA_DA_BUSCA };
-  // "Café da Ana — Café e padaria em Salvador, BA": o que as pessoas buscam é o tipo e a cidade.
   const onde = `${empresa.cidade}, ${empresa.uf}`;
   return metadadosDaPagina({
     titulo: empresa.categoria === "Outros" ? `${empresa.nome} em ${onde}` : `${empresa.nome} — ${empresa.categoria} em ${onde}`,
@@ -54,106 +53,111 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
   const dono = ehDono(empresa, usuario);
   const causas = filtrarCausas(empresa.causas.map((c) => c.causa));
   const publico = empresa.moderacao === "aprovada" && !empresa.oculta;
-  const tinta = tintaDoNegocio(empresa.instagramUsername);
-  const cores = {
-    "--tinta-negocio": `var(--color-${tinta})`,
-    "--texto-negocio": `var(--color-${tinta}-texto)`,
-  } as CSSProperties;
-
   return (
-    <article className={"cortejo-perfil"} style={cores}>
+    <article className={`perfil-editorial perfil-detalhado`}>
       {publico && <JsonLd dados={jsonLdDoNegocio(empresa, causas.map((slug) => buscarCausa(slug)!.nome))} />}
-      <header className={"cortejo-perfil-cabecalho"}>
-        <div className={"cortejo-perfil-abertura"}>
-          <Link href="/explorar" className={"cortejo-perfil-voltar"}>
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m8 4-6 6 6 6M2 10h16" /></svg>
-            Explorar negócios
-          </Link>
-          <div className={"cortejo-perfil-avisos"}>
+      <header className="perfil-cabecalho">
+        <div className="container-editorial">
+          <Link href="/explorar" className="perfil-voltar">← Explorar negócios</Link>
+          <div className="perfil-avisos">
             <AvisoDaUrl codigo={aviso} />
-            {!publico && (
-              <p className={"cortejo-perfil-restrito"}>
-                {empresa.oculta
-                  ? "Este perfil está oculto pelo dono e não aparece no diretório."
-                  : `${MODERACAO_EMPRESA[empresa.moderacao]}: só você e a moderação veem este perfil por enquanto.`}
-              </p>
-            )}
+            {!publico && <p className="cartao p-4 text-sm text-suave">{empresa.oculta
+              ? "Este perfil está oculto pelo dono e não aparece no diretório."
+              : `${MODERACAO_EMPRESA[empresa.moderacao]}: só você e a moderação veem este perfil por enquanto.`}</p>}
           </div>
-
-          <div className={"cortejo-perfil-identidade"}>
-            <div className={"cortejo-perfil-retrato"}><FotoEmpresa empresa={empresa} tamanho="lg" /></div>
-            <div className={"cortejo-perfil-nome"}>
+          <div className="perfil-apresentacao">
+            <div className="perfil-identidade">
               <SeloStatus status={empresa.status} />
               <h1>{empresa.nome}</h1>
-              <div className={"cortejo-perfil-metadados"}>
-                <a href={linkPerfil(empresa.instagramUsername)} target="_blank" rel="noopener noreferrer">@{empresa.instagramUsername}</a>
-                {publico && temPaginaDeTipo(empresa.categoria) ? <Link href={hrefTipo(empresa.categoria)}>{empresa.categoria}</Link> : <span>{empresa.categoria}</span>}
-                {publico ? (
-                  <Link href={paginaDaCidade(empresa.cidade, empresa.uf).caminho}>{empresa.cidade}, {empresa.uf}</Link>
-                ) : <span>{empresa.cidade}, {empresa.uf}</span>}
+              <a href={linkPerfil(empresa.instagramUsername)} target="_blank" rel="noopener noreferrer" className="perfil-instagram">@{empresa.instagramUsername} <span aria-hidden="true">↗</span></a>
+              <div className="perfil-localizacao">
+                {publico && temPaginaDeTipo(empresa.categoria)
+                  ? <Link href={hrefTipo(empresa.categoria)}>{empresa.categoria}</Link>
+                  : <span>{empresa.categoria}</span>}
+                <span aria-hidden="true">·</span>
+                {publico
+                  ? <Link href={paginaDaCidade(empresa.cidade, empresa.uf).caminho}>{empresa.cidade}, {empresa.uf}</Link>
+                  : <span>{empresa.cidade}, {empresa.uf}</span>}
+              </div>
+              <p className="perfil-resumo">{empresa.resumo}</p>
+              <div className="perfil-acoes">
+                <a href="#historia" className="botao-claro">Conheça a história <span aria-hidden="true">↓</span></a>
+                {dono ? <Link href={`/painel/${empresa.instagramUsername}`} className="link">Editar meu perfil</Link>
+                  : usuario?.moderador && <Link href={`/moderacao/negocios/${empresa.instagramUsername}`} className="link">Editar perfil (moderação)</Link>}
               </div>
             </div>
+            <div className="perfil-fotografia"><FotoEmpresa empresa={empresa} tamanho="lg" /></div>
           </div>
-          <p className={"cortejo-perfil-resumo"}>{empresa.resumo}</p>
-          <Contatos empresa={empresa} />
-
-          {causas.length > 0 && (
-            <section className={"cortejo-perfil-causas"} aria-label="Causas do negócio">
-              <h2>As causas que abraçam</h2>
-              <div>
-                {causas.map((slug) => publico ? (
-                  <Link key={slug} href={hrefCausa(slug)}><CausaBadge slug={slug} grande /></Link>
-                ) : <CausaBadge key={slug} slug={slug} grande />)}
-              </div>
-            </section>
-          )}
-          {dono ? (
-            <Link href={`/painel/${empresa.instagramUsername}`} className={`botao-claro cortejo-perfil-editar`}>Editar meu perfil</Link>
-          ) : usuario?.moderador ? (
-            <Link href={`/moderacao/negocios/${empresa.instagramUsername}`} className={`botao-claro cortejo-perfil-editar`}>Editar perfil (moderação)</Link>
-          ) : null}
         </div>
       </header>
-
-      <div className={"cortejo-perfil-conteudo"}>
-        <section className={"cortejo-perfil-historia"}>
-          {empresa.historia.trim() ? (
-            <>
-              <h2>Nossa história</h2>
-              <p className={"cortejo-perfil-dadosHistoria"}>
-                <span>{tempoDeLeitura(empresa.historia)} min de leitura</span>
-                <span>Atualizada em <time dateTime={empresa.atualizadoEm.toISOString()}>{formatarData(empresa.atualizadoEm)}</time></span>
-              </p>
-              <Historia markdown={empresa.historia} />
-            </>
-          ) : <SemHistoria empresa={empresa} dono={dono} />}
-        </section>
-        {empresa.status !== "verificada" && !dono && <ChamadaReivindicar username={empresa.instagramUsername} />}
-        <Depoimentos empresa={empresa} usuario={usuario} dono={dono} publico={publico} />
-        {empresa.status === "verificada" && !dono && (
-          <p className={"cortejo-perfil-disputa"}>
-            Este perfil é seu e outra pessoa assumiu?{" "}
-            <Link href={`/empresas/${empresa.instagramUsername}/reivindicar`} className="link">Fale com a moderação</Link>
-          </p>
-        )}
+      <div className="container-editorial">
+        <nav className="perfil-atalhos" aria-label="Seções do negócio">
+          <a href="#historia">História</a>
+          {causas.length > 0 && <a href="#causas">Causas <span>{causas.length}</span></a>}
+          <a href="#depoimentos">Depoimentos <span>{empresa.depoimentos.length}</span></a>
+          <a href="#contatos">Contatos</a>
+        </nav>
+        <div className="perfil-conteudo">
+          <section id="historia" className="perfil-historia" aria-labelledby="titulo-historia">
+            <div className="perfil-titulo-secao">
+              <h2 id="titulo-historia">A história de quem faz.</h2>
+              {empresa.historia.trim() && <p>{tempoDeLeitura(empresa.historia)} min de leitura · atualizada em {formatarData(empresa.atualizadoEm)}</p>}
+            </div>
+            {empresa.historia.trim() ? <Historia markdown={empresa.historia} /> : <SemHistoria empresa={empresa} dono={dono} />}
+          </section>
+          <aside className="perfil-lateral" aria-label="Informações do negócio">
+            <Contatos empresa={empresa} />
+            {causas.length > 0 && <section id="causas" className="perfil-painel" aria-labelledby="titulo-causas">
+              <h2 id="titulo-causas">Causas que fazem parte.</h2>
+              <ul className="perfil-lista-causas">{causas.map(slug => {
+                const causa = buscarCausa(slug)!;
+                return <li key={slug}>{publico
+                  ? <Link href={hrefCausa(slug)}><CausaBadge slug={slug} grande /><span className="perfil-causa-descricao">{causa.descricao}</span></Link>
+                  : <><CausaBadge slug={slug} grande /><span className="perfil-causa-descricao">{causa.descricao}</span></>}
+                </li>;
+              })}</ul>
+              <p className="perfil-nota">Causas declaradas por quem indica ou cuida do negócio. Não representam certificação independente.</p>
+            </section>}
+          </aside>
+        </div>
+        <div className="perfil-comunidade">
+          {empresa.status !== "verificada" && !dono && <ChamadaReivindicar username={empresa.instagramUsername} />}
+          <Depoimentos empresa={empresa} usuario={usuario} dono={dono} publico={publico} />
+          {empresa.status === "verificada" && !dono && <p className="mt-10 text-sm text-suave">Este perfil é seu e outra pessoa assumiu? <Link href={`/empresas/${empresa.instagramUsername}/reivindicar`} className="link">Fale com a moderação</Link></p>}
+        </div>
       </div>
     </article>
   );
 }
 
+
 function Contatos({ empresa }: { empresa: Perfil }) {
   return (
-    <div className={"cortejo-perfil-contatos"}>
-      {empresa.whatsapp ? (
-        <a href={`https://wa.me/${empresa.whatsapp}`} target="_blank" rel="noopener noreferrer" className="botao">
-          WhatsApp {formatarWhatsapp(empresa.whatsapp)}
+    <section id="contatos" className="perfil-painel perfil-contatos" aria-labelledby="titulo-contatos">
+      <h2 id="titulo-contatos">Fale com o negócio.</h2>
+      <p>Consulte horários, serviços e outras informações diretamente com quem cuida do negócio.</p>
+      <div className="perfil-contatos-links">
+      {empresa.whatsapp && (
+        <a href={`https://wa.me/${empresa.whatsapp}`} target="_blank" rel="noopener noreferrer" className="botao botao-pequeno">
+          <span>Conversar pelo WhatsApp<small>{formatarWhatsapp(empresa.whatsapp)}</small></span><span aria-hidden="true">↗</span>
         </a>
-      ) : (
-        <a href={linkPerfil(empresa.instagramUsername)} target="_blank" rel="noopener noreferrer" className="botao">Conhecer no Instagram</a>
       )}
-      {empresa.site && <a href={empresa.site} target="_blank" rel="noopener noreferrer nofollow">{new URL(empresa.site).hostname.replace(/^www\./, "")}</a>}
-      {empresa.emailContato && <a href={`mailto:${empresa.emailContato}`}>{empresa.emailContato}</a>}
-    </div>
+      <a href={linkPerfil(empresa.instagramUsername)} target="_blank" rel="noopener noreferrer" className="botao-claro">
+        <span>Instagram<small>@{empresa.instagramUsername}</small></span><span aria-hidden="true">↗</span>
+      </a>
+      {empresa.site && (
+        <a href={empresa.site} target="_blank" rel="noopener noreferrer nofollow" className="botao-claro botao-pequeno">
+          <span>Visitar site<small>{new URL(empresa.site).hostname.replace(/^www\./, "")}</small></span><span aria-hidden="true">↗</span>
+        </a>
+      )}
+      {empresa.emailContato && (
+        // break-all: um e-mail comprido quebra em vez de passar da largura do celular.
+        <a href={`mailto:${empresa.emailContato}`} className="botao-claro botao-pequeno max-w-full break-all">
+          <span>Enviar e-mail<small>{empresa.emailContato}</small></span><span aria-hidden="true">↗</span>
+        </a>
+      )}
+      </div>
+    </section>
   );
 }
 
@@ -180,9 +184,9 @@ function ChamadaReivindicar({ username }: { username: string }) {
     <aside className={"cortejo-perfil-assumir"}>
       <div>
         <p>Este negócio é seu?</p>
-        <p>Reivindique o perfil para contar a sua história, escolher suas causas e responder à comunidade.</p>
+        <p>Assuma o perfil para contar a sua história, escolher suas causas e responder à comunidade.</p>
       </div>
-      <Link href={`/empresas/${username}/reivindicar`} className="botao-coral">Sou o dono</Link>
+      <Link href={`/empresas/${username}/reivindicar`} className="botao-coral">É meu negócio</Link>
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "../paginas-internas.css";
 import Link from "next/link";
 import { CausaBadge } from "@/components/CausaBadge";
 import { CAUSAS, GRUPOS, type GrupoCausa } from "@/lib/causas";
@@ -14,12 +15,13 @@ export const metadata: Metadata = metadadosDaPagina({
 
 export default function Sobre() {
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-14 sm:px-6">
+    <div className="pagina-sobre-interna">
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Manifesto</p>
       <h1 className="mt-2 font-serif text-5xl leading-tight font-semibold tracking-tight text-balance">
         Escolher onde gastar também é escolher o mundo que a gente quer.
       </h1>
 
+      <nav className="sobre-atalhos" aria-label="Nesta página"><a href="#dono">Responsáveis</a><a href="#privacidade">Privacidade</a><a href="#codigo-aberto">Código aberto</a></nav>
       <div className="historia mt-8">
         <p>
           O Negócio do Bem nasceu para dar visibilidade a quem cuida das pessoas, da comunidade e do planeta. Quando

@@ -6,6 +6,8 @@ import { Cortejo } from "@/components/cortejo/Cortejo";
 import { personagensDoCortejo } from "@/components/cortejo/dados";
 import { JsonLd } from "@/components/JsonLd";
 import { FAIXAS_DE_CAUSAS } from "@/lib/cortejo";
+import { CATEGORIAS } from "@/lib/dominio";
+import { hrefDiretorio, hrefTipo, temPaginaDeTipo } from "@/lib/diretorio";
 import { listarCidades, recentesComFoto, resumoDoDiretorio } from "@/lib/consultas";
 import { DESCRICAO_DO_SITE, jsonLdDoSite, metadadosDaPagina } from "@/lib/seo";
 import { CortejoInicial } from "./inicio/CortejoInicial";
@@ -35,7 +37,7 @@ export default function Inicio() {
           </div>
 
           <div className="inicio-palco">
-            <Suspense fallback={<CortejoInicial />}>
+            <Suspense fallback={<><p className="inicio-total" aria-hidden="true">&nbsp;</p><CortejoInicial /></>}>
               <CortejoComNegocios />
             </Suspense>
           </div>
@@ -52,6 +54,15 @@ export default function Inicio() {
       <Suspense fallback={<NegociosCarregando />}>
         <QuemFazOBem />
       </Suspense>
+
+      <section className="inicio-descoberta" aria-labelledby="titulo-tipos">
+        <h2 id="titulo-tipos">O que você procura?</h2>
+        <p>Encontre seu próximo café, um serviço perto de casa ou um negócio para conhecer.</p>
+        <nav aria-label="Todos os tipos de negócio" className="inicio-tipos">
+          {CATEGORIAS.map(categoria => <Link key={categoria} href={temPaginaDeTipo(categoria) ? hrefTipo(categoria) : hrefDiretorio({ tipos: [categoria] })} rel={temPaginaDeTipo(categoria) ? undefined : "nofollow"}>{categoria}<span aria-hidden="true">↗</span></Link>)}
+        </nav>
+        <Link href="/cidades" className="link">Prefere encontrar pela cidade?</Link>
+      </section>
 
       <section className="inicio-causas" aria-labelledby="titulo-causas">
         <div className="inicio-cabecalhoCausas">
@@ -90,7 +101,7 @@ export default function Inicio() {
           <h2>Seu negócio faz o bem?<br />Tem lugar pra ele aqui.</h2>
           <p>Conte sua história, mostre o que vocês vivem e encontre sua comunidade.</p>
           <Link href="/sobre#dono" className="inicio-botaoConvite">
-            Sou dono de um negócio <Seta />
+            Quero fazer parte <Seta />
           </Link>
         </div>
         <SeloDoConvite />
@@ -100,8 +111,8 @@ export default function Inicio() {
 }
 
 async function CortejoComNegocios() {
-  const { porCategoria } = await resumoDoDiretorio();
-  return <Cortejo personagens={personagensDoCortejo(porCategoria)} tecnicas={TECNICAS} />;
+  const { porCategoria, total } = await resumoDoDiretorio();
+  return <><p className="inicio-total"><Link href="/explorar"><strong>{total.toLocaleString("pt-BR")}</strong> {total === 1 ? "negócio para conhecer" : "negócios para conhecer"}<span aria-hidden="true"> ↗</span></Link></p><Cortejo personagens={personagensDoCortejo(porCategoria)} tecnicas={TECNICAS} /></>;
 }
 
 async function BuscaComCidades() {

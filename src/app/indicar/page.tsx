@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "../paginas-internas.css";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ConfirmarEmail } from "@/components/ConfirmarEmail";
@@ -14,7 +15,7 @@ export const metadata: Metadata = metadadosDaPagina({
 
 export default function Indicar() {
   return (
-    <div className="mx-auto max-w-2xl px-4 pt-14 sm:px-6">
+    <div className="indicacao-interna">
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Indicar</p>
       <h1 className="mt-2 font-serif text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
         Conhece um negócio que faz o bem?
@@ -41,7 +42,7 @@ async function Conteudo() {
         <p className="mx-auto mt-2 max-w-sm text-suave">
           Pedimos uma conta para manter a comunidade segura e saber a quem agradecer.
         </p>
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/entrar?voltar=/indicar" className="botao">
             Entrar
           </Link>

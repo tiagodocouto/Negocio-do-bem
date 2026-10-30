@@ -24,8 +24,8 @@ describe("destinoDaCortina", () => {
     expect(["azul", "rosa", "amarelo", "verde", "terracota"]).toContain(destino?.tinta);
   });
 
-  it("aceita ativação de teclado como um clique primário", () => {
-    expect(destinoDaCortina(clique({ href: "/sobre#dono" }))).not.toBeNull();
+  it("aceita um clique primário entre páginas", () => {
+    expect(destinoDaCortina(clique({ href: "/participar" }))).not.toBeNull();
   });
 
   it.each([
@@ -50,6 +50,8 @@ describe("destinoDaCortina", () => {
     { download: true },
     { prevenido: true },
     { desativado: true },
+    { teclado: true },
+    { pausado: true },
   ])("mantém a navegação nativa para %j", (mudanca) => {
     expect(destinoDaCortina(clique(mudanca))).toBeNull();
   });

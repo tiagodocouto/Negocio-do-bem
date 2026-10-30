@@ -14,6 +14,8 @@ export type CliqueDaCortina = {
   download?: boolean;
   prevenido?: boolean;
   desativado?: boolean;
+  teclado?: boolean;
+  pausado?: boolean;
 };
 export type DestinoCortina = { href: string; caminho: string; tinta: Tinta | "verde-escuro" };
 
@@ -21,7 +23,7 @@ const caminho = (valor: string) => valor.replace(/\/+$/, "") || "/";
 
 /** Só links comuns de página: filtros, arquivos e ações seguem o navegador. */
 export function destinoDaCortina(clique: CliqueDaCortina): DestinoCortina | null {
-  if (clique.prevenido || clique.desativado || clique.download || (clique.botao ?? 0) !== 0 || clique.ctrl || clique.meta || clique.shift || clique.alt) return null;
+  if (clique.teclado || clique.pausado || clique.prevenido || clique.desativado || clique.download || (clique.botao ?? 0) !== 0 || clique.ctrl || clique.meta || clique.shift || clique.alt) return null;
   if (clique.alvo && clique.alvo.toLowerCase() !== "_self") return null;
 
   let atual: URL;

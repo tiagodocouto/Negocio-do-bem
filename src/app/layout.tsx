@@ -2,6 +2,7 @@ import "@fontsource-variable/bricolage-grotesque/standard.css";
 import "@fontsource-variable/figtree";
 import "@fontsource-variable/figtree/wght-italic.css";
 import "./globals.css";
+import "./identidade.css";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import { AlternarTema } from "@/components/AlternarTema";
 import { Logo } from "@/components/Logo";
 import { MenuUsuario } from "@/components/MenuUsuario";
 import { ProtecaoDoMenu } from "@/components/ProtecaoDoMenu";
+import { MenuMobile } from "@/components/MenuMobile";
 import { REPOSITORIO } from "@/lib/dominio";
 import { DESCRICAO_DO_SITE, ENDERECO_DO_SITE, NOME_DO_SITE, TITULO_DO_SITE } from "@/lib/seo";
 import { SCRIPT_TEMA } from "@/lib/tema";
@@ -43,7 +45,7 @@ export const metadata: Metadata = {
 // Cor da barra do navegador no celular: o papel do tema claro ou do escuro.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f0e3" },
+    { media: "(prefers-color-scheme: light)", color: "#f9f3eb" },
     { media: "(prefers-color-scheme: dark)", color: "#17130f" },
   ],
 };
@@ -66,6 +68,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       </head>
       <body className="flex min-h-full flex-col">
+        <a href="#conteudo" className="pular-conteudo" data-sem-cortina>Pular para o conteúdo</a>
         {/* Primeiro no <body>: o script da abertura roda antes da primeira pintura. Só age em "/". */}
         <Abertura />
         <Suspense fallback={null}><CortinaDePagina /></Suspense>
@@ -75,11 +78,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link
               href="/"
               className="shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta"
-              aria-label="Negócio do Bem — início"
+              aria-label="Negócio do Bem - início"
             >
               <Logo />
             </Link>
-            <nav aria-label="Principal" className="flex items-center gap-0.5 text-sm font-semibold sm:gap-1.5 sm:text-[15px]">
+            <nav aria-label="Principal" className="hidden items-center gap-0.5 text-sm font-semibold sm:flex sm:gap-1.5 sm:text-[15px]">
               <Link href="/explorar" className={`hidden sm:block ${LINK_DO_TOPO}`}>
                 Explorar
               </Link>
@@ -96,10 +99,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </ProtecaoDoMenu>
               </Suspense>
             </nav>
+            <div className="flex items-center gap-2 sm:hidden">
+              <Link href="/explorar" className="atalho-busca-mobile">Explorar</Link>
+              <MenuMobile><Suspense fallback={<span role="status">Carregando conta…</span>}><ProtecaoDoMenu><MenuUsuario modo="painel" /></ProtecaoDoMenu></Suspense></MenuMobile>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main id="conteudo" tabIndex={-1} className="flex-1">{children}</main>
 
         <footer className="mt-24 bg-verde-escuro text-sobre-verde-escuro">
           <div className="mx-auto max-w-6xl px-4 pt-14 pb-10 sm:px-6 sm:pt-20">
@@ -130,7 +137,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </nav>
               <nav aria-label="Para negócios" className="space-y-2.5">
                 <p className="font-display text-xl font-bold uppercase">Para negócios</p>
-                <Link href="/sobre#dono" className={`block w-fit ${LINK_DO_RODAPE}`}>Reivindicar meu perfil</Link>
+                <Link href="/sobre#dono" className={`block w-fit ${LINK_DO_RODAPE}`}>Tenho um negócio</Link>
                 <Link href="/sobre#privacidade" className={`block w-fit ${LINK_DO_RODAPE}`}>Privacidade e remoção</Link>
               </nav>
             </div>

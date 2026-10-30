@@ -1,0 +1,39 @@
+.pagina-sobre-interna, .indicacao-interna, .pagina-cidades { width: min(100% - 2rem, 76rem); margin-inline: auto; padding-block: 3rem; }
+.pagina-sobre-interna { max-width: 58rem; }
+.pagina-sobre-interna > h1 { max-width: 24ch; font-family: var(--font-display); font-size: clamp(2.25rem, 5vw, 4rem); line-height: 1.1; }
+.pagina-sobre-interna .historia { max-width: 65ch; font-size: 1.125rem; line-height: 1.8; }
+.pagina-sobre-interna :target, .indicacao-interna :target, .pagina-cidades :target { scroll-margin-top: 6rem; }
+.sobre-atalhos { display: flex; flex-wrap: wrap; gap: .75rem; margin-block: 2rem; }
+.sobre-atalhos a { display: inline-flex; align-items: center; min-height: 44px; padding: .6rem 1rem; border: 1px solid var(--color-borda-controle); border-radius: 2rem; font-size: .875rem; font-weight: 600; }
+.sobre-atalhos a:focus-visible { outline: 3px solid var(--color-tinta); outline-offset: 3px; }
+.indicacao-interna > h1 { max-width: 24ch; font-family: var(--font-display); font-size: clamp(2.25rem, 4vw, 3.5rem); }
+.indicacao-interna > p { max-width: 65ch; }
+.indicacao-layout { display: grid; grid-template-columns: minmax(0, .55fr) minmax(0, 1fr); align-items: start; gap: clamp(2rem, 5vw, 5rem); }
+.indicacao-orientacao { position: sticky; top: 6rem; padding: 2rem; border: 1px solid var(--color-linha); border-radius: 1.5rem; background: var(--color-superficie); }
+.indicacao-orientacao h2 { font-family: var(--font-display); font-size: 2rem; line-height: 1.15; }
+.indicacao-orientacao p { margin-block: 1.25rem; line-height: 1.75; color: var(--color-suave); }
+.indicacao-formulario { min-width: 0; }
+.indicacao-formulario .campo { min-height: 48px; font-size: 1rem; }
+.cabecalho-publico { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem; margin-block: 2rem; }
+.cabecalho-publico h1 { max-width: 25ch; font-family: var(--font-display); font-size: clamp(2.25rem, 5vw, 3.75rem); line-height: 1.12; }
+.cabecalho-publico p { max-width: 60ch; color: var(--color-suave); line-height: 1.7; margin-top: 1rem; }
+.cabecalho-publico-acoes { display: flex; flex-wrap: wrap; gap: .75rem; }
+@media (max-width: 63.99rem) { .indicacao-layout { grid-template-columns: minmax(0, 1fr); } .indicacao-orientacao { position: static; } }
+@media (max-width: 39.99rem) { .pagina-sobre-interna, .indicacao-interna, .pagina-cidades { padding-block: 2rem; } }
+
+.cidades-busca { margin-block: .5rem 2rem; }
+.cidades-orientacao { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .75rem 1.5rem; padding-block-end: 1rem; font-size: .875rem; color: var(--color-suave); }
+.cidades-orientacao strong { color: var(--color-tinta); font-variant-numeric: tabular-nums; }
+.cidades-estados { display: flex; flex-wrap: wrap; gap: .75rem; margin-block-end: 2rem; }
+.cidades-estados > a { display: inline-flex; align-items: center; gap: .75rem; min-height: 2.75rem; padding: .625rem 1rem; border: 1px solid var(--color-linha); background: var(--color-superficie); border-radius: 3rem; font-size: .875rem; font-weight: 500; }
+.cidades-estados > a > span { color: var(--color-suave); font-size: .75rem; }
+.cidades-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 1.25rem; }
+.cidade-estado { min-width: 0; padding: 1.5rem; border-radius: 1.5rem; }
+.cidade-estado > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-block-end: 1rem; padding-block-end: 1rem; border-block-end: 1px solid var(--color-linha); }
+.cidade-estado h2 { font: 500 1.625rem/1.3 var(--font-serif); }
+.cidade-estado > header > span { font-size: .8125rem; color: var(--color-folha); font-weight: 600; }
+.cidade-destino { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; min-height: 3rem; padding: .75rem .5rem; border-radius: .625rem; }
+.cidade-destino > span:first-child { min-width: 0; }
+
+@media(max-width:63.99rem){.cidades-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:39.99rem){.cidades-grade{grid-template-columns:minmax(0,1fr)}}

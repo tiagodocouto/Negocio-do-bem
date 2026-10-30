@@ -1,0 +1,68 @@
+.perfil-detalhado .perfil-cabecalho { padding-block: 1.75rem 3rem; background: var(--color-folha-50); }
+.perfil-voltar { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--color-coral-700); font-size: .875rem; font-weight: 500; }
+.perfil-avisos { display: grid; gap: .75rem; }
+.perfil-avisos:has(> *) { margin-block: 1rem; }
+.perfil-apresentacao { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; gap: clamp(2rem, 5vw, 5rem); padding-block-start: 1.5rem; }
+.perfil-identidade { min-width: 0; }
+.perfil-identidade h1 { margin-block: 1.25rem .75rem; font-family: var(--font-display); letter-spacing: -.02em; }
+.perfil-instagram { display: inline-flex; align-items: baseline; gap: .5rem; max-width: 100%; color: var(--color-coral-700); font-weight: 500; overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: .25em; }
+.perfil-localizacao { display: flex; flex-wrap: wrap; gap: .375rem .75rem; margin-block-start: 1rem; font-size: .9375rem; line-height: 1.5; color: var(--color-suave); }
+.perfil-localizacao a { text-decoration: underline; text-underline-offset: .2em; }
+.perfil-resumo { max-width: 50ch; margin-block-start: 1.5rem; font: 400 clamp(1.25rem, 2vw, 1.625rem)/1.5 var(--font-sans); }
+.perfil-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-block-start: 1.75rem; }
+.perfil-fotografia { display: grid; place-items: center; min-width: 0; aspect-ratio: 1.15; overflow: hidden; background: var(--color-superficie); border-radius: 1.75rem; }
+.perfil-fotografia > img { width: 100%; height: 100%; border-radius: 0; object-fit: cover; --tw-ring-shadow: 0 0 #0000; }
+.perfil-fotografia > span { width: 8rem; height: 8rem; font-size: 3rem; }
+.perfil-atalhos { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; padding-block: 1.25rem; border-bottom: 1px solid var(--color-linha); }
+.perfil-atalhos > a { display: inline-flex; align-items: center; gap: .5rem; min-height: 2.75rem; font-size: .875rem; font-weight: 500; text-decoration: underline; text-underline-offset: .3em; }
+.perfil-atalhos > a > span { font-size: .75rem; font-variant-numeric: tabular-nums; color: var(--color-suave); }
+.perfil-conteudo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, .5fr); align-items: start; gap: clamp(2rem, 5vw, 5rem); padding-block: 3rem; }
+.perfil-historia, .perfil-lateral { min-width: 0; }
+.perfil-historia .historia { max-width: 65ch; }
+.perfil-historia .historia img { height: auto; }
+.perfil-titulo-secao { margin-block-end: 2rem; }
+.perfil-titulo-secao h2, .perfil-comunidade > section > h2 { font: 500 clamp(1.75rem, 3vw, 2.75rem)/1.2 var(--font-display); letter-spacing: -.02em; }
+.perfil-titulo-secao > p { margin-block-start: .75rem; font-size: .8125rem; line-height: 1.6; color: var(--color-suave); }
+.perfil-lateral { display: grid; gap: 1.5rem; }
+.perfil-painel { padding: clamp(1.25rem, 2.5vw, 2rem); border: 1px solid var(--color-linha); border-radius: 1.5rem; background: var(--color-superficie); }
+.perfil-painel h2 { font: 500 1.5rem/1.3 var(--font-display); }
+.perfil-contatos > p { color: var(--color-suave); margin-block-start: .75rem; font-size: .875rem; line-height: 1.6; }
+.perfil-contatos-links { display: grid; gap: .75rem; margin-block-start: 1.5rem; }
+.perfil-contatos-links > a { justify-content: space-between; text-align: start; min-height: 3.5rem; max-width: 100%; padding: .875rem 1rem; border-radius: 1rem; }
+.perfil-contatos-links > a > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.perfil-contatos-links small { display: block; margin-block-start: .25rem; font-size: .8125rem; font-weight: 400; line-height: 1.4; }
+.perfil-lista-causas { display: grid; gap: 1.25rem; margin-block-start: 1.5rem; }
+.perfil-lista-causas a { display: block; }
+.perfil-lista-causas a:hover .perfil-causa-descricao { color: var(--color-coral-700); }
+.perfil-lista-causas .inline-flex { max-width: 100%; white-space: normal; }
+.perfil-causa-descricao { display: block; margin-block-start: .5rem; color: var(--color-suave); font-size: .875rem; line-height: 1.6; }
+.perfil-nota { font-size: .8125rem; line-height: 1.6; color: var(--color-suave); margin-block-start: 1.5rem; }
+.perfil-comunidade { max-width: 65rem; margin-inline: auto; padding-block: 0 2rem; }
+.perfil-comunidade blockquote, .perfil-comunidade figcaption { overflow-wrap: anywhere; }
+.perfil-comunidade section > .mt-8.space-y-4 { max-width: 52rem; }
+.perfil-denuncia { display: grid; gap: .75rem; max-width: 100%; }
+.perfil-denuncia button { justify-self: start; min-height: 2.75rem; }
+.perfil-denuncia .campo { font-size: 1rem; }
+.perfil-editorial { --tipo-display: clamp(2.5rem, 5vw, 4.5rem); --texto-negocio: var(--color-verde-texto); font-family: var(--font-sans); }
+.perfil-editorial .container-editorial { width: min(100% - 2rem, 76rem); margin-inline: auto; }
+.perfil-editorial h1 { font-size: var(--tipo-display); line-height: 1.1; font-weight: 750; max-width: 25ch; overflow-wrap: anywhere; }
+.perfil-editorial h2 { font-family: var(--font-display); font-size: 1.8rem; line-height: 1.25; font-weight: 500; letter-spacing: -.015em; }
+.perfil-editorial > header { border-radius: 0 0 2rem 2rem; }
+.perfil-editorial :target { scroll-margin-block-start: 6rem; }
+.perfil-editorial :is(a, button, summary):focus-visible { outline: 3px solid var(--color-tinta); outline-offset: 4px; }
+.perfil-editorial .cortejo-perfil-listaDepoimentos { display: grid; gap: 1rem; }
+.perfil-editorial .cortejo-perfil-depoimento { padding: clamp(1.25rem, 3vw, 2rem); border: 1px solid var(--color-linha); border-radius: 1.5rem; background: var(--color-superficie); }
+.perfil-editorial .cortejo-perfil-resposta { background: var(--color-papel); border-radius: 1rem; }
+.perfil-editorial .cortejo-perfil-formularioDepoimento > form { border-radius: 1.5rem; }
+.perfil-editorial .cortejo-perfil-assumir { padding: 1.5rem; border: 1px dashed var(--color-borda-controle); border-radius: 1.5rem; margin-bottom: 2rem; background: var(--color-superficie); }
+.perfil-editorial .cortejo-perfil-denuncia summary { display: flex; align-items: center; min-height: 44px; }
+.perfil-editorial .cortejo-perfil-denuncia .campo { font-size: 1rem; }
+@media (width < 64rem) { .perfil-editorial .perfil-conteudo { grid-template-columns: minmax(0, 1fr) minmax(16rem, .65fr); gap: 2rem; } }
+@media (width < 48rem) {
+  .perfil-editorial .perfil-apresentacao, .perfil-editorial .perfil-conteudo { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+  .perfil-editorial .perfil-fotografia { aspect-ratio: 1.5; max-height: 22rem; }
+  .perfil-editorial .perfil-cabecalho { padding-block: 1rem 2rem; }
+  .perfil-editorial .perfil-apresentacao { padding-block-start: 1rem; }
+  .perfil-editorial .perfil-atalhos { gap: .25rem 1rem; }
+  .perfil-editorial .perfil-conteudo { padding-block: 2rem; }
+}

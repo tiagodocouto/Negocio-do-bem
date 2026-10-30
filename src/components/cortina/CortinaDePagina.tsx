@@ -57,6 +57,8 @@ export function CortinaDePagina() {
         download: alvo.hasAttribute("download"),
         prevenido: evento.defaultPrevented,
         desativado: alvo.hasAttribute("data-sem-cortina") || alvo.getAttribute("aria-disabled") === "true",
+        teclado: evento.detail === 0,
+        pausado: document.documentElement.dataset.movimento === "pausado",
       });
       if (!destino) return;
       evento.preventDefault();
@@ -78,11 +80,13 @@ export function CortinaDePagina() {
     document.addEventListener("click", clicar, true);
     document.addEventListener("keydown", tecla);
     window.addEventListener("popstate", liberar);
+    window.addEventListener("pageshow", liberar);
     movimento.addEventListener("change", preferencia);
     return () => {
       document.removeEventListener("click", clicar, true);
       document.removeEventListener("keydown", tecla);
       window.removeEventListener("popstate", liberar);
+      window.removeEventListener("pageshow", liberar);
       movimento.removeEventListener("change", preferencia);
       clearTimeout(seguranca.current);
       pendente.current = null;
