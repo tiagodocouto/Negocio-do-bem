@@ -5,6 +5,7 @@ import { z } from "zod";
 import { apagarFoto, conferirFoto, guardarFoto } from "@/lib/armazenamento";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { caminhoSeguro, exigirUsuario } from "@/lib/auth/sessao";
+import { AVISOS } from "@/lib/avisos";
 import { filtrarCausas } from "@/lib/causas";
 import { db } from "@/lib/db";
 import { CATEGORIAS } from "@/lib/dominio";
@@ -22,6 +23,10 @@ import { normalizarUsername } from "@/lib/instagram";
 import { textoDeBusca } from "@/lib/texto";
 
 const LIMITE_INDICACOES_POR_DIA = 10;
+
+function violouUnicidade(erro: unknown): boolean {
+  return typeof erro === "object" && erro !== null && "code" in erro && erro.code === "P2002";
+}
 
 const camposComuns = {
   nome: z.string().trim().min(2, "Qual é o nome do negócio?").max(80, "Nome muito longo."),
@@ -62,6 +67,7 @@ const esquemaIndicacao = z.object({
 export async function indicarEmpresa(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
   const usuario = await exigirUsuario("/indicar");
   const valores = valoresDoFormulario(dados, ["causas"]);
+  if (!usuario.emailConfirmado) return { erro: AVISOS.confirmar_email.texto, valores };
 
   const resultado = esquemaIndicacao.safeParse({
     instagram: texto(dados, "instagram"),
@@ -76,40 +82,60 @@ export async function indicarEmpresa(_estado: EstadoFormulario, dados: FormData)
   const { instagram, motivo, ...campos } = comCidade(resultado.data);
   const souDono = dados.get("souDono") === "sim";
 
-  const existente = await db.empresa.findUnique({ where: { instagramUsername: instagram } });
-  if (existente) {
-    return {
-      erros: { instagram: `@${instagram} já está no Negócio do Bem.` },
-      existente: instagram,
-      valores,
-    };
-  }
+  const jaExiste: EstadoFormulario = {
+    erros: { instagram: `@${instagram} já está no Negócio do Bem.` },
+    existente: instagram,
+    valores,
+  };
 
-  const recentes = await db.empresa.count({
-    where: { indicadaPorId: usuario.id, criadoEm: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-  });
-  if (recentes >= LIMITE_INDICACOES_POR_DIA) {
+  const existente = await db.empresa.findUnique({ where: { instagramUsername: instagram } });
+  if (existente) return jaExiste;
+
+  // A cota é conferida na mesma transação que cria o negócio. Antes de contar,
+  // a linha da pessoa fica travada: envios simultâneos dela esperam a vez e
+  // cada um enxerga o que o anterior publicou.
+  const empresaDuplicada = new Error("O negócio já existe.");
+  let empresa;
+  try {
+    empresa = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Usuario" WHERE id = ${usuario.id} FOR NO KEY UPDATE`;
+      const recentes = await tx.empresa.count({
+        where: { indicadaPorId: usuario.id, criadoEm: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      });
+      if (recentes >= LIMITE_INDICACOES_POR_DIA) return null;
+
+      const criada = await tx.empresa.create({
+        data: {
+          ...campos,
+          instagramUsername: instagram,
+          motivoIndicacao: souDono ? null : motivo || null,
+          indicadaPorId: usuario.id,
+          // Toda indicação entra publicada. A moderação tira do ar o que for impróprio.
+          moderacao: "aprovada",
+          busca: textoDeBusca({ ...campos, instagramUsername: instagram }),
+          causas: { create: filtrarCausas(dados.getAll("causas").map(String)).map((causa) => ({ causa })) },
+        },
+      }).catch((erro: unknown) => {
+        // Só a criação do negócio pode indicar um @ duplicado.
+        if (violouUnicidade(erro)) throw empresaDuplicada;
+        throw erro;
+      });
+      await registrarAuditoria(tx, {
+        usuarioId: usuario.id,
+        acao: "empresa.indicada",
+        alvoTipo: "empresa",
+        alvoId: criada.id,
+      });
+      return criada;
+    });
+  } catch (erro) {
+    // Outra pessoa indicou o mesmo @ entre a conferência acima e a criação.
+    if (erro === empresaDuplicada) return jaExiste;
+    throw erro;
+  }
+  if (!empresa) {
     return { erro: "Você já fez muitas indicações hoje. Obrigado pela energia! Tente de novo amanhã.", valores };
   }
-
-  const empresa = await db.empresa.create({
-    data: {
-      ...campos,
-      instagramUsername: instagram,
-      motivoIndicacao: souDono ? null : motivo || null,
-      indicadaPorId: usuario.id,
-      // Toda indicação entra publicada. A moderação tira do ar o que for impróprio.
-      moderacao: "aprovada",
-      busca: textoDeBusca({ ...campos, instagramUsername: instagram }),
-      causas: { create: filtrarCausas(dados.getAll("causas").map(String)).map((causa) => ({ causa })) },
-    },
-  });
-  await registrarAuditoria(db, {
-    usuarioId: usuario.id,
-    acao: "empresa.indicada",
-    alvoTipo: "empresa",
-    alvoId: empresa.id,
-  });
 
   redirect(souDono ? `/empresas/${instagram}/reivindicar` : `/empresas/${instagram}?aviso=indicada`);
 }

@@ -19,9 +19,13 @@ model Usuario {
   senhaHash String
   // "membro" | "moderador"
   papel     String   @default("membro")
+  // Quando a pessoa abriu um link mandado para o e-mail dela. Sem isso a conta entra,
+  // mas não indica, não escreve nem denuncia depoimentos e não reivindica negócios.
+  emailConfirmadoEm DateTime?
   criadoEm  DateTime @default(now())
 
   sessoes             Sessao[]
+  links               LinkEmail[]
   indicacoes          Empresa[]        @relation("IndicadaPor")
   depoimentos         Depoimento[]     @relation("AutorDepoimento")
   denuncias           Depoimento[]     @relation("DenunciadoPor")
@@ -40,6 +44,34 @@ model Sessao {
   criadoEm  DateTime @default(now())
 
   @@index([usuarioId])
+}
+
+model TentativaAcesso {
+  chave            String   @id
+  contagem         Int
+  janelaIniciadaEm DateTime
+
+  @@index([janelaIniciadaEm])
+}
+
+// Link mandado por e-mail para confirmar o endereço ou entrar sem senha (src/lib/auth/links.ts).
+model LinkEmail {
+  // sha256 do token que vai no link, como na Sessao
+  id         String    @id
+  usuarioId  String
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  // "confirmar" | "entrar"
+  finalidade String
+  // Endereço para onde o link foi: ele só vale enquanto a conta tiver este e-mail.
+  email      String
+  // Caminho interno aonde a pessoa vai depois de usar o link.
+  destino    String    @default("/")
+  expiraEm   DateTime
+  // Cada link vale uma vez só.
+  usadoEm    DateTime?
+  criadoEm   DateTime  @default(now())
+
+  @@index([usuarioId, criadoEm])
 }
 
 model Empresa {

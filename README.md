@@ -3,12 +3,13 @@
 Um diretório de negócios com consciência social e conexão com a comunidade. As pessoas encontram negócios que compartilham dos seus valores, indicam quem admiram e deixam depoimentos. Os donos assumem o perfil do negócio e contam a própria história.
 
 - **Diretório** com busca (sem diferenciar acentos) e filtros por causa e estado.
+- **Páginas por cidade, causa e tipo de negócio** (`/cidades/salvador-ba`, `/causas/opcoes-veganas`, `/tipos/cafe-e-padaria`), feitas para a busca do Google.
 - **Perfis** com foto, botões de contato (WhatsApp, site e e-mail), a história do negócio no estilo Substack (Markdown, tipografia serifada, fotos com legenda), badges de causas e depoimentos.
 - **Causas** como Pet friendly, Antirracista, Escala 5x2, Escala 4x3 e outras (lista em `src/lib/causas.ts`).
 - **Indicação** pela comunidade, publicada na hora. A moderação tira do ar o que for impróprio.
 - **Reivindicação de propriedade** pelo dono, explicada abaixo.
 - **Painel do dono** para editar o perfil, responder depoimentos e ocultar o negócio.
-- **Moderação** com fila de disputas de reivindicação e de denúncias, botão para tirar um negócio do ar, edição de qualquer perfil (foto, contatos, textos e causas) e registro de auditoria.
+- **Moderação** com um painel próprio: os números do projeto, a atividade das últimas semanas e a saúde dos dados; filas de disputas de reivindicação e de denúncias; todos os negócios, contas e depoimentos, com a ficha de cada conta; botão para tirar um negócio do ar; edição de qualquer perfil (foto, contatos, textos e causas); e o registro de auditoria, com filtros.
 
 Vai colaborar? Comece por estes dois guias:
 
@@ -34,7 +35,7 @@ As imagens usam os dados de exemplo do seed.
 
 ## Stack
 
-Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, Prisma 7 + PostgreSQL, Zod e Vitest. A autenticação é por e-mail e senha (scrypt), com sessão em cookie `httpOnly`. O cookie guarda o token e o banco guarda só o hash dele.
+Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, Prisma 7 + PostgreSQL, Zod e Vitest. A autenticação é por e-mail e senha (scrypt) ou por link mandado ao e-mail, com sessão em cookie `httpOnly`. O cookie guarda o token e o banco guarda só o hash dele.
 
 ## Rodando localmente
 
@@ -49,13 +50,17 @@ npm run db:seed               # dados de exemplo (opcional)
 npm run dev                   # http://localhost:3000
 ```
 
-O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-123`:
+Sem proxy declarado, o login e o cadastro dividem 10 tentativas a cada 15 minutos no `npm run dev`. Para zerar, apague as linhas da tabela `TentativaAcesso`.
+
+O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-123` e o e-mail já confirmado:
 
 | E-mail | Papel |
 | --- | --- |
 | `moderacao@exemplo.com` | moderação |
 | `ana@exemplo.com`, `joao@exemplo.com`, `bia@exemplo.com` | donos de negócios de exemplo |
 | `carla@exemplo.com` | enviou os dados do Café Arco-Íris e espera a moderação |
+
+A confirmação de e-mail está desligada por enquanto (`CONFIRMACAO_DE_EMAIL_LIGADA` em `src/lib/auth/links.ts`): uma conta criada no site já indica, escreve depoimentos e reivindica. Ligada, a conta precisa confirmar o e-mail para isso. Sem o envio de e-mail configurado, o link de confirmação (e o de "Entrar por link") aparece no terminal do `npm run dev`.
 
 Para a sua própria conta virar moderação, cadastre-se no site e rode `npm run moderacao -- dar seu@email.com`. O `npm run moderacao -- listar` mostra quem é moderação.
 
@@ -140,6 +145,19 @@ Um script no seu computador preenche, todo dia, a foto de perfil dos negócios q
 
 Contas pessoais ou privadas não aparecem na API. Para esses negócios, salve a foto em `fotos-manuais/<@>.jpg` (ou `.png`, `.webp`): ela tem prioridade sobre a da API.
 
+## Ativando os avisos por e-mail (opcional)
+
+O site manda por e-mail o link para confirmar o e-mail e o link para entrar sem senha. Também avisa quem pediu uma reivindicação quando a moderação decide, a moderação quando chega um pedido ou uma denúncia na fila, e os donos quando chega um depoimento. O envio é pelo [Resend](https://resend.com). As regras estão na [seção 14 das regras de negócio](docs/regras-de-negocio.md#14-avisos-por-e-mail).
+
+1. Crie uma conta no Resend e adicione o domínio do site em **Domains**. Crie no DNS do domínio os registros que ele mostrar: o DKIM em `resend._domainkey` e, no subdomínio `send`, um MX e um SPF. Eles não mexem no MX nem no SPF da caixa de e-mail do domínio.
+2. Quando o domínio aparecer como verificado, crie uma chave em **API Keys**, com permissão só de envio (**Sending access**).
+3. No Vercel, só em **Production**, configure `RESEND_API_KEY` com a chave e `EMAIL_REMETENTE` com o remetente, como `Negócio do Bem <avisos@negociodobem.com>`. Opcional: `EMAIL_RESPOSTA`, para onde vão as respostas, como `ola@negociodobem.com`.
+4. Faça um redeploy. A aba "Sistema" da moderação mostra se os avisos estão ligados.
+
+Nos previews o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. Lá, os links de confirmar e de entrar aparecem no log da função no Vercel.
+
+Com a confirmação de e-mail ligada e sem o envio ligado em produção, ninguém consegue confirmar o e-mail, e as contas novas não indicam, não escrevem depoimentos e não reivindicam. Por isso, e pelo limite de 100 e-mails por dia do plano grátis do Resend, a confirmação está desligada por enquanto.
+
 ## Testes e verificações
 
 ```bash
@@ -164,6 +182,7 @@ Funciona em qualquer hospedagem de Next.js com um PostgreSQL gerenciado.
    - O site não precisa da `BLOB_READ_WRITE_TOKEN`. Se o painel recomendar revogar o token (na página **Projects** do Blob), faça um redeploy e revogue.
 5. Crie um **segundo Blob** público, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca grava nem apaga as fotos de produção.
 6. Opcional: em **Environment Variables**, só para **Production**, configure `NEXT_PUBLIC_GA_ID` com o ID de medição do Google Analytics (`G-…`). Sem ela, o Analytics não carrega.
+   - Para o Google Search Console e o Bing Webmaster Tools, configure também `GOOGLE_SITE_VERIFICATION` e `BING_SITE_VERIFICATION`, e depois envie o `sitemap.xml` nos dois painéis. O passo a passo está em [Como o projeto foi feito](docs/como-foi-feito.md#cadastrar-o-site-no-google-e-no-bing).
 7. A cada deploy, de produção ou de preview, o `scripts/vercel-build.sh` aplica as migrações pendentes no banco daquele ambiente antes do build. Nos previews, ele também roda o seed, que só preenche um banco vazio.
 8. Depois do primeiro deploy, cadastre a sua conta no site e dê a moderação a ela com a conexão direta do banco de produção: `DATABASE_URL="postgresql://..." npm run moderacao -- dar voce@exemplo.com`.
 
@@ -172,18 +191,20 @@ Funciona em qualquer hospedagem de Next.js com um PostgreSQL gerenciado.
 1. Configure as variáveis de `.env.example` no painel da hospedagem. `APP_URL` precisa ser o domínio público. Para as fotos, use a `BLOB_READ_WRITE_TOKEN` de um Vercel Blob: fora do Vercel não há OIDC.
 2. Aplique as migrações no banco de produção com `npm run db:deploy`. Faça isso a cada mudança no `prisma/schema.prisma`.
 3. O `npm install` gera o cliente do Prisma, e o `npm run build` faz o resto.
-4. Cadastre a sua conta no site e dê a moderação a ela: `DATABASE_URL="<conexão de produção>" npm run moderacao -- dar voce@exemplo.com`.
+4. Diga ao site de onde vem o IP de cada visitante, que o limite de tentativas de login e cadastro usa. Sem isso, o site ignora os cabeçalhos de IP, porque qualquer visitante pode escrevê-los, e todos os visitantes dividem um limite só (10 tentativas a cada 15 minutos). Se há um proxy ou balanceador seu na frente do site, que escreve o `x-forwarded-for` e é o único caminho até o site, defina `AUTENTICACAO_PROXY_CONFIAVEL=1`. O site usa o último valor do `x-forwarded-for`, o que o proxy acrescentou. Se o proxy não é o único caminho, ou se não escreve esse cabeçalho, deixe a variável vazia.
+5. Cadastre a sua conta no site e dê a moderação a ela: `DATABASE_URL="<conexão de produção>" npm run moderacao -- dar voce@exemplo.com`.
 
 Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production` ou, no Vercel, quando `VERCEL_ENV=production`.
 
 ## Estrutura
 
 ```
+assets/fontes/       fontes das imagens de compartilhamento (licença OFL)
 docs/                regras de negócio, como o projeto foi feito e prints
 prisma/              esquema, migrações e dados de exemplo
 src/acoes/           Server Actions (formulários), sempre conferindo permissão no servidor
-scripts/             build do Vercel e a rotina de fotos do Instagram (roda no seu computador)
-src/app/             páginas e rotas (api/instagram, api/webhooks/instagram e api/fotos-instagram)
+scripts/             build do Vercel, ícones da marca e a rotina de fotos do Instagram (roda no seu computador)
+src/app/             páginas e rotas (api/link, api/instagram, api/webhooks/instagram e api/fotos-instagram)
 src/components/      componentes de interface
 src/lib/             regras de negócio: reivindicacao.ts, instagram.ts, auth/, causas.ts, cnpj.ts…
 tests/               testes (unit/ sem banco, db/ com banco)
@@ -192,9 +213,7 @@ tests/               testes (unit/ sem banco, db/ com banco)
 ## Próximos passos sugeridos
 
 - Uma verificação de verdade para o dono: hoje quem pede um negócio sem dono vira dono na hora, sem conferência. Um caminho é comparar o nome de quem pede com os sócios que a Receita devolve para o CNPJ.
-- Recuperação de senha e confirmação de e-mail (precisa de um serviço de envio de e-mail).
-- Limite de tentativas de login por IP.
-- Avisar o dono por e-mail quando a reivindicação for decidida ou quando chegar um depoimento.
+- Trocar a senha pelo painel, para completar a recuperação de senha: o "Entrar por link" já devolve o acesso a quem esqueceu.
 - Renovação automática do token do Instagram usado pelo webhook.
 
 ## Como contribuir

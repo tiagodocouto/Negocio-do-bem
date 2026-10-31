@@ -11,7 +11,7 @@ import { ehFotoDoSite, TAMANHO_MAXIMO_FOTO, type TipoDeFoto } from "@/lib/fotos"
 // as fotos ficam em public/enviados, que o Next serve direto.
 const PASTA_LOCAL = path.join(process.cwd(), "public", "enviados");
 
-const usaBlob = () => Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
+export const usaBlob = () => Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
 
 const EXTENSOES: Record<TipoDeFoto, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 

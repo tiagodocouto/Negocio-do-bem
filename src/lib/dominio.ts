@@ -54,5 +54,38 @@ export const MODERACAO_EMPRESA: Record<string, string> = {
   rejeitada: "Não publicada",
 };
 
+export const PAPEIS: Record<string, string> = {
+  membro: "Membro",
+  moderador: "Moderação",
+};
+
+export const STATUS_DEPOIMENTO: Record<string, string> = {
+  publicado: "Publicado",
+  removido: "Removido",
+};
+
+/** O que cada ação da auditoria quer dizer, para a moderação ler sem decorar os códigos. */
+export const ACOES_AUDITORIA: Record<string, string> = {
+  "empresa.indicada": "Indicou um negócio",
+  "empresa.aprovada": "Publicou um negócio",
+  "empresa.rejeitada": "Tirou um negócio do ar",
+  "empresa.editada": "Editou o próprio negócio",
+  "empresa.editada_pela_moderacao": "Editou um negócio pela moderação",
+  "empresa.foto_trocada": "Trocou a foto do próprio negócio",
+  "empresa.foto_trocada_pela_moderacao": "Trocou a foto pela moderação",
+  "empresa.foto_removida": "Removeu a foto do próprio negócio",
+  "empresa.foto_removida_pela_moderacao": "Removeu a foto pela moderação",
+  "empresa.foto_do_instagram": "Colocou a foto do Instagram",
+  "empresa.ocultada": "Tirou o próprio negócio do diretório",
+  "empresa.reexibida": "Devolveu o próprio negócio ao diretório",
+  "reivindicacao.aprovada": "Aprovou um pedido de reivindicação",
+  "reivindicacao.aprovada_com_transferencia": "Aprovou um pedido e transferiu o negócio",
+  "reivindicacao.recusada": "Recusou um pedido de reivindicação",
+  "depoimento.mantido": "Manteve um depoimento denunciado",
+  "depoimento.removido": "Removeu um depoimento denunciado",
+  "usuario.moderacao_dada": "Deu a moderação a uma conta",
+  "usuario.moderacao_tirada": "Tirou a moderação de uma conta",
+};
+
 /** Onde fica o código aberto do projeto. */
 export const REPOSITORIO = "https://github.com/fabsreis/Negocio-do-bem";

@@ -53,7 +53,7 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
         <Campo id="resumo" rotulo="Em uma frase" erro={erros.resumo} ajuda="Aparece nos cards do diretório. Até 160 caracteres.">
           <input id="resumo" name="resumo" required maxLength={160} defaultValue={valor("resumo")} className="campo" />
         </Campo>
-        <div className="grid items-start gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <Campo id="categoria" rotulo="Categoria" erro={erros.categoria}>
             <select id="categoria" name="categoria" defaultValue={valor("categoria")} className="campo">
               {CATEGORIAS.map((c) => (
@@ -76,7 +76,7 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
         <Campo id="site" rotulo="Site" erro={erros.site}>
           <input id="site" name="site" maxLength={200} placeholder="www.meunegocio.com.br" defaultValue={valor("site")} className="campo" />
         </Campo>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo id="whatsapp" rotulo="WhatsApp" erro={erros.whatsapp}>
             <input id="whatsapp" name="whatsapp" type="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={valor("whatsapp")} className="campo" />
           </Campo>

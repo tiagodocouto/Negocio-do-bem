@@ -56,7 +56,7 @@ export function FormIndicar() {
         <input id="nome" name="nome" required maxLength={80} defaultValue={valor("nome")} className="campo" />
       </Campo>
 
-      <div className="grid items-start gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
         <Campo rotulo="Categoria" erro={erros.categoria} id="categoria">
           <select id="categoria" name="categoria" required defaultValue={valor("categoria")} className="campo">
             <option value="" disabled>
@@ -82,7 +82,7 @@ export function FormIndicar() {
         <Campo rotulo="Site" erro={erros.site} id="site">
           <input id="site" name="site" maxLength={200} placeholder="www.negocio.com.br" defaultValue={valor("site")} className="campo" />
         </Campo>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo rotulo="WhatsApp" erro={erros.whatsapp} id="whatsapp">
             <input id="whatsapp" name="whatsapp" type="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={valor("whatsapp")} className="campo" />
           </Campo>

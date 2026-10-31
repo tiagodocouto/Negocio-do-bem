@@ -12,8 +12,9 @@ import { MODERACAO_EMPRESA } from "@/lib/dominio";
 import { normalizarUsername } from "@/lib/instagram";
 import { formatarData } from "@/lib/texto";
 import { EdicaoEmpresa } from "./EdicaoEmpresa";
+import { FORA_DA_BUSCA } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Editar perfil" };
+export const metadata: Metadata = { title: "Editar perfil", robots: FORA_DA_BUSCA };
 
 export default function EditarEmpresa(props: PageProps<"/painel/[usuario]">) {
   return (
@@ -92,7 +93,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
                   maxLength={1000}
                   defaultValue={d.resposta ?? ""}
                   placeholder="Escreva uma resposta (opcional)…"
-                  className="campo text-sm"
+                  className="campo sm:text-sm"
                 />
                 <BotaoEnviar className="botao-claro botao-pequeno" enviando="Salvando…">
                   {d.resposta ? "Atualizar resposta" : "Responder"}

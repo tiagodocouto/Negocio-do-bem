@@ -2,22 +2,48 @@ import "@fontsource-variable/inter";
 import "@fontsource-variable/newsreader";
 import "./globals.css";
 import { GoogleAnalytics } from "@next/third-parties/google";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AlternarTema } from "@/components/AlternarTema";
 import { Logo } from "@/components/Logo";
 import { MenuUsuario } from "@/components/MenuUsuario";
+import { ProtecaoDoMenu } from "@/components/ProtecaoDoMenu";
 import { REPOSITORIO } from "@/lib/dominio";
+import { CORES_DA_MARCA } from "@/lib/marca";
+import { DESCRICAO_DO_SITE, ENDERECO_DO_SITE, NOME_DO_SITE, TITULO_DO_SITE } from "@/lib/seo";
 import { SCRIPT_TEMA } from "@/lib/tema";
 
+// A imagem de compartilhamento vem de opengraph-image.tsx (o perfil de cada
+// negócio tem a sua), e os ícones de icon.svg, favicon.ico e apple-icon.png.
 export const metadata: Metadata = {
+  metadataBase: new URL(ENDERECO_DO_SITE),
   title: {
-    default: "Negócio do Bem — compre de quem faz o bem",
+    default: TITULO_DO_SITE,
     template: "%s · Negócio do Bem",
   },
-  description:
-    "Um diretório de negócios com consciência social e conexão com a comunidade. Encontre, indique e fortaleça quem compartilha dos seus valores.",
+  description: DESCRICAO_DO_SITE,
+  applicationName: NOME_DO_SITE,
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: NOME_DO_SITE,
+  },
+  twitter: { card: "summary_large_image" },
+  // Códigos dos painéis do Google Search Console e do Bing Webmaster Tools.
+  // Vazios, as meta tags não aparecem.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
+  },
+};
+
+// Cor da barra do navegador no celular: o creme da marca, ou o fundo do modo escuro.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: CORES_DA_MARCA.creme },
+    { media: "(prefers-color-scheme: dark)", color: "#17120e" },
+  ],
 };
 
 // Só a produção do Vercel define o ID; no seu computador e em cópias do projeto
@@ -50,7 +76,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </Link>
               <AlternarTema />
               <Suspense fallback={<div className="h-9 w-20 rounded-full bg-linha/60" />}>
-                <MenuUsuario />
+                <ProtecaoDoMenu>
+                  <MenuUsuario />
+                </ProtecaoDoMenu>
               </Suspense>
             </nav>
           </div>
@@ -59,9 +87,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1">{children}</main>
 
         <footer className="mt-24 border-t border-linha">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm text-suave sm:grid-cols-[2fr_1fr_1fr] sm:px-6">
+          <div className="mx-auto grid grid-cols-1 max-w-6xl gap-8 px-4 py-12 text-sm text-suave sm:grid-cols-[2fr_1fr_1fr] sm:px-6">
             <div className="space-y-3">
-              <Logo />
+              <Logo className="h-12" />
               <p className="max-w-sm leading-relaxed">
                 Um movimento independente para fortalecer negócios que cuidam das pessoas, da comunidade e do planeta.
                 Feito pela comunidade, para a comunidade.
@@ -73,6 +101,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <div className="space-y-2">
               <p className="font-semibold text-tinta">Comunidade</p>
               <Link href="/explorar" className="block hover:text-tinta">Explorar negócios</Link>
+              <Link href="/cidades" className="block hover:text-tinta">Negócios por cidade</Link>
               <Link href="/indicar" className="block hover:text-tinta">Indicar um negócio</Link>
             </div>
             <div className="space-y-2">

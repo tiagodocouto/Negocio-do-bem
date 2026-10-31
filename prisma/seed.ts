@@ -206,12 +206,14 @@ async function main() {
   }
 
   const senhaHash = await gerarHashSenha(SENHA_DEMO);
+  // As contas de exemplo já vêm com o e-mail confirmado, para indicar e escrever sem abrir link nenhum.
+  const emailConfirmadoEm = new Date();
   const pessoas = {
-    moderacao: await db.usuario.create({ data: { nome: "Equipe de Moderação", email: "moderacao@exemplo.com", senhaHash, papel: "moderador" } }),
-    ana: await db.usuario.create({ data: { nome: "Ana Lúcia Santos", email: "ana@exemplo.com", senhaHash } }),
-    joao: await db.usuario.create({ data: { nome: "João Batista", email: "joao@exemplo.com", senhaHash } }),
-    bia: await db.usuario.create({ data: { nome: "Bia Fernandes", email: "bia@exemplo.com", senhaHash } }),
-    carla: await db.usuario.create({ data: { nome: "Carla Moreira", email: "carla@exemplo.com", senhaHash } }),
+    moderacao: await db.usuario.create({ data: { nome: "Equipe de Moderação", email: "moderacao@exemplo.com", senhaHash, emailConfirmadoEm, papel: "moderador" } }),
+    ana: await db.usuario.create({ data: { nome: "Ana Lúcia Santos", email: "ana@exemplo.com", senhaHash, emailConfirmadoEm } }),
+    joao: await db.usuario.create({ data: { nome: "João Batista", email: "joao@exemplo.com", senhaHash, emailConfirmadoEm } }),
+    bia: await db.usuario.create({ data: { nome: "Bia Fernandes", email: "bia@exemplo.com", senhaHash, emailConfirmadoEm } }),
+    carla: await db.usuario.create({ data: { nome: "Carla Moreira", email: "carla@exemplo.com", senhaHash, emailConfirmadoEm } }),
   };
 
   const empresas = new Map<string, string>();

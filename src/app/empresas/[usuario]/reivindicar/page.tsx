@@ -6,6 +6,7 @@ import { cancelarReivindicacao } from "@/acoes/reivindicacoes";
 import { Aviso } from "@/components/Aviso";
 import { AvisoDaUrl } from "@/components/Avisos";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
+import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { usuarioAtual } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { METODOS_REIVINDICACAO, STATUS_REIVINDICACAO } from "@/lib/dominio";
@@ -13,8 +14,9 @@ import { configLogin, configWebhook, normalizarUsername, perfilOficial } from "@
 import { formatarDataHora } from "@/lib/texto";
 import { CopiarCodigo } from "./CopiarCodigo";
 import { FormDocumento, FormGerarCodigo } from "./Formularios";
+import { FORA_DA_BUSCA } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Reivindicar perfil" };
+export const metadata: Metadata = { title: "Reivindicar perfil", robots: FORA_DA_BUSCA };
 
 export default function PaginaReivindicar(props: PageProps<"/empresas/[usuario]/reivindicar">) {
   return (
@@ -94,6 +96,15 @@ async function Reivindicar({
             Ir para o painel
           </Link>
         </Aviso>
+      </>
+    );
+  }
+
+  if (!usuario.emailConfirmado) {
+    return (
+      <>
+        {cabecalho}
+        <ConfirmarEmail email={usuario.email} para="assumir o perfil" voltar={caminho} />
       </>
     );
   }

@@ -86,6 +86,7 @@ O site precisa funcionar mesmo quando um serviço de fora falha ou ainda não fo
 | Consulta de CNPJ (BrasilAPI) | Funciona: a consulta é só um apoio para a moderação, nunca bloqueia a análise. |
 | Google Analytics | Funciona: sem o ID, ele simplesmente não carrega. |
 | Vercel Blob | Funciona. No computador de quem desenvolve, as fotos ficam numa pasta local. Em produção, só o envio de fotos mostra um erro. |
+| Envio de e-mails (Resend) | Funciona, com uma exceção: ninguém recebe os avisos nem os links. Quem tem senha continua entrando. Com a confirmação de e-mail ligada, uma conta nova não consegue confirmar o e-mail e, até o envio voltar, não indica, não escreve depoimentos e não reivindica. |
 
 ### Tudo em português
 
@@ -277,6 +278,92 @@ Os previews também usavam o Vercel Blob de produção, onde ficam as fotos. Ent
 - **O Preview ganhou um Blob público próprio,** e o de produção ficou só em Production. As credenciais de cada ambiente, o token e o OIDC do deploy, só alcançam o Blob dele.
 - **O código não precisou mudar.** O site aceita fotos de qualquer store do Vercel Blob (`ehFotoDoSite`), então as fotos enviadas num preview aparecem no próprio preview. Um teste garante isso.
 
+### 29 de outubro: nova identidade visual e SEO ([#62](https://github.com/fabsreis/Negocio-do-bem/issues/62), [#63](https://github.com/fabsreis/Negocio-do-bem/issues/63))
+
+O site ganhou o logo novo, com três pessoas formando um coração, e passou a se apresentar direito para o Google, o Bing e os assistentes que buscam na web.
+
+- **Um desenho só para tudo.** `src/lib/marca.ts` guarda o ícone e o texto do logo. Dele saem o `Logo` do cabeçalho e do rodapé, os ícones (`npm run marca:icones`) e as imagens de compartilhamento.
+- **O texto do logo foi vetorizado do PNG.** O SVG exportado do manual trazia o texto como fonte (Casko Luxury), sem curvas, e o "em" de "Bem" saía vazio. Quando chegar um SVG com o texto em curvas, basta trocar `TEXTO_DO_LOGO`.
+- **Cores da marca fixas.** `marca-laranja`, `marca-verde`, `marca-marrom` e `marca-creme` não mudam no modo escuro. No escuro, o logo troca o marrom pelo creme, como na versão do manual para fundo escuro. As cores do tema passaram a partir delas: o creme é o papel, e o marrom é a tinta.
+- **Prévia de link com a marca.** `opengraph-image.tsx` gera a imagem geral no build, e cada perfil tem a sua, com foto, nome, cidade e causas. As fontes ficam em `assets/fontes`, porque o gerador não lê woff2 nem fonte variável.
+- **SEO:**
+  - `metadataBase`, canônico e Open Graph em cada página pública;
+  - sitemap com os negócios do diretório e `robots.txt`;
+  - dados estruturados: `Organization` e `WebSite` na página inicial, `LocalBusiness` e `BreadcrumbList` no perfil;
+  - `noindex` nas páginas de conta;
+  - um `llms.txt` para assistentes de IA.
+
+  O título do perfil traz o tipo e a cidade, que é o que as pessoas buscam.
+- **Um endereço só.** Os links absolutos usam o domínio de produção (`VERCEL_PROJECT_PRODUCTION_URL`) até nos previews, e os previews bloqueiam os robôs.
+
+### 29 de outubro: páginas de cidade, causa e tipo ([#71](https://github.com/fabsreis/Negocio-do-bem/issues/71))
+
+O diretório filtra pela URL, e o canônico de `/explorar` ignora os filtros, para as combinações não virarem milhares de páginas parecidas na busca. Faltavam páginas para responder às buscas mais comuns: "negócios do bem em Salvador", "negócios liderados por mulheres", "café e padaria".
+
+- **Três páginas fixas:** `/cidades/salvador-ba` (e o índice `/cidades`), `/causas/opcoes-veganas` e `/tipos/cafe-e-padaria`. Cada uma tem título, descrição, canônico e JSON-LD próprios (`CollectionPage`, `ItemList` e `BreadcrumbList`).
+- **Reaproveitam o diretório.** A lista vem de `buscarDiretorio` com um filtro só, então a página da cidade segue as mesmas regras do "Onde?", inclusive a junção das grafias. O componente `Vitrine` monta as três.
+- **Porta de entrada, não substituto.** Os filtros continuam no `/explorar`: as páginas mostram os 18 primeiros e levam ao diretório com o filtro marcado.
+- **Ligadas por dentro.** O perfil liga tipo, cidade e causas às suas páginas, e o caminho dele no JSON-LD passa pela cidade. A página inicial, "Como funciona", o rodapé, o sitemap e o `llms.txt` também apontam para elas.
+- **Sem página vazia na busca.** Cidade sem negócios mostra a página de não encontrado, e causa ou tipo sem negócios leva `noindex` e fica fora do sitemap.
+
+### 29 de outubro: a mesma cidade com grafias diferentes ([#56](https://github.com/fabsreis/Negocio-do-bem/issues/56))
+
+O "Onde?" mostrava "São Paulo · 43 negócios", mas escolher a cidade trazia 1 só. E Florianópolis aparecia duas vezes, com e sem acento. Os cadastros de antes da lista do IBGE gravaram a cidade como foi digitada, e o diretório tratava cada grafia como uma cidade. Ao escolher "São Paulo, SP", o servidor pegava a primeira grafia que batia sem acento ("Sao Paulo") e filtrava só por ela.
+
+- **`listarCidades` junta as grafias** de cada cidade e UF e mostra o nome oficial (`nomeOficial`, em `src/lib/municipios.ts`). Acentos, maiúsculas, hífen e apóstrofo não importam, e a UF grudada no nome ("Tubarão-SC") sai. A lista do IBGE não tem duas cidades no mesmo estado que só mudem nesses detalhes.
+- **O filtro procura todas as grafias** que estão no banco (`condicaoDoLocal`, em `src/lib/consultas.ts`). Assim a contagem do "Onde?" bate com os resultados, mesmo que um nome fora do padrão volte a entrar.
+- **`npm run cidades:corrigir` arruma o banco,** para o perfil e os cartões também mostrarem o nome oficial. Ele grava direto no SQL, para não mudar o `atualizadoEm`, que ordena o diretório, e refaz o campo `busca`.
+- **As páginas de cidade usam o mesmo nome oficial.** O endereço (`/cidades/sao-paulo-sp`), as cidades de uma causa ou de um tipo (`cidadesCom`) e os links do perfil e do sitemap juntam as grafias. Assim, um negócio gravado como "Tubarão-SC" leva à página de Tubarão, SC.
+
+### 29 de outubro: painel da moderação ([#75](https://github.com/fabsreis/Negocio-do-bem/issues/75))
+
+A moderação via as filas, os 50 negócios atualizados por último e os 100 últimos registros da auditoria. Não dava para ver as contas, os números do projeto nem tudo o que uma pessoa fez no site.
+
+- **Um painel, não um sistema novo.** O `/moderacao` ganhou um menu lateral com a visão geral, as filas que já existiam, os cadastros (negócios, contas e depoimentos) e os registros (auditoria e sistema). Os endereços antigos (`?aba=reivindicacoes` e os outros) continuam valendo.
+- **Só consulta.** As ações continuam as mesmas. Dar moderação, suspender ou apagar uma conta mudam regras de permissão e de privacidade e ficaram para issues próprias.
+- **Números do banco, não de um serviço de métricas.** A visão geral conta direto no Postgres, a cada abertura, sem `use cache`. Os agrupamentos (`groupBy`) somam várias situações numa consulta só.
+- **Semanas de 7 dias corridos até agora.** A atividade não usa a semana do calendário: assim nenhuma semana fica pela metade e o fuso horário não muda a conta. O agrupamento (`agruparPorSemana`) é uma função pura, com teste.
+- **A ficha não lê a senha.** As consultas de contas usam sempre `select`, e um teste confere que o hash não vem junto.
+- **O que a URL traz é conferido.** Aba, situação, página, ação, pessoa e alvo passam por `lerFiltros`, como os filtros do diretório. O "Tirar do ar" volta para a lista filtrada de onde saiu, mas só aceita um endereço da própria moderação.
+
+### 29 de outubro: avisos por e-mail ([#83](https://github.com/fabsreis/Negocio-do-bem/issues/83))
+
+Ninguém recebia e-mail do site. Quem pedia um perfil que já tinha dono só descobria a decisão abrindo o painel, e a moderação só via pedidos e denúncias novos abrindo as filas.
+
+- **Resend, pela API.** O plano gratuito (100 e-mails por dia, 3.000 por mês) dá conta dos avisos. A chamada é um `fetch` em `src/lib/email.ts`, sem pacote novo. O Zoho Mail, que guarda a caixa `ola@negociodobem.com`, desaconselha a conta gratuita para e-mails automáticos, e SMTP é lento numa função do Vercel.
+- **Dois serviços no mesmo domínio.** O Resend envia com registros próprios (`resend._domainkey` e o subdomínio `send`), e o MX e o SPF da raiz continuam com o Zoho. As respostas aos avisos vão para `ola@negociodobem.com` (`EMAIL_RESPOSTA`).
+- **Poucos avisos, para quem precisa agir.** A decisão da moderação vai para quem pediu, pedidos e denúncias novos vão para a moderação, e depoimentos novos vão para os donos. A aprovação na hora não manda e-mail: a pessoa já está vendo o resultado.
+- **Depois da resposta.** As ações chamam os avisos dentro de `after()`. A pessoa não espera o Resend, e uma falha no envio só fica no log.
+- **Privacidade.** Cada pessoa recebe o próprio e-mail, e o aviso para a moderação leva só o negócio e o link da fila.
+- **Só a produção envia.** Nos previews o envio fica desligado mesmo com as variáveis. O banco deles só tem contas de teste, e mandar e-mail para elas só traria devoluções.
+
+### 29 de outubro: e-mail confirmado e entrar por link ([#124](https://github.com/fabsreis/Negocio-do-bem/issues/124))
+
+O cadastro aceitava qualquer e-mail. Uma conta com o e-mail de outra pessoa, ou com um endereço inventado, indicava negócios, escrevia e denunciava depoimentos e reivindicava perfis.
+
+- **Uma estrutura só para os links.** A tabela `LinkEmail` guarda o sha256 do token, a finalidade (`confirmar` ou `entrar`), o e-mail, o destino, o prazo e o uso. A confirmação e o "Entrar por link" usam a mesma tabela, e a recuperação de senha ([#65](https://github.com/fabsreis/Negocio-do-bem/issues/65)) pode usar também.
+- **Entrar primeiro, confirmar depois.** A conta entra no site logo no cadastro e só precisa do e-mail confirmado para o que fala em nome dela para a comunidade: indicar, escrever e denunciar depoimentos e reivindicar. Bloquear o login até a confirmação faria perder quem só queria olhar o painel.
+- **Um clique, não só abrir.** Antivírus e filtros como o do Outlook abrem os links dos e-mails sozinhos. Se abrir o link bastasse, esses filtros gastariam o link de entrar e confirmariam o e-mail de uma conta que outra pessoa criou com aquele endereço. Por isso `/api/link` só guarda o token num cookie e `/link` pede o clique.
+- **O token fora do endereço da página.** O Google Analytics registra o endereço de cada página. Com o token no cookie, `/link` não tem nada de secreto no endereço.
+- **A senha continua.** O link por e-mail não é mais seguro que a senha: quem abre a caixa de e-mail entra na conta, o que a recuperação de senha também vai permitir. Ele tira a senha repetida e a força bruta do caminho de quem prefere não usar senha. O segundo fator para a moderação fica para a [#103](https://github.com/fabsreis/Negocio-do-bem/issues/103).
+- **Limite por conta, não por IP.** Cinco links por conta a cada hora impedem lotar a caixa de alguém e gastar a cota de 100 e-mails por dia do Resend com uma conta só. O limite por IP do login fica com a [#36](https://github.com/fabsreis/Negocio-do-bem/issues/36).
+
+### 30 de outubro: robôs fora dos filtros do /explorar ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141))
+
+Na manhã de 30 de outubro, a página inicial, o `/explorar`, o `/cidades` e o sitemap pararam de abrir em produção. O Neon tinha pausado o banco por estourar o plano grátis: 6,85 GB de transferência em um dia e meio, para um limite de 5 GB por mês.
+
+- **A causa foi um robô.** Em 24 horas o site recebeu 626 mil requisições, 162 mil delas do GPTBot, quase todas no `/explorar`. Cada filtro é um link, os filtros se combinam (tipo, causa, verificados, ordem, vista e página) e o robô abria cada combinação. Cada abertura faz seis consultas ao banco.
+- **O banco voltou com o plano Launch do Neon**, pago por uso. O compute de produção ficou fixo em 0,25 CU: no pior caso, ligado o mês inteiro, custa cerca de US$ 19. Ele continua desligando depois de 5 minutos sem uso.
+- **O `robots.txt` bloqueia `/explorar?...`, e os links dos filtros levam `nofollow`.** O `/explorar` sem filtros, as páginas de cidade, causa e tipo e o sitemap continuam abertos, e o diretório segue chegando à busca e aos assistentes. As combinações já tinham o `/explorar` como canônico e não entravam na busca.
+
+### 30 de outubro: confirmação de e-mail desligada por enquanto ([#148](https://github.com/fabsreis/Negocio-do-bem/issues/148))
+
+No mesmo dia, o site passou dos 100 e-mails por dia do plano grátis do Resend. Daí em diante o link de confirmação não chegava, e quem se cadastrava ficava sem poder indicar, escrever depoimentos ou reivindicar.
+
+- **Uma constante, não uma variável de ambiente.** `CONFIRMACAO_DE_EMAIL_LIGADA`, em `src/lib/auth/links.ts`, desliga a exigência. Trocar uma variável no Vercel pediria um redeploy fora do fluxo de merge, e a volta da confirmação deve vir no mesmo PR que trocar o envio de e-mails.
+- **Desligar num lugar só.** `usuarioAtual` devolve `emailConfirmado: true` para toda conta, e as travas, o "Confirme seu e-mail" e a rota do Instagram continuam olhando o mesmo campo. Nada delas saiu do código.
+- **O cadastro não manda o link.** Assim a cota fica para o "Entrar por link" e para os avisos. Quem já recebeu um link ainda pode usá-lo, e `emailConfirmadoEm` continua sendo gravado, então a ficha da moderação mostra quem de fato confirmou.
+
 ---
 
 ## 4. Arquitetura
@@ -295,9 +382,27 @@ Os previews também usavam o Vercel Blob de produção, onde ficam as fotos. Ent
 | **Vercel Blob** | 2.8 | Armazenamento das fotos em produção. |
 | **Vitest** | 5 | Testes de unidade e de banco. |
 
-A autenticação é feita no próprio projeto (`src/lib/auth/`), com e-mail, senha (scrypt) e sessão em cookie. Isso evita depender de um serviço externo para algo simples.
+A autenticação é feita no próprio projeto (`src/lib/auth/`), com e-mail, senha (scrypt), link por e-mail e sessão em cookie. Isso evita depender de um serviço externo para algo simples.
 
-Como o e-mail do cadastro não é confirmado, ele nunca dá permissão. A moderação vem só do `papel` gravado no banco, conferido no servidor a cada requisição, e quem cuida do projeto dá esse papel com `npm run moderacao`. Até outubro de 2026 a variável `ADMIN_EMAILS` também dava moderação, e qualquer pessoa que se cadastrasse com um daqueles e-mails antes do dono levava o acesso.
+O scrypt que protege as senhas custa ~32 MB de memória por conferência, então login e cadastro têm limite de tentativas por IP e por e-mail, conferido antes dele (`src/lib/auth/tentativas.ts`). A contagem fica numa tabela do Postgres (`TentativaAcesso`), e não na memória, porque no Vercel o site roda em várias instâncias. Cada tentativa é somada num `INSERT ... ON CONFLICT DO UPDATE` só, que também abre a janela nova quando a anterior venceu: assim, tentativas simultâneas não zeram a contagem umas das outras. Um serviço próprio para contadores (Upstash, Vercel KV) traria mais uma dependência e mais uma variável.
+
+O limite por IP só vale se o IP for de verdade. Fora do Vercel, o `x-forwarded-for` e o `x-real-ip` podem ser escritos por qualquer visitante: se o site confiasse neles, cada tentativa traria um IP novo, e o limite nunca agiria (além de dar para gastar a cota de outra pessoa). Por isso `ipDoCabecalho` (`src/lib/auth/tentativas.ts`) lê só o `x-vercel-forwarded-for` no Vercel (`VERCEL=1`), que o Vercel escreve e o visitante não consegue trocar. Em outra hospedagem, ignora todos os cabeçalhos, a menos que quem cuida do site declare `AUTENTICACAO_PROXY_CONFIAVEL=1`. Aí lê o último valor do `x-forwarded-for` e confere que é um IP. Quando não há IP confiável, todas as tentativas dividem um contador só, em vez de passarem sem limite: o cadastro não tem limite por e-mail, então liberar quem não tem IP deixaria o scrypt sem freio. O preço é que, numa hospedagem sem proxy declarado, os visitantes dividem as 10 tentativas por 15 minutos. Quando essa cota acaba, o login mostra "E-mail ou senha incorretos." até para quem digitou a senha certa, e nada aponta a causa. Fica a favor do site e é fácil de corrigir. Em desenvolvimento (`npm run dev`) também vale: 10 tentativas a cada 15 minutos para o computador todo. Para zerar, apague as linhas da tabela `TentativaAcesso`.
+
+O IP passa por `normalizarIp` antes de virar chave do contador. O IPv4 escrito como IPv6 (`::ffff:203.0.113.5`) volta a ser IPv4. Os endereços IPv6 viram o prefixo /64, porque quem recebe uma rede IPv6 escolhe qualquer endereço dela a cada requisição: sem isso, cada endereço abriria um contador novo, e o limite por IP não valeria contra quem tem IPv6. A contrapartida é que uma rede /64 inteira, como a de uma casa, divide uma cota só. Um prefixo maior que /64 (como um /56) ainda tem um contador para cada /64, e o cadastro só tem o limite por IP.
+
+O limite por e-mail também é conferido antes do scrypt. A tentativa é reservada por `reservarTentativaDoEmail`, no mesmo `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`, que soma e devolve a contagem num comando só. Primeiro conferir e depois contar deixaria passar todas as tentativas que chegam juntas, cada uma de um IP, e o limite por IP não impede isso. Também não há transação aberta durante o scrypt: ela prenderia uma conexão e a linha do contador por ~100 ms a cada login. Quando o login dá certo, a contagem do e-mail é apagada.
+
+O contador do e-mail é separado por origem (a chave é o e-mail junto com o IP, ou o /64 no IPv6). Com um contador só por e-mail, quem soubesse o e-mail de alguém poderia errar a senha 5 vezes e deixar a dona da conta 15 minutos sem entrar, e repetir a cada janela. Separando por origem, o bloqueio vale só para quem está errando. O preço é que um ataque espalhado por muitos IPs ganha 5 palpites por IP para o mesmo e-mail, em vez de 5 no total. Cada IP continua limitado a 10 tentativas por janela, somando todos os e-mails. Um passo além, se for preciso, é o "cookie de dispositivo" que a OWASP recomenda: o navegador onde a pessoa já entrou ganha uma marca assinada e não cai no bloqueio que outros causaram, e aí dá para voltar a ter um limite por e-mail para todo o resto.
+
+O e-mail nunca dá permissão, nem depois de confirmado: as contas antigas não confirmaram, e quem se cadastra primeiro com um endereço escolhe o que confirmar. A moderação vem só do `papel` gravado no banco, conferido no servidor a cada requisição, e quem cuida do projeto dá esse papel com `npm run moderacao`. Até outubro de 2026 a variável `ADMIN_EMAILS` também dava moderação, e qualquer pessoa que se cadastrasse com um daqueles e-mails antes do dono levava o acesso.
+
+Toda resposta leva cabeçalhos de segurança (`headers()` no `next.config.ts`):
+
+- **`Content-Security-Policy`:** scripts, estilos, imagens e conexões só do próprio site, do Vercel Blob (`*.public.blob.vercel-storage.com`) e do Google Analytics. Nos previews, também do `vercel.live`, a barra de comentários do Vercel. `frame-ancestors 'none'` impede que outro site embuta as páginas num iframe (clickjacking), e `form-action 'self'` impede formulários de enviar dados para fora.
+- **Sem nonce:** a CSP aceita scripts inline (`'unsafe-inline'`), como o script do tema no `layout.tsx` e os do próprio Next. Uma CSP com nonce obriga toda página a ser renderizada a cada acesso e é incompatível com o Partial Prerendering, que o projeto usa com o Cache Components. Ficaríamos sem pré-render e sem cache na CDN.
+- **`Strict-Transport-Security`** (2 anos), **`X-Frame-Options: DENY`** (para navegadores antigos), **`X-Content-Type-Options: nosniff`**, **`Referrer-Policy: strict-origin-when-cross-origin`** (sites abertos a partir do perfil não recebem o endereço completo) e **`Permissions-Policy`** (sem câmera, microfone, localização, pagamento, USB nem `browsing-topics`).
+
+Se uma página nova precisar de um script, imagem ou iframe de outro endereço, o endereço entra na política, senão o navegador bloqueia e avisa no console.
 
 ### Como uma requisição anda
 
@@ -313,6 +418,7 @@ flowchart LR
     L --> B[(Vercel Blob<br>fotos)]
     L -.-> BR[BrasilAPI<br>CNPJ]
     L -.-> IG[API do Instagram]
+    L -.-> RS[Resend<br>e-mails]
     N -.-> GA[Google Analytics]
 ```
 
@@ -325,10 +431,11 @@ As linhas tracejadas são serviços opcionais. O site funciona sem eles.
 | `prisma/` | Esquema do banco (`schema.prisma`), migrações e dados de exemplo (`seed.ts`). |
 | `src/app/` | Páginas e rotas. Cada pasta é um endereço: `explorar/` é o diretório, `empresas/[usuario]` é o perfil, `painel/` é o painel do dono, `moderacao/` é a moderação, `api/` tem as rotas do Instagram. |
 | `src/acoes/` | Server Actions, uma por formulário ou botão. Conferem a permissão e validam os dados. |
-| `src/lib/` | Regras de negócio e utilitários, sem interface: `reivindicacao.ts`, `consultas.ts`, `instagram.ts`, `causas.ts`, `cnpj.ts`, `formulario.ts`, `armazenamento.ts`, `auth/`… |
+| `src/lib/` | Regras de negócio e utilitários, sem interface: `reivindicacao.ts`, `consultas.ts`, `instagram.ts`, `causas.ts`, `cnpj.ts`, `formulario.ts`, `armazenamento.ts`, `auth/`, `moderacao/` (filtros, indicadores e consultas do painel da moderação)… |
 | `src/components/` | Componentes de interface reutilizados entre páginas. |
 | `tests/` | `unit/` (sem banco) e `db/` (com banco). |
 | `docs/` | Esta documentação e os prints do README. |
+| `assets/fontes/` | Fontes das imagens de compartilhamento, com a licença OFL de cada uma. |
 
 ### O banco
 
@@ -402,6 +509,12 @@ No cliente, os formulários com `useActionState` usam `enviarSemLimpar` (`src/co
 
 - **Os dados do banco não usam `use cache`,** para estarem sempre atualizados.
 - `usuarioAtual()` usa o `cache` do React: a sessão é lida uma vez por requisição, mesmo que vários componentes perguntem.
+- **Quando algo falha no servidor**, como o banco fora do ar ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)), três peças evitam a tela padrão do Next, em inglês:
+  - `src/app/error.tsx` fica no lugar da página, com "Tentar de novo" (o `retry()` do Next), um link para o início e o código do erro (o `digest`, que acha a mensagem nos logs do Vercel). O cabeçalho e o rodapé continuam na tela;
+  - o `error.tsx` não cobre o layout do mesmo nível, e o menu da conta, que lê a sessão no banco, fica no layout. Por isso o `MenuUsuario` vai dentro do `ProtecaoDoMenu` (`catchError` do Next), que mostra o "Entrar" se a leitura falhar;
+  - `src/app/global-error.tsx` é o último recurso, para uma falha no próprio layout. Ele substitui a página inteira e por isso traz o `<html>`, as fontes, o CSS e o script do tema.
+
+  Nenhuma das três consulta o banco. A página com erro continua respondendo com status 200: o erro aparece quando o navegador processa a página.
 
 ### Regras de negócio fora da interface
 
@@ -416,6 +529,7 @@ Erros que podem ser mostrados para a pessoa usam uma classe própria (`ErroReivi
 - **Componentes de formulário:** `Campo` (rótulo, ajuda e erro), `BotaoEnviar` (mostra "Enviando…"), `Aviso`.
 - **Classes de `globals.css`:** `.botao`, `.botao-coral`, `.botao-claro`, `.cartao`, `.campo`, `.link` e `.historia`. Prefira essas classes a repetir utilitários do Tailwind.
 - **Cores do tema:** `papel`, `superficie`, `tinta`, `suave`, `linha`, `coral` e `folha`. Para algo que só muda no escuro, use a variante `escuro:`.
+- **Cores da marca:** `marca-laranja`, `marca-verde`, `marca-marrom` e `marca-creme` são as do manual e não mudam no escuro. Use para a marca, não para a interface. O logo é o componente `Logo`, e a altura vem do `className`.
 - **Cor fixa nunca:** `bg-white` e afins não mudam no modo escuro. Use `superficie`.
 - **Tipografia:** textos longos usam a fonte serifada (Newsreader), e a interface usa a Inter.
 
@@ -430,13 +544,15 @@ npm run typecheck
 ```
 
 - **`tests/unit/`:** funções sem banco. Cobrem CNPJ, senha, normalização de texto, causas, campos de formulário, tempo de leitura, fotos (inclusive quando elas vão para o Vercel Blob) e Instagram.
-- **`tests/db/`:** as regras de reivindicação contra um Postgres de verdade:
+- **`tests/unit/email.test.ts`:** a chamada ao Resend, quando o envio liga e que uma falha não lança erro.
+- **`tests/db/`:** as consultas do diretório e do painel da moderação, quem recebe cada aviso por e-mail, os links por e-mail (prazo, uso único, limite e cliques ao mesmo tempo) e as regras de reivindicação contra um Postgres de verdade:
   - código por DM;
   - Entrar com Instagram;
   - conflitos;
   - transferência;
   - dados do negócio;
-  - limite diário.
+  - limite diário;
+  - limite de tentativas de login e cadastro: `tests/db/tentativas.test.ts` testa os contadores, e `tests/db/acoes-conta.test.ts` passa pelas ações `entrar` e `cadastrar` de verdade, com espiões no scrypt. Só o Next (cabeçalhos, redirect e cookie) é de mentira. Esses testes falham se alguém tirar o limite do cadastro, mover o limite para depois do scrypt, ou confiar num cabeçalho de IP que o visitante escreve.
 - **O banco de teste é separado** (`negocio_do_bem_teste`, ou o de `TEST_DATABASE_URL`).
   - Ele é criado na primeira execução e as tabelas são limpas entre os testes.
   - A suíte se recusa a rodar se o nome do banco não tiver "test", para nunca apagar dados de desenvolvimento.
@@ -451,12 +567,13 @@ npm run typecheck
 | Peça | Onde | Observação |
 | --- | --- | --- |
 | Site | Vercel, funções em São Paulo (`gru1`) | Produção em https://negociodobem.vercel.app |
-| Banco de produção | Neon (PostgreSQL), São Paulo | Conectado ao Vercel só em Production. O Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. |
-| Banco dos previews | Outro projeto Neon (`negocio-do-bem-preview`), São Paulo | Conectado só em Preview: serve à `stage` e aos PRs. Tem senha e cota de compute próprias e só guarda dados de teste. |
+| Banco de produção | Neon (PostgreSQL), São Paulo, plano Launch | Conectado ao Vercel só em Production. O Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. O plano é pago por uso, e o compute fica fixo em 0,25 CU para limitar o custo ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)). |
+| Banco dos previews | Outro projeto Neon (`negocio-do-bem-preview`), São Paulo | Conectado só em Preview: serve à `stage` e aos PRs. Tem senha própria e só guarda dados de teste. O plano do Neon vale para a integração inteira, então ele também é Launch. |
 | Fotos de produção | Vercel Blob, público, São Paulo | Conectado ao Vercel só em Production, que cria `BLOB_STORE_ID`. O site se autentica pelo OIDC do deploy, sem token. |
 | Fotos dos previews | Outro Vercel Blob, público, São Paulo | Conectado só em Preview, do mesmo jeito. As credenciais dele não alcançam o Blob de produção, e ele não guarda fotos reais. |
 | Medição | Google Analytics 4 | `NEXT_PUBLIC_GA_ID` só em Production. |
 | Fotos do Instagram | Script local (launchd) + app "Negócio do Bem" na Meta | `FOTOS_TOKEN` no Vercel; o resto fica no `.env.fotos` do computador que roda a rotina. |
+| Avisos por e-mail | Resend, com o domínio `negociodobem.com` | `RESEND_API_KEY` e `EMAIL_REMETENTE` só em Production. O DNS do domínio fica na Hostinger, e a caixa `ola@negociodobem.com`, que recebe as respostas, no Zoho Mail. |
 
 **Como um deploy acontece:**
 
@@ -487,14 +604,18 @@ npm run typecheck
 | --- | --- | --- |
 | `DATABASE_URL` | Sim | Conexão com o Postgres. No Vercel, Production e Preview apontam para bancos diferentes. |
 | `DATABASE_URL_UNPOOLED` | No Neon | Conexão direta, usada pelas migrações. |
-| `APP_URL` | Sim | Endereço público do site, sem barra no final. |
+| `APP_URL` | Sim | Endereço público do site, sem barra no final. Fora do Vercel, também é a base dos links absolutos (canônico, sitemap e prévias de link). |
 | `BLOB_STORE_ID` | Em produção, no Vercel | Fotos no Vercel Blob. Criada com a conexão do Blob. O `@vercel/blob` se autentica pelo OIDC do deploy com este id. Production e Preview apontam para Blobs diferentes. |
 | `BLOB_READ_WRITE_TOKEN` | Em produção, fora do Vercel | Fotos no Vercel Blob onde não há OIDC. No Vercel, o site não precisa dela. |
 | `NEXT_PUBLIC_GA_ID` | Não | Google Analytics. Configure só em Production. |
+| `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | Não | Meta tags de verificação do Google Search Console e do Bing Webmaster Tools. Configure só em Production. |
+| `AUTENTICACAO_PROXY_CONFIAVEL` | Não | Defina `1` só se há um proxy seu na frente do site, que escreve o `x-forwarded-for` e é o único caminho até ele. Fora do Vercel, o limite de tentativas de login e cadastro usa então o último valor desse cabeçalho. Vazia, todos os visitantes dividem um limite só. |
 | `FOTOS_TOKEN` | Não | Liga a rota da rotina de fotos do Instagram. No mínimo 32 caracteres. |
 | `INSTAGRAM_PERFIL_OFICIAL` | Não | Liga o código por DM. |
 | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_GRAPH_VERSION` | Não | Ligam o "Entrar com Instagram". |
 | `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` | Não | Ligam a confirmação automática da DM. |
+| `RESEND_API_KEY`, `EMAIL_REMETENTE` | Não | Ligam os avisos por e-mail. Configure só em Production. |
+| `EMAIL_RESPOSTA` | Não | Para onde vão as respostas aos avisos. Vazia, elas vão para o remetente. |
 
 O `.env.example` explica cada uma, e o [README](../README.md#publicando) tem o passo a passo de publicação.
 
@@ -506,10 +627,24 @@ O `.env.example` explica cada uma, e o [README](../README.md#publicando) tem o p
 
 ### Criar uma causa
 
-1. Acrescente a causa em `CAUSAS`, em `src/lib/causas.ts`, com slug, nome, emoji, descrição e grupo.
-2. Pronto: ela aparece nos filtros, nos formulários e em "Como funciona".
+1. Acrescente a causa em `CAUSAS`, em `src/lib/causas.ts`, com slug, nome, título da página, emoji, descrição e grupo.
+2. Pronto: ela aparece nos filtros, nos formulários, em "Como funciona" e ganha a página `/causas/slug`, que entra no sitemap quando tiver negócios.
 
 Para trocar o slug de uma causa existente, crie uma migração que atualize `EmpresaCausa`.
+
+### Trocar o logo ou o ícone
+
+1. Atualize `src/lib/marca.ts`: `ICONE` para o ícone, `TEXTO_DO_LOGO` para o texto e `CORES_DA_MARCA` para as cores. Se as cores mudarem, mude também as `--color-marca-*` de `globals.css`.
+2. Rode `npm run marca:icones`. Ele gera de novo o favicon, o ícone do iPhone e os ícones do manifest.
+3. Confira a imagem geral (`/opengraph-image`) e a de um perfil (`/empresas/<@>/opengraph-image`) com `next build && next start`. Em `next dev`, um erro na imagem só aparece no terminal.
+4. Faça commit dos arquivos gerados.
+
+### Cadastrar o site no Google e no Bing
+
+1. No [Google Search Console](https://search.google.com/search-console), adicione uma propriedade do tipo "Prefixo do URL" com o endereço de produção e escolha a verificação por **tag HTML**.
+2. Copie só o valor do `content` para a variável `GOOGLE_SITE_VERIFICATION`, só em Production no Vercel. Ela é lida no build, então entra no próximo deploy de produção.
+3. Depois de verificar, envie o sitemap: `https://<domínio>/sitemap.xml`.
+4. No [Bing Webmaster Tools](https://www.bing.com/webmasters), importe a propriedade do Search Console ou use a meta tag, com o código em `BING_SITE_VERIFICATION`. O índice do Bing também alimenta a busca do ChatGPT e de outros assistentes.
 
 ### Acrescentar um campo ao negócio
 
@@ -529,7 +664,13 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 
 1. Rode `npm run municipios:atualizar`. O script `scripts/municipios-ibge.ts` baixa a lista do IBGE e regrava `src/lib/municipios.json`.
 2. Confira no diff os municípios novos ou renomeados e rode `npm test`.
-3. Negócios de uma cidade renomeada continuam com o nome antigo até serem editados.
+3. Negócios de uma cidade renomeada continuam com o nome antigo até serem editados. O `npm run cidades:corrigir` lista esses negócios em "Fora da lista do IBGE".
+
+### Corrigir cidades escritas fora do padrão
+
+1. Rode `npm run cidades:corrigir`. Ele lista as cidades gravadas com outra grafia ("Sao Paulo" → São Paulo) e as que não estão na lista do IBGE, sem gravar nada.
+2. Confira a lista e rode de novo com `-- --aplicar` para gravar o nome oficial. Para a produção, passe a conexão do Neon na frente: `DATABASE_URL="postgresql://..." npm run cidades:corrigir -- --aplicar`.
+3. As cidades fora da lista do IBGE se corrigem uma a uma, editando o negócio pelo painel da moderação.
 
 ### Mudar uma regra da reivindicação
 
@@ -541,9 +682,16 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 ### Criar uma ação de moderação
 
 1. Crie a Server Action em `src/acoes/moderacao.ts`, começando por `exigirModerador()`.
-2. Registre na auditoria com `registrarAuditoria`, com uma ação no formato `alvo.verbo` (por exemplo, `empresa.despublicada`).
-3. Volte para a aba certa com um aviso: `redirect("/moderacao?aba=…&aviso=feito")`.
+2. Registre na auditoria com `registrarAuditoria`, com uma ação no formato `alvo.verbo` (por exemplo, `empresa.despublicada`), e acrescente a descrição dela em `ACOES_AUDITORIA` (`src/lib/dominio.ts`).
+3. Volte para a aba certa com um aviso: `redirect("/moderacao?aba=…&aviso=feito")`. Se o botão fica numa lista com busca, filtro ou página, mande a lista num campo `voltar` e redirecione com `destinoNaModeracao` e `comAviso`, como em `moderarEmpresa`.
 4. Atualize a [tabela da auditoria](regras-de-negocio.md#13-auditoria).
+
+### Acrescentar um número ou uma lista ao painel da moderação
+
+1. Conte no banco em `src/lib/moderacao/indicadores.ts` (números da visão geral) ou consulte em `src/lib/moderacao/consultas.ts` (listas). Contas sempre com `select`, nunca com o hash da senha.
+2. Um filtro novo na URL entra em `src/lib/moderacao/filtros.ts`, numa lista de opções conhecidas, para `lerFiltros` recusar o resto.
+3. Mostre na tela com as peças de `src/app/moderacao/Blocos.tsx` (`Numero`, `Detalhes`, `Colunas`, `Barras`, `Etiqueta`).
+4. Cubra a consulta em `tests/db/moderacao.test.ts` e descreva o número na [seção 2 das regras de negócio](regras-de-negocio.md#o-painel-da-moderação).
 
 ### Dar ou tirar a moderação
 
@@ -552,6 +700,23 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 3. Confira com `npm run moderacao -- listar`, que mostra quem é moderação e quem já fez ações de moderação, marcando quem não é mais.
 
 Nunca crie uma regra que dê permissão pelo e-mail ou por outro dado que a própria pessoa digita no cadastro.
+
+### Mandar um aviso novo por e-mail
+
+1. Escreva a função em `src/lib/notificacoes.ts`. Ela recebe um id, busca no banco quem recebe e chama `enviarEmail` uma vez por pessoa.
+2. Na Server Action, chame a função dentro de `after()`, antes do `redirect`.
+3. Não ponha os dados de uma pessoa no e-mail de outra. Para a moderação, mande o negócio e o link da fila.
+4. Acrescente o caso em `tests/db/notificacoes.test.ts` e na [seção 14 das regras de negócio](regras-de-negocio.md#14-avisos-por-e-mail).
+
+### Pedir o e-mail confirmado numa ação nova
+
+1. Na Server Action, depois de `exigirUsuario`, confira `usuario.emailConfirmado` e devolva `AVISOS.confirmar_email.texto` (ou redirecione com `?aviso=confirmar_email`).
+2. Na página, mostre `<ConfirmarEmail>` (`src/components/ConfirmarEmail.tsx`) no lugar do formulário para quem ainda não confirmou.
+3. Acrescente a ação na lista da [seção 2 das regras de negócio](regras-de-negocio.md#e-mail-confirmado-e-links-por-e-mail).
+
+### Ligar os avisos por e-mail
+
+Siga a seção "Ativando os avisos por e-mail" do [README](../README.md#ativando-os-avisos-por-e-mail-opcional). As regras estão na [seção 14 das regras de negócio](regras-de-negocio.md#14-avisos-por-e-mail).
 
 ### Mostrar uma mensagem depois de uma ação
 
@@ -599,7 +764,12 @@ O PR só conflita se a `main` recebeu algo que não passou pela `stage`. Nesse c
 - **"User was denied access on the database"** quase sempre é o `DATABASE_URL` apontando para outro Postgres na porta 5432. O do Docker usa a **5433**. Veja os [problemas comuns do README](../README.md#problemas-comuns).
 - **O `next dev` reescreve o começo do `AGENTS.md`.** Escreva as regras do projeto **depois** do bloco que ele gerencia.
 - **Fotos no computador de quem desenvolve** ficam em `public/enviados/`, que está fora do Git. Os links delas não funcionam em outro computador.
+- **Imagens de compartilhamento (`ImageResponse`):**
+  - toda `div` com mais de um filho precisa de `display: "flex"`. Texto com variáveis como `{a} · {b}` vira vários filhos: use uma template string;
+  - o gerador não lê WebP, woff2 nem fonte variável. Por isso as fotos em WebP viram monograma na prévia, e as fontes ficam em TTF em `assets/fontes`.
 - **`BLOB_STORE_ID` sozinho no `.env`** faz o envio de fotos falhar: fora do Vercel não há OIDC. No seu computador, deixe as duas variáveis do Blob vazias ou use a `BLOB_READ_WRITE_TOKEN`.
+- **Filtros no endereço multiplicam as páginas para os robôs.** Uma página nova que monta links com filtros no endereço (`?tipo=...&causa=...`) precisa entrar no `disallow` do `src/app/robots.ts`, como o `/explorar?`. Sem isso, um robô abre cada combinação e cada uma consulta o banco ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)).
+- **Status 200 não quer dizer que a página abriu.** Com o Cache Components, a página chega com status 200 e o erro do banco vem dentro do conteúdo. Para saber se o site está no ar, confira se a lista de negócios aparece, e não só o status.
 
 ---
 

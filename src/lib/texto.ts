@@ -66,6 +66,16 @@ export function formatarData(data: Date): string {
   return new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric" }).format(data);
 }
 
+/** "29/10/2026", no horário de Brasília. */
+export function formatarDataCurta(data: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" }).format(data);
+}
+
+/** "29/10": dia e mês, no horário de Brasília. */
+export function formatarDiaMes(data: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(data);
+}
+
 export function formatarDataHora(data: Date): string {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",

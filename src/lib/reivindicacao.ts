@@ -17,7 +17,7 @@
 
 import { registrarAuditoria } from "@/lib/auditoria";
 import { gerarCodigo, extrairCodigo } from "@/lib/codigo";
-import { db } from "@/lib/db";
+import { db, type Prisma } from "@/lib/db";
 import { formatarDataHora } from "@/lib/texto";
 
 export const VALIDADE_CODIGO_HORAS = 48;
@@ -44,8 +44,29 @@ async function exigirQueNaoSejaDono(empresaId: string, usuarioId: string) {
   if (membro) throw new ErroReivindicacao("Você já é dono deste negócio.");
 }
 
-async function exigirLimiteDiario(usuarioId: string) {
-  const recentes = await db.reivindicacao.count({
+/**
+ * Trava a linha da pessoa até o fim da transação. Todo caminho que cria um
+ * pedido chama isto primeiro, antes de contar: pedidos simultâneos da mesma
+ * conta entram um de cada vez e cada um enxerga os anteriores já gravados. Sem
+ * a trava, todos leriam a mesma contagem e passariam do limite.
+ *
+ * A trava é FOR NO KEY UPDATE (e não FOR UPDATE) de propósito: o banco pede
+ * FOR KEY SHARE na linha da pessoa a cada linha que aponta para ela, como o
+ * `aprovar` faz ao criar o dono. Essa trava não conflita com a nossa, então
+ * a aprovação não espera pela trava da cota enquanto segura a empresa.
+ */
+async function bloquearPessoa(tx: Prisma.TransactionClient, usuarioId: string) {
+  await tx.$queryRaw`SELECT id FROM "Usuario" WHERE id = ${usuarioId} FOR NO KEY UPDATE`;
+}
+
+// Antecipa a trava da chave estrangeira: empresa antes de pedidos, como em aprovar.
+async function bloquearEmpresa(tx: Prisma.TransactionClient, empresaId: string) {
+  await tx.$queryRaw`SELECT id FROM "Empresa" WHERE id = ${empresaId} FOR KEY SHARE`;
+}
+
+/** Só vale depois de `bloquearPessoa`, na mesma transação que cria o pedido. */
+async function exigirLimiteDiario(tx: Prisma.TransactionClient, usuarioId: string) {
+  const recentes = await tx.reivindicacao.count({
     where: { usuarioId, criadoEm: { gte: new Date(Date.now() - DIA) } },
   });
   if (recentes >= LIMITE_SOLICITACOES_POR_DIA) {
@@ -61,27 +82,32 @@ async function exigirLimiteDiario(usuarioId: string) {
 export async function iniciarPorCodigoDm(empresaId: string, usuarioId: string) {
   await exigirQueNaoSejaDono(empresaId, usuarioId);
 
-  const vigente = await db.reivindicacao.findFirst({
-    where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { gt: new Date() } },
-  });
-  if (vigente) return vigente;
-
-  await exigirLimiteDiario(usuarioId);
-  await db.reivindicacao.updateMany({
-    where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { lte: new Date() } },
-    data: { status: "expirada" },
-  });
-
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     try {
-      return await db.reivindicacao.create({
-        data: {
-          empresaId,
-          usuarioId,
-          metodo: "codigo_dm",
-          codigo: gerarCodigo(),
-          expiraEm: daquiA(VALIDADE_CODIGO_HORAS * HORA),
-        },
+      // Cota, expiração e criação na mesma transação. Se o código repetir, a
+      // transação inteira volta e a próxima tentativa recomeça do zero.
+      return await db.$transaction(async (tx) => {
+        await bloquearPessoa(tx, usuarioId);
+        const vigente = await tx.reivindicacao.findFirst({
+          where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { gt: new Date() } },
+        });
+        if (vigente) return vigente;
+
+        await exigirLimiteDiario(tx, usuarioId);
+        await bloquearEmpresa(tx, empresaId);
+        await tx.reivindicacao.updateMany({
+          where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { lte: new Date() } },
+          data: { status: "expirada" },
+        });
+        return await tx.reivindicacao.create({
+          data: {
+            empresaId,
+            usuarioId,
+            metodo: "codigo_dm",
+            codigo: gerarCodigo(),
+            expiraEm: daquiA(VALIDADE_CODIGO_HORAS * HORA),
+          },
+        });
       });
     } catch (erro) {
       if (!violouUnicidade(erro)) throw erro;
@@ -173,23 +199,27 @@ export async function processarLoginInstagram(params: {
     return { tipo: "verificada" };
   }
 
-  await exigirLimiteDiario(usuarioId);
   const conflitos = await conflitosDeVerificacao({ empresa, usuarioId, instagramUserId: conta.userId });
 
-  // Tentativas anteriores pelo mesmo caminho ficam obsoletas.
-  await db.reivindicacao.updateMany({
-    where: { empresaId, usuarioId, metodo: "instagram_login", status: "pendente" },
-    data: { status: "cancelada" },
-  });
-  const reivindicacao = await db.reivindicacao.create({
-    data: {
-      empresaId,
-      usuarioId,
-      metodo: "instagram_login",
-      instagramUserId: conta.userId,
-      notas: conflitos.length > 0 ? linhaDeNota(`Login confirmado como @${conta.username}. ${conflitos.join(" ")}`) : "",
-      expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
-    },
+  const reivindicacao = await db.$transaction(async (tx) => {
+    await bloquearPessoa(tx, usuarioId);
+    await exigirLimiteDiario(tx, usuarioId);
+    await bloquearEmpresa(tx, empresaId);
+    // Tentativas anteriores pelo mesmo caminho ficam obsoletas.
+    await tx.reivindicacao.updateMany({
+      where: { empresaId, usuarioId, metodo: "instagram_login", status: "pendente" },
+      data: { status: "cancelada" },
+    });
+    return tx.reivindicacao.create({
+      data: {
+        empresaId,
+        usuarioId,
+        metodo: "instagram_login",
+        instagramUserId: conta.userId,
+        notas: conflitos.length > 0 ? linhaDeNota(`Login confirmado como @${conta.username}. ${conflitos.join(" ")}`) : "",
+        expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
+      },
+    });
   });
 
   if (conflitos.length > 0) return { tipo: "em_analise" };
@@ -220,24 +250,28 @@ export async function solicitarPorDocumento(params: {
   mensagem: string | null;
 }) {
   await exigirQueNaoSejaDono(params.empresaId, params.usuarioId);
-  const emAnalise = await db.reivindicacao.findFirst({
-    where: { empresaId: params.empresaId, usuarioId: params.usuarioId, metodo: "documento", status: "pendente" },
-  });
-  if (emAnalise) throw new ErroReivindicacao("Você já enviou os dados deste negócio e eles estão em análise.");
-  await exigirLimiteDiario(params.usuarioId);
 
-  const reivindicacao = await db.reivindicacao.create({
-    data: {
-      empresaId: params.empresaId,
-      usuarioId: params.usuarioId,
-      metodo: "documento",
-      cnpj: params.cnpj,
-      site: params.site,
-      relacao: params.relacao,
-      contato: params.contato,
-      mensagem: params.mensagem,
-      expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
-    },
+  const reivindicacao = await db.$transaction(async (tx) => {
+    await bloquearPessoa(tx, params.usuarioId);
+    const emAnalise = await tx.reivindicacao.findFirst({
+      where: { empresaId: params.empresaId, usuarioId: params.usuarioId, metodo: "documento", status: "pendente" },
+    });
+    if (emAnalise) throw new ErroReivindicacao("Você já enviou os dados deste negócio e eles estão em análise.");
+    await exigirLimiteDiario(tx, params.usuarioId);
+
+    return tx.reivindicacao.create({
+      data: {
+        empresaId: params.empresaId,
+        usuarioId: params.usuarioId,
+        metodo: "documento",
+        cnpj: params.cnpj,
+        site: params.site,
+        relacao: params.relacao,
+        contato: params.contato,
+        mensagem: params.mensagem,
+        expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
+      },
+    });
   });
 
   const empresa = await db.empresa.findUniqueOrThrow({ where: { id: params.empresaId }, include: { membros: true } });
@@ -249,22 +283,22 @@ export async function solicitarPorDocumento(params: {
 /**
  * Aplica a regra acima às solicitações pelos dados do negócio que ficaram na fila.
  * Vale a ordem de chegada: se duas pessoas pediram o mesmo negócio, a primeira vira
- * dona e a segunda continua com a moderação. Devolve quantas foram aprovadas.
+ * dona e a segunda continua com a moderação. Devolve as solicitações aprovadas.
  */
-export async function aprovarPendentesSemDono(revisorId: string): Promise<number> {
+export async function aprovarPendentesSemDono(revisorId: string): Promise<string[]> {
   const pendentes = await db.reivindicacao.findMany({
     where: { status: "pendente", metodo: "documento" },
     orderBy: { criadoEm: "asc" },
     select: { id: true, empresaId: true },
   });
 
-  let aprovadas = 0;
+  const aprovadas: string[] = [];
   for (const { id, empresaId } of pendentes) {
     const empresa = await db.empresa.findUniqueOrThrow({ where: { id: empresaId }, include: { membros: true } });
     if (!aprovaSozinhoPorDocumento(empresa)) continue;
     try {
       await aprovar({ reivindicacaoId: id, revisorId });
-      aprovadas++;
+      aprovadas.push(id);
     } catch (erro) {
       // Outra pessoa da moderação decidiu esta solicitação no meio do caminho.
       if (!(erro instanceof ErroReivindicacao)) throw erro;

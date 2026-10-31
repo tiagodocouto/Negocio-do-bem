@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CausaBadge } from "@/components/CausaBadge";
 import { CAUSAS, GRUPOS, type GrupoCausa } from "@/lib/causas";
+import { hrefCausa } from "@/lib/diretorio";
 import { REPOSITORIO } from "@/lib/dominio";
+import { metadadosDaPagina } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Como funciona",
-  description: "O que é o Negócio do Bem, como os donos assumem seus perfis e como cuidamos da privacidade.",
-};
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Como funciona",
+  descricao: "O que é o Negócio do Bem, como os donos assumem seus perfis e como cuidamos da privacidade.",
+  caminho: "/sobre",
+});
 
 export default function Sobre() {
   return (
@@ -68,7 +71,9 @@ export default function Sobre() {
           acima e, no painel, clique em &ldquo;Ocultar meu negócio&rdquo;. Ele sai do diretório na hora.
         </p>
         <p>
-          <strong>Que dados vocês guardam?</strong> Da sua conta, nome e e-mail. Dos negócios, só o que aparece no perfil:
+          <strong>Que dados vocês guardam?</strong> Da sua conta, nome e e-mail. O e-mail nunca aparece no site: só a
+          moderação vê. Ele serve para você entrar e para receber avisos sobre os seus pedidos e o seu negócio, como
+          a decisão da moderação ou um depoimento novo. Dos negócios, só o que aparece no perfil:
           textos, fotos e contatos públicos.
           Não fazemos raspagem do Instagram e não guardamos tokens de acesso.
         </p>
@@ -104,10 +109,12 @@ export default function Sobre() {
         {(Object.keys(GRUPOS) as GrupoCausa[]).map((grupo) => (
           <section key={grupo}>
             <h3 className="font-serif text-xl font-semibold">{GRUPOS[grupo]}</h3>
-            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {CAUSAS.filter((c) => c.grupo === grupo).map((causa) => (
                 <li key={causa.slug} className="cartao p-4">
-                  <CausaBadge slug={causa.slug} />
+                  <Link href={hrefCausa(causa.slug)} className="transition hover:opacity-80">
+                    <CausaBadge slug={causa.slug} />
+                  </Link>
                   <p className="mt-2 text-sm text-suave">{causa.descricao}</p>
                 </li>
               ))}

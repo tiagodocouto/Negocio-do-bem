@@ -7,19 +7,26 @@
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader Variable", ui-serif, Georgia, serif;
 
-  /* Papel quente, tinta suave e um coral como cor da marca. */
-  --color-papel: #faf7f2;
-  /* Fundo de cards, campos e menus: branco no claro, quase preto no escuro. */
-  --color-superficie: #ffffff;
-  --color-tinta: #1f1b16;
-  --color-suave: #6f675e;
-  --color-linha: #ebe4d8;
-  --color-coral-50: #fff3ee;
-  --color-coral-100: #ffe1d6;
-  --color-coral: #e4572e;
+  /* Cores do manual da marca (src/lib/marca.ts). Não mudam no modo escuro: o
+     logo troca o marrom pelo creme com escuro:, como na versão para fundo escuro. */
+  --color-marca-laranja: #e45c32;
+  --color-marca-verde: #2b7e53;
+  --color-marca-marrom: #2d251d;
+  --color-marca-creme: #f9f3eb;
+
+  /* Tema: o creme da marca como papel, o marrom como tinta e o laranja (coral) como destaque. */
+  --color-papel: #f9f3eb;
+  /* Fundo de cards, campos e menus: quase branco no claro, quase preto no escuro. */
+  --color-superficie: #fffdf9;
+  --color-tinta: #2d251d;
+  --color-suave: #6e6357;
+  --color-linha: #eadfd0;
+  --color-coral-50: #fdefe8;
+  --color-coral-100: #fbdccd;
+  --color-coral: #e45c32;
   --color-coral-700: #b9401d;
-  --color-folha-50: #ecf6ef;
-  --color-folha: #2f7d4f;
+  --color-folha-50: #e8f3ec;
+  --color-folha: #2b7e53;
 }
 
 /*
@@ -29,11 +36,11 @@
  */
 [data-tema="escuro"] {
   color-scheme: dark;
-  --color-papel: #14110e;
-  --color-superficie: #1e1a16;
-  --color-tinta: #f1ebe3;
-  --color-suave: #a89e92;
-  --color-linha: #352e27;
+  --color-papel: #17120e;
+  --color-superficie: #221b15;
+  --color-tinta: #f9f3eb;
+  --color-suave: #a99c8e;
+  --color-linha: #3a3029;
   --color-coral-50: #331f18;
   --color-coral-100: #4a2a1f;
   --color-coral: #ec6a43;
@@ -99,8 +106,9 @@ body {
   .ajuda {
     @apply mt-1.5 text-xs text-suave;
   }
+  /* 16px no celular: com letra menor, o Safari do iPhone dá zoom ao tocar no campo. */
   .campo {
-    @apply block w-full rounded-2xl border border-linha bg-superficie px-4 py-2.5 text-[15px] text-tinta placeholder:text-suave/70 transition focus:border-coral focus:ring-4 focus:ring-coral-100 focus:outline-none;
+    @apply block w-full rounded-2xl border border-linha bg-superficie px-4 py-2.5 text-base sm:text-[15px] text-tinta placeholder:text-suave/70 transition focus:border-coral focus:ring-4 focus:ring-coral-100 focus:outline-none;
   }
   .erro-campo {
     @apply mt-1.5 text-xs font-medium text-coral-700;
@@ -116,6 +124,8 @@ body {
   font-size: 1.25rem;
   line-height: 1.75;
   color: color-mix(in srgb, var(--color-tinta) 92%, var(--color-papel));
+  /* Um link colado inteiro no texto quebra em vez de passar da largura do celular. */
+  overflow-wrap: break-word;
 }
 .historia > * + * {
   margin-top: 1.15em;
@@ -235,6 +245,12 @@ body {
   font-size: 0.875rem;
   color: var(--color-suave);
   outline: none;
+}
+/* No celular, 16px: com letra menor, o Safari do iPhone dá zoom ao tocar na legenda. */
+@media (width < 40rem) {
+  .editor-historia .legenda-editor {
+    font-size: 1rem;
+  }
 }
 .editor-historia .foto-de-fora {
   border: 1px dashed var(--color-coral);
