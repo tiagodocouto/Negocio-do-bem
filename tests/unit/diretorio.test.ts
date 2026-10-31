@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  categoriaDoSlug,
+  hrefCausa,
+  hrefCidade,
   hrefDiretorio,
+  hrefTipo,
   interpretarLocal,
   lerFiltros,
   mudarFiltro,
   SEM_FILTROS,
   slugCategoria,
+  slugCidade,
   sugerirLocais,
+  temPaginaDeTipo,
   tituloDoDiretorio,
+  tituloDoTipo,
   type CidadeComNegocios,
 } from "@/lib/diretorio";
 
@@ -145,5 +152,29 @@ describe("tituloDoDiretorio", () => {
     expect(tituloDoDiretorio({ ...SEM_FILTROS, q: "brechó" }, { uf: "PE", rotulo: "Pernambuco" })).toBe("Resultados para “brechó” em Pernambuco");
     expect(tituloDoDiretorio({ ...SEM_FILTROS, causas: ["acessivel"] }, null)).toBe("Acessível");
     expect(tituloDoDiretorio({ ...SEM_FILTROS, tipos: ["Pet", "Saúde"] }, null)).toBe("Negócios do bem");
+  });
+});
+
+describe("páginas de cidade, causa e tipo", () => {
+  it("dá o mesmo endereço para grafias diferentes da mesma cidade", () => {
+    expect(slugCidade("São Paulo", "SP")).toBe("sao-paulo-sp");
+    expect(slugCidade("Sao Paulo", "sp")).toBe("sao-paulo-sp");
+    expect(hrefCidade("Santa Bárbara d'Oeste", "SP")).toBe("/cidades/santa-barbara-d-oeste-sp");
+    // A UF separa cidades com o mesmo nome.
+    expect(slugCidade("Santa Maria", "RS")).not.toBe(slugCidade("Santa Maria", "RN"));
+  });
+
+  it("monta os endereços de causa e tipo", () => {
+    expect(hrefCausa("opcoes-veganas")).toBe("/causas/opcoes-veganas");
+    expect(hrefTipo("Café e padaria")).toBe("/tipos/cafe-e-padaria");
+    expect(tituloDoTipo("Café e padaria")).toBe("Negócios de café e padaria");
+  });
+
+  it("não tem página para \"Outros\" nem para tipos que não existem", () => {
+    expect(categoriaDoSlug("cafe-e-padaria")).toBe("Café e padaria");
+    expect(categoriaDoSlug("outros")).toBeUndefined();
+    expect(categoriaDoSlug("constructor")).toBeUndefined();
+    expect(temPaginaDeTipo("Outros")).toBe(false);
+    expect(temPaginaDeTipo("Categoria antiga")).toBe(false);
   });
 });

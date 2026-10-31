@@ -1,18 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { del, put } from "@vercel/blob";
 import { apagarFoto, guardarFoto } from "@/lib/armazenamento";
 
-vi.mock("@vercel/blob", () => ({
-  put: vi.fn(async (nome: string) => ({ url: `https://abc123.public.blob.vercel-storage.com/${nome}` })),
-  del: vi.fn(async () => {}),
+const { put, apagar } = vi.hoisted(() => ({ put: vi.fn(async () => ({})), apagar: vi.fn(async () => {}) }));
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: vi.fn(() => ({ env: { UPLOADS: { put, delete: apagar } } })),
 }));
 
 const FOTO = { arquivo: new File([new Uint8Array([0xff, 0xd8, 0xff])], "foto"), tipo: "image/jpeg" as const };
-const URL_BLOB = "https://abc123.public.blob.vercel-storage.com/perfis/x.jpg";
+const URL_FOTO = "https://fotos.exemplo.com/perfis/x.jpg";
 
 beforeEach(() => {
-  vi.stubEnv("BLOB_STORE_ID", "");
-  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+  vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "");
 });
 
 afterEach(() => {
@@ -21,27 +19,25 @@ afterEach(() => {
 });
 
 describe("guardarFoto e apagarFoto", () => {
-  // No Vercel, o @vercel/blob se autentica pelo OIDC com o BLOB_STORE_ID, sem token.
-  it.each(["BLOB_STORE_ID", "BLOB_READ_WRITE_TOKEN"])("usam o Vercel Blob só com %s", async (variavel) => {
-    vi.stubEnv(variavel, "valor");
+  it("usa o bucket R2 configurado", async () => {
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "https://fotos.exemplo.com");
 
     const url = await guardarFoto(FOTO, "perfis");
     expect(put).toHaveBeenCalledWith(expect.stringMatching(/^perfis\/[0-9a-f]{24}\.jpg$/), FOTO.arquivo, {
-      access: "public",
-      contentType: "image/jpeg",
+      httpMetadata: { contentType: "image/jpeg" },
     });
-    expect(url).toMatch(/^https:\/\/abc123\.public\.blob\.vercel-storage\.com\/perfis\//);
+    expect(url).toMatch(/^https:\/\/fotos\.exemplo\.com\/perfis\//);
 
-    await apagarFoto(URL_BLOB);
-    expect(del).toHaveBeenCalledWith(URL_BLOB);
+    await apagarFoto(URL_FOTO);
+    expect(apagar).toHaveBeenCalledWith("perfis/x.jpg");
   });
 
-  it("em produção, sem nenhuma das duas, recusam o Blob", async () => {
+  it("em produção, sem R2 configurado, recusa guardar a foto", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
-    await expect(guardarFoto(FOTO, "perfis")).rejects.toThrow("Conecte um Vercel Blob");
-    await apagarFoto(URL_BLOB);
+    await expect(guardarFoto(FOTO, "perfis")).rejects.toThrow("Configure NEXT_PUBLIC_R2_PUBLIC_URL");
+    await apagarFoto(URL_FOTO);
     expect(put).not.toHaveBeenCalled();
-    expect(del).not.toHaveBeenCalled();
+    expect(apagar).not.toHaveBeenCalled();
   });
 });

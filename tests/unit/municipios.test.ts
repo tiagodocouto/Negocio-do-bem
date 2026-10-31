@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { campoMunicipio } from "@/lib/formulario";
-import { conferirMunicipio, interpretarMunicipio, sugerirMunicipios } from "@/lib/municipios";
+import { conferirMunicipio, interpretarMunicipio, nomeOficial, sugerirMunicipios } from "@/lib/municipios";
 
 describe("interpretarMunicipio", () => {
   it("acha a cidade sem diferenciar acentos e maiúsculas", () => {
@@ -78,5 +78,27 @@ describe("conferirMunicipio e campoMunicipio", () => {
     });
     expect(conferirMunicipio("Sao Paolo")).toEqual({ erro: "Escolha a cidade na lista. Se ela não aparecer, confira a grafia." });
     expect(campoMunicipio.safeParse("Sao Paolo").success).toBe(false);
+  });
+});
+
+describe("nomeOficial", () => {
+  it("devolve o nome da lista para uma cidade gravada com outra grafia", () => {
+    expect(nomeOficial("Florianopolis", "SC")).toBe("Florianópolis");
+    expect(nomeOficial(" SAO  PAULO ", "SP")).toBe("São Paulo");
+    expect(nomeOficial("Recife", "PE")).toBe("Recife");
+  });
+
+  it("não diferencia hífen e apóstrofo, e aceita a UF da cidade no fim", () => {
+    expect(nomeOficial("São João del-Rei", "MG")).toBe("São João del Rei");
+    expect(nomeOficial("Santa Bárbara d’Oeste", "SP")).toBe("Santa Bárbara d'Oeste");
+    expect(nomeOficial("Tubarão-SC", "SC")).toBe("Tubarão");
+    expect(nomeOficial("Salto/SP", "SP")).toBe("Salto");
+    // A UF no fim só sai quando é a da própria cidade.
+    expect(nomeOficial("Salto-RJ", "SP")).toBeNull();
+  });
+
+  it("é null fora da lista ou na UF errada", () => {
+    expect(nomeOficial("Sampa", "SP")).toBeNull();
+    expect(nomeOficial("Recife", "SP")).toBeNull();
   });
 });

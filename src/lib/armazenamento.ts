@@ -2,16 +2,23 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { del, put } from "@vercel/blob";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { ehFotoDoSite, TAMANHO_MAXIMO_FOTO, type TipoDeFoto } from "@/lib/fotos";
 
-// Com BLOB_STORE_ID ou BLOB_READ_WRITE_TOKEN, as fotos vão para o Vercel Blob.
-// No Vercel, o @vercel/blob se autentica pelo OIDC do deploy com o BLOB_STORE_ID
-// e só usa o token se não houver OIDC. Sem nenhum dos dois, em desenvolvimento,
-// as fotos ficam em public/enviados, que o Next serve direto.
+// Em produção, UPLOADS é um binding R2 e NEXT_PUBLIC_R2_PUBLIC_URL é o domínio
+// público conectado ao bucket. Em desenvolvimento, as fotos ficam no disco.
 const PASTA_LOCAL = path.join(process.cwd(), "public", "enviados");
 
-const usaBlob = () => Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
+export const usaArmazenamentoCloudflare = () => Boolean(process.env.NEXT_PUBLIC_R2_PUBLIC_URL);
+
+type BucketDeUploads = {
+  put(chave: string, conteudo: Blob, opcoes: { httpMetadata: { contentType: string } }): Promise<unknown>;
+  delete(chave: string): Promise<void>;
+};
+
+function bucketDeUploads(): BucketDeUploads | undefined {
+  return (getCloudflareContext().env as unknown as { UPLOADS?: BucketDeUploads }).UPLOADS;
+}
 
 const EXTENSOES: Record<TipoDeFoto, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
@@ -38,12 +45,15 @@ export async function conferirFoto(valor: FormDataEntryValue | null): Promise<Fo
 /** Guarda a foto com um nome aleatório e devolve o endereço público dela. */
 export async function guardarFoto(foto: { arquivo: File; tipo: TipoDeFoto }, pasta: "perfis" | "historias"): Promise<string> {
   const nome = `${pasta}/${randomBytes(12).toString("hex")}.${EXTENSOES[foto.tipo]}`;
-  if (usaBlob()) {
-    const { url } = await put(nome, foto.arquivo, { access: "public", contentType: foto.tipo });
-    return url;
+  if (usaArmazenamentoCloudflare()) {
+    const bucket = bucketDeUploads();
+    if (!bucket) throw new Error("O bucket R2 UPLOADS não está conectado a este Worker.");
+    // O File vai inteiro: o R2 só aceita stream de tamanho conhecido.
+    await bucket.put(nome, foto.arquivo, { httpMetadata: { contentType: foto.tipo } });
+    return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL!.replace(/\/$/, "")}/${nome}`;
   }
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Conecte um Vercel Blob (BLOB_STORE_ID ou BLOB_READ_WRITE_TOKEN) para guardar fotos em produção.");
+    throw new Error("Configure NEXT_PUBLIC_R2_PUBLIC_URL e o binding R2 UPLOADS para guardar fotos em produção.");
   }
   const destino = path.join(PASTA_LOCAL, nome);
   await mkdir(path.dirname(destino), { recursive: true });
@@ -56,7 +66,10 @@ export async function apagarFoto(url: string | null): Promise<void> {
   if (!ehFotoDoSite(url)) return;
   try {
     if (url.startsWith("/enviados/")) await unlink(path.join(PASTA_LOCAL, url.slice("/enviados/".length)));
-    else if (usaBlob()) await del(url);
+    else if (usaArmazenamentoCloudflare() && url.startsWith(`${process.env.NEXT_PUBLIC_R2_PUBLIC_URL!.replace(/\/$/, "")}/`)) {
+      const bucket = bucketDeUploads();
+      if (bucket) await bucket.delete(new URL(url).pathname.slice(1));
+    }
   } catch (erro) {
     console.error("Não foi possível apagar a foto", url, erro);
   }

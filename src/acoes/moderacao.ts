@@ -1,10 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { texto } from "@/lib/formulario";
+import { decidirDenunciaDoDepoimento, moderarNegocio, situacaoDaModeracao } from "@/lib/moderacao/decisoes";
+import { comAviso, destinoNaModeracao } from "@/lib/moderacao/filtros";
+import { avisarDecisaoDaReivindicacao } from "@/lib/notificacoes";
 import { aprovar, aprovarPendentesSemDono, ErroReivindicacao, recusar, type ModoAprovacao } from "@/lib/reivindicacao";
 
 function voltar(aba: string, aviso: string): never {
@@ -14,7 +18,10 @@ function voltar(aba: string, aviso: string): never {
 /** Esvazia a fila antiga: aprova as reivindicações de negócios que ainda não têm dono. */
 export async function aprovarReivindicacoesSemDono(): Promise<void> {
   const moderador = await exigirModerador();
-  await aprovarPendentesSemDono(moderador.id);
+  const aprovadas = await aprovarPendentesSemDono(moderador.id);
+  after(async () => {
+    for (const id of aprovadas) await avisarDecisaoDaReivindicacao(id);
+  });
   voltar("reivindicacoes", "feito");
 }
 
@@ -41,58 +48,53 @@ export async function publicarIndicacoesPendentes(): Promise<void> {
 export async function aprovarReivindicacao(dados: FormData): Promise<void> {
   const moderador = await exigirModerador();
   const modo: ModoAprovacao = dados.get("modo") === "transferir" ? "transferir" : "adicionar";
+  const reivindicacaoId = texto(dados, "reivindicacaoId");
   try {
-    await aprovar({ reivindicacaoId: texto(dados, "reivindicacaoId"), revisorId: moderador.id, modo });
+    await aprovar({ reivindicacaoId, revisorId: moderador.id, modo });
   } catch (erro) {
     if (erro instanceof ErroReivindicacao) voltar("reivindicacoes", "ja_processada");
     throw erro;
   }
+  after(() => avisarDecisaoDaReivindicacao(reivindicacaoId));
   voltar("reivindicacoes", "feito");
 }
 
 export async function recusarReivindicacao(dados: FormData): Promise<void> {
   const moderador = await exigirModerador();
   const motivo = texto(dados, "motivo").trim().slice(0, 500) || "Não foi possível confirmar que você controla este negócio.";
+  const reivindicacaoId = texto(dados, "reivindicacaoId");
   try {
-    await recusar({ reivindicacaoId: texto(dados, "reivindicacaoId"), revisorId: moderador.id, motivo });
+    await recusar({ reivindicacaoId, revisorId: moderador.id, motivo });
   } catch (erro) {
     if (erro instanceof ErroReivindicacao) voltar("reivindicacoes", "ja_processada");
     throw erro;
   }
+  after(() => avisarDecisaoDaReivindicacao(reivindicacaoId));
   voltar("reivindicacoes", "feito");
 }
 
-/** Publica ou tira do ar um negócio. Serve para a fila de indicações e para a aba Negócios. */
+/**
+ * Publica ou tira do ar um negócio. Serve para a fila de indicações e para a aba
+ * Negócios, que manda em `voltar` a lista filtrada de onde o pedido saiu.
+ */
 export async function moderarEmpresa(dados: FormData): Promise<void> {
   const moderador = await exigirModerador();
   const decisao = dados.get("decisao") === "aprovar" ? "aprovada" : "rejeitada";
   const aba = dados.get("aba") === "negocios" ? "negocios" : "indicacoes";
-  const empresa = await db.empresa.update({
-    where: { id: texto(dados, "empresaId") },
-    data: { moderacao: decisao },
-  });
-  await registrarAuditoria(db, {
-    usuarioId: moderador.id,
-    acao: decisao === "aprovada" ? "empresa.aprovada" : "empresa.rejeitada",
-    alvoTipo: "empresa",
-    alvoId: empresa.id,
-    detalhes: `@${empresa.instagramUsername}`,
-  });
-  voltar(aba, "feito");
+  const de = situacaoDaModeracao(dados.get("de")) ?? "pendente";
+  const aplicada = await moderarNegocio({ empresaId: texto(dados, "empresaId"), de, decisao, moderadorId: moderador.id });
+  const aviso = aplicada ? "feito" : "ja_decidido";
+  const destino = destinoNaModeracao(dados.get("voltar"));
+  if (destino) redirect(comAviso(destino, aviso));
+  voltar(aba, aviso);
 }
 
 export async function decidirDenuncia(dados: FormData): Promise<void> {
   const moderador = await exigirModerador();
-  const remover = dados.get("decisao") === "remover";
-  const depoimento = await db.depoimento.update({
-    where: { id: texto(dados, "depoimentoId") },
-    data: remover ? { status: "removido", denunciado: false } : { denunciado: false, motivoDenuncia: null, denunciadoPorId: null },
+  const aplicada = await decidirDenunciaDoDepoimento({
+    depoimentoId: texto(dados, "depoimentoId"),
+    remover: dados.get("decisao") === "remover",
+    moderadorId: moderador.id,
   });
-  await registrarAuditoria(db, {
-    usuarioId: moderador.id,
-    acao: remover ? "depoimento.removido" : "depoimento.mantido",
-    alvoTipo: "depoimento",
-    alvoId: depoimento.id,
-  });
-  voltar("denuncias", "feito");
+  voltar("denuncias", aplicada ? "feito" : "ja_decidido");
 }

@@ -4,7 +4,7 @@
 
 Achou um jeito de assumir o perfil de um negócio sem aprovação, entrar na conta de outra pessoa ou ver dados que não deveria? **Não abra uma issue pública.**
 
-Use o aviso privado do GitHub: na aba **Security** do repositório, clique em [**Report a vulnerability**](https://github.com/fabsreis/Negocio-do-bem/security/advisories/new). Só quem mantém o projeto vê o que você enviar.
+Use o aviso privado do GitHub: na aba **Security** do repositório, clique em [**Report a vulnerability**](https://github.com/fabs-reis/Negocio-do-bem/security/advisories/new). Só quem mantém o projeto vê o que você enviar.
 
 Conte:
 

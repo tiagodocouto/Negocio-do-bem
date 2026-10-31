@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Form from "next/form";
 import Link from "next/link";
 import { Suspense } from "react";
 import {
@@ -13,30 +12,29 @@ import {
 import { AvisoDaUrl } from "@/components/Avisos";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { CausaBadge } from "@/components/CausaBadge";
-import { FotoEmpresa } from "@/components/FotoEmpresa";
+import { LinkInstagram } from "@/components/LinkInstagram";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { consultarCnpj, formatarCnpj } from "@/lib/cnpj";
-import { extrairCodigo } from "@/lib/codigo";
 import { db } from "@/lib/db";
-import { METODOS_REIVINDICACAO, MODERACAO_EMPRESA } from "@/lib/dominio";
-import { linkPerfil, perfilOficial } from "@/lib/instagram";
-import { formatarDataHora, formatarWhatsapp, normalizarTexto } from "@/lib/texto";
+import { METODOS_REIVINDICACAO } from "@/lib/dominio";
+import { perfilOficial } from "@/lib/instagram";
+import { ABAS, lerFiltros, type Aba } from "@/lib/moderacao/filtros";
+import { formatarDataHora, formatarTelefone } from "@/lib/texto";
+import { Auditoria } from "./Auditoria";
+import { Contas } from "./Contas";
+import { Depoimentos } from "./Depoimentos";
+import { MenuModeracao } from "./MenuModeracao";
+import { Negocios } from "./Negocios";
+import { Sistema } from "./Sistema";
+import { VisaoGeral } from "./VisaoGeral";
 
 export const metadata: Metadata = { title: "Moderação", robots: { index: false } };
 
-const ABAS = {
-  reivindicacoes: "Reivindicações",
-  indicacoes: "Indicações",
-  negocios: "Negócios",
-  denuncias: "Denúncias",
-  auditoria: "Auditoria",
-} as const;
-type Aba = keyof typeof ABAS;
-
 export default function Moderacao(props: PageProps<"/moderacao">) {
   return (
-    <div className="mx-auto max-w-5xl px-4 pt-12 sm:px-6">
-      <h1 className="font-serif text-4xl font-semibold tracking-tight">Moderação</h1>
+    <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
+      <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Painel da moderação</p>
+      <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">Moderação</h1>
       <Suspense fallback={<div className="mt-8 h-96 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo searchParams={props.searchParams} />
       </Suspense>
@@ -47,58 +45,46 @@ export default function Moderacao(props: PageProps<"/moderacao">) {
 async function Conteudo({ searchParams }: Pick<PageProps<"/moderacao">, "searchParams">) {
   await exigirModerador();
   const params = await searchParams;
-  const aba: Aba = typeof params.aba === "string" && Object.hasOwn(ABAS, params.aba) ? (params.aba as Aba) : "reivindicacoes";
-  const codigo = typeof params.codigo === "string" ? extrairCodigo(params.codigo) : null;
+  const filtros = lerFiltros(params);
 
   const [reivindicacoes, indicacoes, denuncias] = await Promise.all([
     db.reivindicacao.count({ where: { status: "pendente" } }),
     db.empresa.count({ where: { moderacao: "pendente" } }),
     db.depoimento.count({ where: { denunciado: true, status: "publicado" } }),
   ]);
-  const contagens: Partial<Record<Aba, number>> = { reivindicacoes, indicacoes, denuncias };
+  const pendentes: Partial<Record<Aba, number>> = { reivindicacoes, indicacoes, denuncias };
 
   return (
-    <div className="mt-6 space-y-6">
-      <nav className="flex flex-wrap gap-2" aria-label="Seções da moderação">
-        {(Object.keys(ABAS) as Aba[]).map((chave) => (
-          <Link
-            key={chave}
-            href={`/moderacao?aba=${chave}`}
-            aria-current={aba === chave ? "page" : undefined}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              aba === chave ? "bg-tinta text-papel" : "bg-superficie text-suave hover:text-tinta"
-            }`}
-          >
-            {ABAS[chave]}
-            {!!contagens[chave] && (
-              <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${aba === chave ? "bg-superficie/20" : "bg-coral-50 text-coral-700"}`}>
-                {contagens[chave]}
-              </span>
-            )}
-          </Link>
-        ))}
-      </nav>
+    <div className="mt-8 lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-10">
+      <MenuModeracao aba={filtros.aba} pendentes={pendentes} />
 
-      <AvisoDaUrl codigo={params.aviso} />
+      <div className="mt-6 min-w-0 space-y-6 lg:mt-0">
+        <h2 className="font-serif text-2xl font-semibold">{ABAS[filtros.aba]}</h2>
+        <AvisoDaUrl codigo={params.aviso} />
 
-      {aba === "reivindicacoes" && <Reivindicacoes codigo={codigo} />}
-      {aba === "indicacoes" && <Indicacoes />}
-      {aba === "negocios" && <Negocios busca={typeof params.q === "string" ? params.q : ""} />}
-      {aba === "denuncias" && <Denuncias />}
-      {aba === "auditoria" && <Auditoria />}
+        {filtros.aba === "visao-geral" && <VisaoGeral />}
+        {filtros.aba === "reivindicacoes" && <Reivindicacoes />}
+        {filtros.aba === "indicacoes" && <Indicacoes />}
+        {filtros.aba === "denuncias" && <Denuncias />}
+        {filtros.aba === "negocios" && <Negocios filtros={filtros} />}
+        {filtros.aba === "contas" && <Contas filtros={filtros} />}
+        {filtros.aba === "depoimentos" && <Depoimentos filtros={filtros} />}
+        {filtros.aba === "auditoria" && <Auditoria filtros={filtros} />}
+        {filtros.aba === "sistema" && <Sistema />}
+      </div>
     </div>
   );
 }
 
-async function Reivindicacoes({ codigo }: { codigo: string | null }) {
+async function Reivindicacoes() {
   const [pendentes, semDono] = await Promise.all([
     db.reivindicacao.findMany({
-      where: { status: "pendente", ...(codigo ? { codigo } : {}) },
+      where: { status: "pendente" },
       orderBy: { criadoEm: "asc" },
       take: 50,
       include: {
-        usuario: { select: { nome: true, email: true } },
-        empresa: { include: { membros: { include: { usuario: { select: { nome: true, email: true } } } } } },
+        usuario: { select: { id: true, nome: true, email: true } },
+        empresa: { include: { membros: { include: { usuario: { select: { id: true, nome: true, email: true } } } } } },
       },
     }),
     // Um negócio por vez: se duas pessoas pediram o mesmo, só a primeira é aprovada.
@@ -128,28 +114,8 @@ async function Reivindicacoes({ codigo }: { codigo: string | null }) {
         </form>
       )}
 
-      {oficial && (
-        <Form action="/moderacao" className="cartao flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
-          <input type="hidden" name="aba" value="reivindicacoes" />
-          <label htmlFor="codigo" className="px-2 text-sm font-medium whitespace-nowrap">
-            Chegou uma DM com código?
-          </label>
-          <input id="codigo" name="codigo" defaultValue={codigo ?? ""} placeholder="BEM-XXXXXX" className="campo flex-1 font-mono uppercase" />
-          <button type="submit" className="botao">
-            Localizar
-          </button>
-          {codigo && (
-            <Link href="/moderacao?aba=reivindicacoes" className="botao-claro">
-              Ver todas
-            </Link>
-          )}
-        </Form>
-      )}
-
       {pendentes.length === 0 && (
-        <p className="cartao p-8 text-center text-suave">
-          {codigo ? `Nenhuma solicitação pendente com o código ${codigo}.` : "Nenhuma reivindicação pendente. 🎉"}
-        </p>
+        <p className="cartao p-8 text-center text-suave">Nenhuma reivindicação pendente. 🎉</p>
       )}
 
       {pendentes.map((r) => {
@@ -163,9 +129,7 @@ async function Reivindicacoes({ codigo }: { codigo: string | null }) {
                   {r.empresa.nome}
                 </Link>
                 <p className="text-sm text-suave">
-                  <a href={linkPerfil(r.empresa.instagramUsername)} target="_blank" rel="noopener noreferrer" className="link">
-                    @{r.empresa.instagramUsername}
-                  </a>{" "}
+                  <LinkInstagram endereco={r.empresa.instagramUsername} />{" "}
                   · {r.empresa.status === "verificada" ? "já verificado" : "sem dono"}
                 </p>
               </div>
@@ -177,19 +141,24 @@ async function Reivindicacoes({ codigo }: { codigo: string | null }) {
             </header>
 
             <p className="text-sm">
-              <span className="text-suave">Solicitante:</span> <strong>{r.usuario.nome}</strong> ({r.usuario.email})
+              <span className="text-suave">Solicitante:</span>{" "}
+              <Link href={`/moderacao/contas/${r.usuario.id}`} className="font-semibold hover:text-coral-700 hover:underline">
+                {r.usuario.nome}
+              </Link>{" "}
+              ({r.usuario.email})
             </p>
 
             {r.metodo === "codigo_dm" && r.codigo && (
               <div className="rounded-2xl bg-papel p-4 text-sm leading-relaxed">
-                Confira se <strong>{oficial ? `@${oficial}` : "o perfil oficial"}</strong> recebeu uma DM <strong>de @{r.empresa.instagramUsername}</strong> com o
+                Pedido antigo: o código por DM não é mais oferecido. Confira se{" "}
+                <strong>{oficial ? `@${oficial}` : "o perfil oficial"}</strong> recebeu uma DM <strong>de @{r.empresa.instagramUsername}</strong> com o
                 código <code className="rounded bg-superficie px-2 py-0.5 font-mono text-base font-bold text-coral-700">{r.codigo}</code>.
                 Se a DM veio de outra conta, recuse.
               </div>
             )}
 
             {r.metodo === "documento" && (
-              <dl className="grid gap-x-6 gap-y-2 rounded-2xl bg-papel p-4 text-sm sm:grid-cols-[10rem_1fr]">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 rounded-2xl bg-papel p-4 text-sm sm:grid-cols-[10rem_1fr]">
                 <dt className="text-suave">Relação</dt>
                 <dd>{r.relacao}</dd>
                 <dt className="text-suave">Contato</dt>
@@ -232,7 +201,16 @@ async function Reivindicacoes({ codigo }: { codigo: string | null }) {
 
             {temDono && (
               <p className="text-sm text-suave">
-                Donos atuais: {r.empresa.membros.map((m) => `${m.usuario.nome} (${m.usuario.email})`).join(", ")}
+                Donos atuais:{" "}
+                {r.empresa.membros.map((m, i) => (
+                  <span key={m.usuarioId}>
+                    {i > 0 && ", "}
+                    <Link href={`/moderacao/contas/${m.usuario.id}`} className="hover:text-tinta hover:underline">
+                      {m.usuario.nome}
+                    </Link>{" "}
+                    ({m.usuario.email})
+                  </span>
+                ))}
               </p>
             )}
 
@@ -257,7 +235,7 @@ async function Reivindicacoes({ codigo }: { codigo: string | null }) {
               </div>
               <form action={recusarReivindicacao} className="flex flex-1 gap-2 sm:max-w-md">
                 <input type="hidden" name="reivindicacaoId" value={r.id} />
-                <input name="motivo" maxLength={500} placeholder="Motivo da recusa (a pessoa vê)" className="campo py-1.5 text-sm" />
+                <input name="motivo" maxLength={500} placeholder="Motivo da recusa (a pessoa vê)" className="campo py-1.5 sm:text-sm" />
                 <BotaoEnviar className="botao-claro botao-pequeno" enviando="…">
                   Recusar
                 </BotaoEnviar>
@@ -282,79 +260,12 @@ async function DadosCnpj({ cnpj }: { cnpj: string }) {
   );
 }
 
-/** Todos os negócios, para a moderação achar e editar qualquer perfil. */
-async function Negocios({ busca }: { busca: string }) {
-  const termos = normalizarTexto(busca.slice(0, 100)).split(" ").filter(Boolean).slice(0, 6);
-  const empresas = await db.empresa.findMany({
-    where: { AND: termos.map((termo) => ({ busca: { contains: termo } })) },
-    orderBy: { atualizadoEm: "desc" },
-    take: 50,
-    include: { _count: { select: { membros: true } } },
-  });
-
-  return (
-    <div className="space-y-4">
-      <Form action="/moderacao" className="cartao flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
-        <input type="hidden" name="aba" value="negocios" />
-        <input
-          name="q"
-          defaultValue={busca}
-          placeholder="Buscar por nome, @, cidade…"
-          aria-label="Buscar negócios"
-          className="campo flex-1"
-        />
-        <button type="submit" className="botao">
-          Buscar
-        </button>
-      </Form>
-
-      {empresas.length === 0 ? (
-        <p className="cartao p-8 text-center text-suave">Nenhum negócio encontrado.</p>
-      ) : (
-        <ul className="cartao divide-y divide-linha">
-          {empresas.map((e) => (
-            <li key={e.id} className="flex flex-wrap items-center gap-4 p-4">
-              <FotoEmpresa empresa={e} />
-              <div className="min-w-0 flex-1">
-                <Link href={`/empresas/${e.instagramUsername}`} className="font-serif text-xl font-semibold hover:text-coral-700">
-                  {e.nome}
-                </Link>
-                <p className="text-sm text-suave">
-                  @{e.instagramUsername} · {e.cidade}/{e.uf} · {MODERACAO_EMPRESA[e.moderacao]} ·{" "}
-                  {e._count.membros > 0 ? "tem dono" : "sem dono"}
-                  {e.oculta && " · oculto"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Link href={`/moderacao/negocios/${e.instagramUsername}`} className="botao-claro botao-pequeno">
-                  Editar perfil
-                </Link>
-                <form action={moderarEmpresa}>
-                  <input type="hidden" name="empresaId" value={e.id} />
-                  <input type="hidden" name="aba" value="negocios" />
-                  <input type="hidden" name="decisao" value={e.moderacao === "aprovada" ? "rejeitar" : "aprovar"} />
-                  <BotaoEnviar className={`${e.moderacao === "aprovada" ? "botao-claro" : "botao"} botao-pequeno`} enviando="…">
-                    {e.moderacao === "aprovada" ? "Tirar do ar" : e.moderacao === "rejeitada" ? "Publicar de novo" : "Publicar"}
-                  </BotaoEnviar>
-                </form>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {empresas.length === 50 && (
-        <p className="text-center text-sm text-suave">Mostrando os 50 atualizados mais recentemente. Use a busca para achar outros.</p>
-      )}
-    </div>
-  );
-}
-
 async function Indicacoes() {
   const pendentes = await db.empresa.findMany({
     where: { moderacao: "pendente" },
     orderBy: { criadoEm: "asc" },
     take: 50,
-    include: { causas: true, indicadaPor: { select: { nome: true, email: true } } },
+    include: { causas: true, indicadaPor: { select: { id: true, nome: true } } },
   });
   if (pendentes.length === 0) return <p className="cartao p-8 text-center text-suave">Nenhuma indicação esperando. 🎉</p>;
 
@@ -378,29 +289,41 @@ async function Indicacoes() {
                 {e.nome}
               </Link>
               <p className="text-sm text-suave">
-                <a href={linkPerfil(e.instagramUsername)} target="_blank" rel="noopener noreferrer" className="link">
-                  @{e.instagramUsername} ↗
-                </a>{" "}
+                <LinkInstagram endereco={e.instagramUsername} seta />{" "}
                 · {e.categoria} · {e.cidade}/{e.uf}
               </p>
             </div>
             <p className="text-right text-sm text-suave">
-              por {e.indicadaPor?.nome ?? "conta removida"}
+              por{" "}
+              {e.indicadaPor ? (
+                <Link href={`/moderacao/contas/${e.indicadaPor.id}`} className="hover:text-tinta hover:underline">
+                  {e.indicadaPor.nome}
+                </Link>
+              ) : (
+                "conta removida"
+              )}
               <br />
               {formatarDataHora(e.criadoEm)}
             </p>
           </div>
           <p>{e.resumo}</p>
           {e.motivoIndicacao && <p className="text-sm text-suave italic">“{e.motivoIndicacao}”</p>}
-          {(e.site || e.whatsapp || e.emailContato) && (
+          {(e.telefoneComercial || e.site || e.whatsapp || e.emailContato) && (
             <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-suave">
+              {e.telefoneComercial && <span>Telefone {formatarTelefone(e.telefoneComercial)}</span>}
               {e.site && (
                 <a href={e.site} target="_blank" rel="noopener noreferrer nofollow" className="link break-all">
                   {e.site}
                 </a>
               )}
-              {e.whatsapp && <span>WhatsApp {formatarWhatsapp(e.whatsapp)}</span>}
+              {e.whatsapp && <span>WhatsApp {formatarTelefone(e.whatsapp)}</span>}
               {e.emailContato && <span>{e.emailContato}</span>}
+            </p>
+          )}
+          {(e.emailDoDono || e.telefoneDoDono) && (
+            <p className="text-sm text-suave">
+              Contato do dono:{" "}
+              {[e.emailDoDono, e.telefoneDoDono && formatarTelefone(e.telefoneDoDono)].filter(Boolean).join(" · ")}
             </p>
           )}
           {e.causas.length > 0 && (
@@ -413,6 +336,7 @@ async function Indicacoes() {
           <div className="flex gap-2 border-t border-linha pt-4">
             <form action={moderarEmpresa}>
               <input type="hidden" name="empresaId" value={e.id} />
+              <input type="hidden" name="de" value="pendente" />
               <input type="hidden" name="decisao" value="aprovar" />
               <BotaoEnviar className="botao botao-pequeno" enviando="…">
                 Publicar
@@ -420,6 +344,7 @@ async function Indicacoes() {
             </form>
             <form action={moderarEmpresa}>
               <input type="hidden" name="empresaId" value={e.id} />
+              <input type="hidden" name="de" value="pendente" />
               <input type="hidden" name="decisao" value="rejeitar" />
               <BotaoEnviar className="botao-claro botao-pequeno" enviando="…">
                 Não publicar
@@ -441,8 +366,8 @@ async function Denuncias() {
     orderBy: { criadoEm: "asc" },
     take: 50,
     include: {
-      autor: { select: { nome: true, email: true } },
-      denunciadoPor: { select: { nome: true } },
+      autor: { select: { id: true, nome: true, email: true } },
+      denunciadoPor: { select: { id: true, nome: true } },
       empresa: { select: { nome: true, instagramUsername: true } },
     },
   });
@@ -457,11 +382,23 @@ async function Denuncias() {
             <Link href={`/empresas/${d.empresa.instagramUsername}#depoimentos`} className="link">
               {d.empresa.nome}
             </Link>{" "}
-            · por {d.autor.nome} ({d.autor.email}) · {formatarDataHora(d.criadoEm)}
+            · por{" "}
+            <Link href={`/moderacao/contas/${d.autor.id}`} className="hover:text-tinta hover:underline">
+              {d.autor.nome}
+            </Link>{" "}
+            ({d.autor.email}) · {formatarDataHora(d.criadoEm)}
           </p>
           <blockquote className="font-serif text-lg whitespace-pre-line">{d.texto}</blockquote>
           <p className="rounded-2xl bg-coral-50 p-3 text-sm text-coral-700">
-            Denunciado por {d.denunciadoPor?.nome ?? "conta removida"}: {d.motivoDenuncia}
+            Denunciado por{" "}
+            {d.denunciadoPor ? (
+              <Link href={`/moderacao/contas/${d.denunciadoPor.id}`} className="font-semibold hover:underline">
+                {d.denunciadoPor.nome}
+              </Link>
+            ) : (
+              "conta removida"
+            )}
+            : {d.motivoDenuncia}
           </p>
           <div className="flex gap-2 border-t border-linha pt-4">
             <form action={decidirDenuncia}>
@@ -481,39 +418,6 @@ async function Denuncias() {
           </div>
         </article>
       ))}
-    </div>
-  );
-}
-
-async function Auditoria() {
-  const registros = await db.registroAuditoria.findMany({
-    orderBy: { criadoEm: "desc" },
-    take: 100,
-    include: { usuario: { select: { nome: true } } },
-  });
-  return (
-    <div className="cartao overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-linha text-xs tracking-wide text-suave uppercase">
-          <tr>
-            <th className="p-3 font-semibold">Quando</th>
-            <th className="p-3 font-semibold">Quem</th>
-            <th className="p-3 font-semibold">Ação</th>
-            <th className="p-3 font-semibold">Detalhes</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-linha">
-          {registros.map((r) => (
-            <tr key={r.id}>
-              <td className="p-3 whitespace-nowrap text-suave">{formatarDataHora(r.criadoEm)}</td>
-              <td className="p-3">{r.usuario?.nome ?? <span className="text-suave italic">sistema</span>}</td>
-              <td className="p-3 font-mono text-xs">{r.acao}</td>
-              <td className="p-3 text-suave">{r.detalhes ?? `${r.alvoTipo} ${r.alvoId}`}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {registros.length === 0 && <p className="p-8 text-center text-suave">Nada registrado ainda.</p>}
     </div>
   );
 }

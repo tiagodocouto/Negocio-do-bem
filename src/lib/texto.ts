@@ -53,8 +53,8 @@ export function formatarMunicipio(cidade: string, uf: string): string {
   return `${cidade}, ${uf}`;
 }
 
-/** "5511991488052" → "(11) 99148-8052". */
-export function formatarWhatsapp(digitos: string): string {
+/** "5511991488052" → "(11) 99148-8052". Serve para o WhatsApp e o telefone comercial. */
+export function formatarTelefone(digitos: string): string {
   const local = digitos.replace(/^55/, "");
   const ddd = local.slice(0, 2);
   const numero = local.slice(2);
@@ -64,6 +64,16 @@ export function formatarWhatsapp(digitos: string): string {
 
 export function formatarData(data: Date): string {
   return new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric" }).format(data);
+}
+
+/** "29/10/2026", no horário de Brasília. */
+export function formatarDataCurta(data: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" }).format(data);
+}
+
+/** "29/10": dia e mês, no horário de Brasília. */
+export function formatarDiaMes(data: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(data);
 }
 
 export function formatarDataHora(data: Date): string {

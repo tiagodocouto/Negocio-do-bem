@@ -1,11 +1,18 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BuscaDiretorio } from "@/components/BuscaDiretorio";
 import { Contador } from "@/components/Contador";
 import { IconeCategoria } from "@/components/IconeCategoria";
+import { JsonLd } from "@/components/JsonLd";
 import { listarCidades, resumoDoDiretorio } from "@/lib/consultas";
-import { hrefDiretorio } from "@/lib/diretorio";
+import { hrefCidade, hrefDiretorio } from "@/lib/diretorio";
 import { CATEGORIAS } from "@/lib/dominio";
+import { DESCRICAO_DO_SITE, jsonLdDoSite, metadadosDaPagina } from "@/lib/seo";
+
+export const metadata: Metadata = metadadosDaPagina({ descricao: DESCRICAO_DO_SITE, caminho: "/" });
+
+const CIDADES_NA_INICIAL = 12;
 
 // Atalhos de "Experimente:": levam direto para o diretório já filtrado.
 const ATALHOS = [
@@ -19,6 +26,7 @@ const ATALHOS = [
 export default function Inicio() {
   return (
     <>
+      <JsonLd dados={jsonLdDoSite()} />
       <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-16">
         <div className="flex flex-wrap items-stretch gap-7">
           <div className="flex min-w-0 flex-[999_1_32rem] flex-col justify-center">
@@ -72,6 +80,10 @@ export default function Inicio() {
         </Suspense>
       </section>
 
+      <Suspense>
+        <CidadesComMaisNegocios />
+      </Suspense>
+
       <ComoFunciona />
     </>
   );
@@ -95,6 +107,9 @@ async function Numeros() {
         <Numero valor={resumo.estados} rotulo={resumo.estados === 1 ? "estado" : "estados"} />
         <Numero valor={resumo.verificados} rotulo="verificados pelo dono" />
       </dl>
+      <Link href="/participar" className="botao-coral w-full py-3 text-base">
+        Cadastrar empresa
+      </Link>
     </div>
   );
 }
@@ -109,7 +124,7 @@ function Numero({ valor, rotulo }: { valor: number; rotulo: string }) {
 }
 
 function NumerosCarregando() {
-  return <div className="min-h-72 flex-[1_1_20rem] animate-pulse rounded-[2rem] bg-superficie" aria-busy="true" />;
+  return <div className="min-h-90 flex-[1_1_20rem] animate-pulse rounded-[2rem] bg-superficie" aria-busy="true" />;
 }
 
 async function BuscaComCidades() {
@@ -144,6 +159,34 @@ async function TiposDeNegocio() {
   );
 }
 
+/** As cidades com mais negócios, cada uma com a sua página. */
+async function CidadesComMaisNegocios() {
+  const cidades = [...(await listarCidades())].sort((a, b) => b.total - a.total || a.cidade.localeCompare(b.cidade, "pt-BR"));
+  if (cidades.length === 0) return null;
+  return (
+    <section className="mx-auto mt-16 max-w-6xl px-4 sm:px-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Explore por cidade</h2>
+        <Link href="/cidades" className="inline-flex items-center gap-1.5 font-semibold text-coral-700 hover:underline">
+          Ver todas as cidades <span aria-hidden="true">→</span>
+        </Link>
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {cidades.slice(0, CIDADES_NA_INICIAL).map((cidade) => (
+          <Link
+            key={`${cidade.cidade}-${cidade.uf}`}
+            href={hrefCidade(cidade.cidade, cidade.uf)}
+            className="inline-flex items-center gap-2 rounded-full border border-linha bg-superficie px-4 py-2 font-medium transition hover:border-tinta/40"
+          >
+            {cidade.cidade}, {cidade.uf}
+            <span className="text-sm text-suave tabular-nums">{cidade.total}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function TiposCarregando() {
   return (
     <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true">
@@ -175,7 +218,7 @@ function ComoFunciona() {
   return (
     <section className="mx-auto mt-24 max-w-6xl px-4 sm:px-6">
       <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Como funciona</h2>
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {passos.map((passo, i) => (
           <div key={passo.titulo} className="cartao p-7">
             <span className="text-3xl" aria-hidden="true">

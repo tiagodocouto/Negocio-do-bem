@@ -33,7 +33,7 @@ Siga o passo a passo de [Rodando localmente](README.md#rodando-localmente) no RE
 3. Explique o que muda e por quê, e ligue o PR à issue: `Closes #12` se ele resolve, `Refs #12` se só se relaciona. Se mexeu na interface, coloque um print.
 4. Prefira PRs pequenos, com um assunto só.
 
-Abra o PR para a `stage`, a branch padrão. Ela é a homologação: cada PR ganha um preview no Vercel para testar antes, e a `stage` tem o seu. A produção é a `main`, que recebe PRs da `stage`, e o deploy acontece sozinho depois do merge. As duas são protegidas: todo PR precisa passar na checagem "Lint, tipos e testes". Na `stage`, o merge é sempre por squash. Na `main`, a publicação precisa de uma aprovação e entra por merge commit.
+Abra o PR para a `stage`, a branch padrão. Ela é a homologação: cada PR ganha um preview no Cloudflare Workers para testar antes, e a `stage` tem o seu. A produção é a `main`, que recebe PRs da `stage`, e o deploy acontece sozinho depois do merge. As duas são protegidas: todo PR precisa passar na checagem "Lint, tipos e testes". Na `stage`, o merge é sempre por squash. Na `main`, a publicação precisa de uma aprovação e entra por merge commit.
 
 ## Convivência
 

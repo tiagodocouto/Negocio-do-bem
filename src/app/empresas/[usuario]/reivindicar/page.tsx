@@ -6,15 +6,18 @@ import { cancelarReivindicacao } from "@/acoes/reivindicacoes";
 import { Aviso } from "@/components/Aviso";
 import { AvisoDaUrl } from "@/components/Avisos";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
+import { InstagramIcone } from "@/components/Icones";
+import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { usuarioAtual } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { METODOS_REIVINDICACAO, STATUS_REIVINDICACAO } from "@/lib/dominio";
-import { configLogin, configWebhook, normalizarUsername, perfilOficial } from "@/lib/instagram";
+import { temInstagram } from "@/lib/endereco";
+import { configLogin, normalizarEndereco, normalizarUsername } from "@/lib/instagram";
 import { formatarDataHora } from "@/lib/texto";
-import { CopiarCodigo } from "./CopiarCodigo";
-import { FormDocumento, FormGerarCodigo } from "./Formularios";
+import { FormDocumento } from "./Formularios";
+import { FORA_DA_BUSCA } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Reivindicar perfil" };
+export const metadata: Metadata = { title: "Reivindicar perfil", robots: FORA_DA_BUSCA };
 
 export default function PaginaReivindicar(props: PageProps<"/empresas/[usuario]/reivindicar">) {
   return (
@@ -30,7 +33,7 @@ async function Reivindicar({
   params,
   searchParams,
 }: Pick<PageProps<"/empresas/[usuario]/reivindicar">, "params" | "searchParams">) {
-  const username = normalizarUsername((await params).usuario);
+  const username = normalizarEndereco((await params).usuario);
   if (!username) notFound();
   const [empresa, usuario, busca] = await Promise.all([
     db.empresa.findUnique({ where: { instagramUsername: username }, include: { membros: true } }),
@@ -52,7 +55,7 @@ async function Reivindicar({
       </h1>
       <p className="text-lg leading-relaxed text-suave">
         Envie os dados do negócio para assumir o perfil de{" "}
-        <strong className="font-semibold text-tinta">@{username}</strong>. Depois disso, você conta a sua história,
+        <strong className="font-semibold text-tinta">{temInstagram(username) ? `@${username}` : empresa.nome}</strong>. Depois disso, você conta a sua história,
         escolhe as causas e responde à comunidade.
       </p>
       <AvisoDaUrl codigo={busca.aviso} />
@@ -98,21 +101,24 @@ async function Reivindicar({
     );
   }
 
+  if (!usuario.emailConfirmado) {
+    return (
+      <>
+        {cabecalho}
+        <ConfirmarEmail email={usuario.email} para="assumir o perfil" voltar={caminho} />
+      </>
+    );
+  }
+
   const solicitacoes = await db.reivindicacao.findMany({
     where: { empresaId: empresa.id, usuarioId: usuario.id },
     orderBy: { criadoEm: "desc" },
     take: 5,
   });
-  const agora = new Date();
-  const codigoVigente = solicitacoes.find(
-    (r) => r.metodo === "codigo_dm" && r.status === "pendente" && r.expiraEm > agora,
-  );
-  const outrasPendentes = solicitacoes.filter((r) => r.status === "pendente" && r.id !== codigoVigente?.id);
-  const dadosEmAnalise = outrasPendentes.some((r) => r.metodo === "documento");
-  const loginDisponivel = !!configLogin();
-  const confirmacaoAutomatica = !!configWebhook();
-  const oficial = perfilOficial();
-  const outrosCaminhos = loginDisponivel || !!oficial;
+  const pendentes = solicitacoes.filter((r) => r.status === "pendente");
+  const dadosEmAnalise = pendentes.some((r) => r.metodo === "documento");
+  // Sem Instagram, o único caminho é enviar os dados do negócio.
+  const loginDisponivel = temInstagram(username) && !!configLogin();
 
   return (
     <>
@@ -127,9 +133,9 @@ async function Reivindicar({
         </div>
       )}
 
-      {outrasPendentes.length > 0 && (
+      {pendentes.length > 0 && (
         <div className="mb-6 space-y-2">
-          {outrasPendentes.map((r) => (
+          {pendentes.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-linha bg-superficie px-4 py-3 text-sm">
               <span>
                 <strong>{METODOS_REIVINDICACAO[r.metodo]}</strong> · {STATUS_REIVINDICACAO[r.status]} desde{" "}
@@ -164,60 +170,6 @@ async function Reivindicar({
           </section>
         )}
 
-        {oficial && (
-          <section id="codigo" className="cartao scroll-mt-24 p-6 sm:p-8">
-            <h2 className="font-serif text-2xl font-semibold">
-              {loginDisponivel ? "Ou mande um código por DM" : "Mande um código por DM"}
-            </h2>
-            <p className="mt-2 leading-relaxed text-suave">
-              Funciona com qualquer conta do Instagram, inclusive pessoal.
-            </p>
-
-            {codigoVigente?.codigo ? (
-              <div className="mt-6 space-y-5">
-                <ol className="space-y-4">
-                  <Passo numero={1}>
-                    Abra o Instagram logado como <strong>@{username}</strong>, a conta do negócio.
-                  </Passo>
-                  <Passo numero={2}>
-                    Envie uma DM para <strong>@{oficial}</strong> só com este código:
-                    <CopiarCodigo codigo={codigoVigente.codigo} />
-                    <a
-                      href={`https://ig.me/m/${oficial}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="link mt-3 inline-block text-sm"
-                    >
-                      Abrir conversa com @{oficial} ↗
-                    </a>
-                  </Passo>
-                  <Passo numero={3}>
-                    {confirmacaoAutomatica
-                      ? "Pronto! A confirmação é automática e leva poucos minutos. Atualize esta página para ver."
-                      : "Pronto! A moderação confere a mensagem e aprova, normalmente em até um dia útil. O resultado aparece no seu painel."}
-                  </Passo>
-                </ol>
-                <Aviso tipo="erro">
-                  <strong>Nunca envie um código que outra pessoa te passou.</strong> Quem gerou o código é quem vira dono
-                  do perfil.
-                </Aviso>
-                <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-suave">
-                  <span>O código vale até {formatarDataHora(codigoVigente.expiraEm)}.</span>
-                  <form action={cancelarReivindicacao}>
-                    <input type="hidden" name="empresaId" value={empresa.id} />
-                    <input type="hidden" name="reivindicacaoId" value={codigoVigente.id} />
-                    <BotaoEnviar className="underline hover:text-coral-700" enviando="Cancelando…">
-                      Cancelar código
-                    </BotaoEnviar>
-                  </form>
-                </div>
-              </div>
-            ) : (
-              <FormGerarCodigo empresaId={empresa.id} />
-            )}
-          </section>
-        )}
-
         {dadosEmAnalise ? (
           <Aviso tipo="info">
             Seus dados estão com a moderação. O resultado aparece no{" "}
@@ -226,7 +178,7 @@ async function Reivindicar({
             </Link>
             .
           </Aviso>
-        ) : outrosCaminhos ? (
+        ) : loginDisponivel ? (
           <details className="group cartao p-6 sm:p-8">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 [&::-webkit-details-marker]:hidden">
               <span>
@@ -260,26 +212,5 @@ async function Reivindicar({
         .
       </p>
     </>
-  );
-}
-
-function Passo({ numero, children }: { numero: number; children: React.ReactNode }) {
-  return (
-    <li className="flex gap-4">
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-coral-50 text-sm font-bold text-coral-700">
-        {numero}
-      </span>
-      <div className="pt-0.5 leading-relaxed">{children}</div>
-    </li>
-  );
-}
-
-function InstagramIcone() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-    </svg>
   );
 }

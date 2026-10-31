@@ -1,14 +1,12 @@
 // Integração com o Instagram (Instagram API with Instagram Login).
 //
-// Dois usos, ambos opcionais e ligados por variáveis de ambiente:
-// 1. "Entrar com Instagram": o dono faz login na conta profissional do negócio e
-//    o Instagram nos diz qual @ ele controla.
-// 2. Webhook de mensagens: quando alguém manda DM com o código de verificação
-//    para o perfil oficial, descobrimos o @ de quem enviou e confirmamos sozinhos.
+// Uso opcional, ligado por variáveis de ambiente: no "Entrar com Instagram", o
+// dono faz login na conta profissional do negócio e o Instagram nos diz qual @
+// ele controla.
 //
 // Documentação: https://developers.facebook.com/docs/instagram-platform
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { ehEnderecoSemInstagram } from "@/lib/endereco";
 
 const HOST_GRAPH = "https://graph.instagram.com";
 
@@ -35,7 +33,12 @@ export function linkPerfil(username: string): string {
   return `https://www.instagram.com/${username}/`;
 }
 
-/** @ que recebe as DMs com código. Sem ele, o código por DM fica desligado. */
+/** Lê o endereço da URL: um @ do Instagram ou o endereço de um negócio sem Instagram (src/lib/endereco.ts). */
+export function normalizarEndereco(entrada: unknown): string | null {
+  return ehEnderecoSemInstagram(entrada) ? entrada : normalizarUsername(entrada);
+}
+
+/** @ do Negócio do Bem no Instagram, mostrado como contato do projeto. */
 export function perfilOficial(): string | null {
   return normalizarUsername(process.env.INSTAGRAM_PERFIL_OFICIAL);
 }
@@ -114,63 +117,6 @@ export async function buscarContaConectada(token: string): Promise<ContaInstagra
     throw new Error(`Não foi possível ler a conta conectada (HTTP ${resposta.status}).`);
   }
   return { userId: String(userId), username };
-}
-
-// ---------------------------------------------------------------------------
-// Webhook de DMs
-// ---------------------------------------------------------------------------
-
-export type ConfigWebhook = { appSecret: string; verifyToken: string; accessToken: string };
-
-export function configWebhook(): ConfigWebhook | null {
-  const appSecret = process.env.INSTAGRAM_APP_SECRET;
-  const verifyToken = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN;
-  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
-  if (!appSecret || !verifyToken || !accessToken) return null;
-  return { appSecret, verifyToken, accessToken };
-}
-
-/** Confere o cabeçalho X-Hub-Signature-256 que a Meta envia em cada notificação. */
-export function assinaturaValida(corpo: string, assinatura: string | null, appSecret: string): boolean {
-  if (!assinatura?.startsWith("sha256=")) return false;
-  const esperada = Buffer.from(createHmac("sha256", appSecret).update(corpo, "utf8").digest("hex"), "utf8");
-  const recebida = Buffer.from(assinatura.slice("sha256=".length), "utf8");
-  return esperada.length === recebida.length && timingSafeEqual(esperada, recebida);
-}
-
-export type MensagemRecebida = { remetenteId: string; texto: string };
-
-/** Extrai as DMs de texto recebidas (ignorando as que nós mesmos enviamos). */
-export function extrairMensagens(payload: unknown): MensagemRecebida[] {
-  const mensagens: MensagemRecebida[] = [];
-  const entradas = objeto(payload)?.entry;
-  if (!Array.isArray(entradas)) return mensagens;
-  for (const entrada of entradas) {
-    const eventos = objeto(entrada)?.messaging;
-    if (!Array.isArray(eventos)) continue;
-    for (const evento of eventos) {
-      const mensagem = objeto(objeto(evento)?.message);
-      const remetente = objeto(objeto(evento)?.sender)?.id;
-      if (!mensagem || mensagem.is_echo === true || typeof mensagem.text !== "string") continue;
-      if (typeof remetente !== "string" && typeof remetente !== "number") continue;
-      mensagens.push({ remetenteId: String(remetente), texto: mensagem.text });
-    }
-  }
-  return mensagens;
-}
-
-/** Descobre o @ de quem mandou a DM (User Profile API). Null se não der. */
-export async function buscarUsernamePorIgsid(igsid: string, accessToken: string): Promise<string | null> {
-  try {
-    const url = new URL(`${HOST_GRAPH}/${versaoGraph()}/${encodeURIComponent(igsid)}`);
-    url.searchParams.set("fields", "username");
-    url.searchParams.set("access_token", accessToken);
-    const resposta = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!resposta.ok) return null;
-    return normalizarUsername(objeto(await resposta.json())?.username);
-  } catch {
-    return null;
-  }
 }
 
 function objeto(valor: unknown): Record<string, unknown> | null {

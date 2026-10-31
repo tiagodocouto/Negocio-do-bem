@@ -27,7 +27,7 @@ function criarEmpresa(username: string, extra: Partial<{ fotoUrl: string; modera
   });
 }
 
-// Sem BLOB_STORE_ID nem BLOB_READ_WRITE_TOKEN, as fotos gravadas nos testes vão para public/enviados: apaga depois.
+// Sem domínio R2 configurado, as fotos gravadas nos testes vão para public/enviados: apaga depois.
 afterEach(async () => {
   const comFoto = await db.empresa.findMany({ where: { fotoUrl: { startsWith: "/enviados/" } }, select: { fotoUrl: true } });
   const gravadas = comFoto.filter((e) => /^\/enviados\/perfis\/[0-9a-f]{24}\.webp$/.test(e.fotoUrl ?? ""));

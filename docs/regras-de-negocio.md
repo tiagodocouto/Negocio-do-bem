@@ -21,9 +21,10 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 11. [Diretório e busca](#11-diretório-e-busca)
 12. [Causas, categorias e estados do Brasil](#12-causas-categorias-e-estados-do-brasil)
 13. [Auditoria](#13-auditoria)
-14. [Privacidade: o que guardamos e quem vê](#14-privacidade-o-que-guardamos-e-quem-vê)
-15. [Números e limites](#15-números-e-limites)
-16. [Comportamentos atuais que valem conhecer](#16-comportamentos-atuais-que-valem-conhecer)
+14. [Avisos por e-mail](#14-avisos-por-e-mail)
+15. [Privacidade: o que guardamos e quem vê](#15-privacidade-o-que-guardamos-e-quem-vê)
+16. [Números e limites](#16-números-e-limites)
+17. [Comportamentos atuais que valem conhecer](#17-comportamentos-atuais-que-valem-conhecer)
 
 ---
 
@@ -55,14 +56,61 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
 - **Cadastro** (`/cadastrar`):
   - nome de 2 a 80 caracteres;
   - e-mail válido de até 200 caracteres, guardado em minúsculas;
+  - telefone obrigatório, do Brasil, com DDD: celular (9 e mais 8 dígitos) ou fixo (começa com 2 a 5). Aceita "(11) 99148-8052" ou "+55 11 99148-8052" e guarda só os dígitos, com o 55 (`5511991488052`), como o WhatsApp do negócio. Serve só para avisos sobre a conta e o negócio da pessoa, e o campo diz isso;
   - senha de 8 a 200 caracteres.
+- **Contas sem telefone:** as criadas antes do telefone ser obrigatório ([#191](https://github.com/fabs-reis/Negocio-do-bem/issues/191)) continuam sem ele e funcionam igual. Ninguém é obrigado a informar depois.
 - **Um e-mail, uma conta.** O cadastro avisa quando o e-mail já existe ("Que tal entrar?").
 - **Login** (`/entrar`): e-mail e senha.
   - O erro é sempre o mesmo, "E-mail ou senha incorretos".
   - Quando o e-mail não existe, a senha é conferida contra um hash falso, para a resposta levar o mesmo tempo e não revelar quais e-mails têm conta.
+  - A conta sem senha (criada pelo Google, ou ligada a ele com o e-mail sem confirmar) também é conferida contra o hash falso e recebe o mesmo "E-mail ou senha incorretos". Ela entra pelo Google ou por link no e-mail, e pode criar uma senha pelo link de senha nova (veja "Esqueci minha senha", abaixo).
+  - Embaixo da senha, "Esqueceu a senha? Crie uma nova ou entre com um link por e-mail." leva a `/esqueci-a-senha` e a `/entrar/link`.
+- **Continuar com o Google** (`src/lib/auth/google.ts`, `/api/google/entrar` e `/api/google/retorno`): botão acima do formulário de `/entrar` e de `/cadastrar`.
+  - Só aparece com `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `APP_URL` configurados. Sem eles, quem chega a `/api/google/entrar` volta para `/entrar` com "O login com o Google ainda não está disponível".
+  - O site pede só `openid email profile` e lê do Google a conta (`sub`), o e-mail, se o e-mail é verificado e o nome. O token do Google não é guardado.
+  - **Conta já ligada** (o `sub` em `Usuario.googleId`): entra, mesmo que o e-mail tenha mudado no Google ou o Google deixe de dá-lo como verificado.
+  - **Conta com o mesmo e-mail:** o Google é ligado a ela, e a pessoa entra.
+    - Se o e-mail dessa conta já estava confirmado, a senha e as sessões abertas continuam.
+    - Se não estava, a senha é apagada, as sessões abertas são encerradas e o e-mail passa a valer como confirmado. Quem criou a conta nunca provou ser dono do endereço: sem isso, alguém criaria a conta com o e-mail de outra pessoa e continuaria entrando com a senha depois que ela entrasse pelo Google.
+  - **Sem conta com o e-mail:** a conta só é criada depois que a pessoa informa o telefone, que o Google não dá.
+    - O retorno guarda quem o Google disse que é a pessoa (`CadastroGoogle`: o `sub`, o e-mail, o nome e o `voltar`) e leva a `/cadastrar/google`, "Falta só o seu telefone", que mostra o e-mail da conta do Google.
+    - O cookie `ndb_google_cadastro` (`httpOnly`, `sameSite=lax`, só no caminho `/cadastrar/google`) leva o token. O banco guarda só o sha256 dele. O cadastro vale por 30 minutos; os vencidos são apagados quando outro é guardado.
+    - Com o telefone válido, a conta é criada com o nome do Google (até 80 caracteres; sem nome, o começo do e-mail), o telefone, o e-mail confirmado e sem senha. O cadastro guardado é apagado, a sessão é aberta e a pessoa vai para o `voltar`.
+    - Depois do prazo, a página diz que ele acabou e leva de volta ao `/cadastrar`. Se, enquanto isso, o e-mail foi ligado a outro Google, aparece "Este e-mail já está ligado a outra conta do Google" e nada é criado.
+    - Entrar numa conta ligada ou ligar o Google a uma conta que já existe não pede o telefone.
+  - **Ligar e criar exigem o e-mail verificado pelo Google.** Sem isso, nada é criado nem ligado, e aparece "O Google ainda não confirmou o e-mail dessa conta".
+  - **Uma conta liga um Google só.** Se o e-mail já está ligado a outro Google, nada muda, e aparece "Este e-mail já está ligado a outra conta do Google".
+  - Dois retornos ao mesmo tempo criam ou ligam a conta uma vez só.
+  - **O retorno é protegido:** o `state`, o verificador do PKCE e o `voltar` ficam no cookie `ndb_google` (`httpOnly`, `sameSite=lax`, só no caminho `/api/google`, por 10 minutos), apagado no retorno. O código só é trocado se o `state` que volta do Google bate com o do cookie. O `id_token` vem direto do Google, na troca do código, e só vale do emissor do Google, para o `GOOGLE_CLIENT_ID` do site e dentro da validade.
+  - Cancelar no Google, ou qualquer falha, volta para `/entrar` com um aviso, mantendo o `voltar`.
+  - O login pelo Google não passa pelo limite de tentativas, porque não confere senha.
+- **Limite de tentativas** (`src/lib/auth/tentativas.ts`), conferido antes do scrypt, porque cada conferência de senha custa ~32 MB de memória:
+  - **por IP:** 10 tentativas de login, cadastro, troca de senha no painel, pedido de senha nova em `/esqueci-a-senha` e senha nova pelo link, somadas, a cada 15 minutos;
+  - **de onde vem o IP:** no Cloudflare, só do cabeçalho `cf-connecting-ip`, escrito pela rede, quando `CLOUDFLARE_DEPLOY=1`; no Vercel, só do cabeçalho `x-vercel-forwarded-for`, que o Vercel escreve. Em outra hospedagem, de nenhum cabeçalho, a menos que quem cuida do site defina `AUTENTICACAO_PROXY_CONFIAVEL=1` (há um proxy seu na frente, que escreve o `x-forwarded-for`): então vale o último valor desse cabeçalho, se for um IP. Um cabeçalho que o visitante pode escrever nunca vale;
+  - **IPv6:** o IPv4 escrito como IPv6 (`::ffff:203.0.113.5`) conta como o IPv4. Os outros endereços IPv6 contam pelo prefixo /64, então todos os endereços da mesma rede dividem a cota;
+  - **sem IP conhecido** (fora do Vercel/Cloudflare sem proxy declarado, ou cabeçalho ausente ou inválido), todas as tentativas dividem um contador só, de 10 a cada 15 minutos. É o lado seguro: o cadastro não tem limite por e-mail, e sem esse contador o scrypt ficaria sem freio. O custo é que, sem o proxy declarado, quem tenta entrar pode ficar recusado por causa dos outros visitantes;
+  - **por e-mail, em cada origem:** 5 tentativas de senha a cada 15 minutos para o mesmo e-mail, vindas do mesmo IP (ou do mesmo /64 no IPv6). Cada origem tem o próprio contador, então quem erra a senha de outra pessoa não a impede de entrar de outro lugar. Sem IP conhecido, as tentativas sem IP dividem um contador por e-mail. A tentativa é contada antes de a senha ser conferida, e não depois: assim, tentativas que chegam juntas não passam todas. A sexta já nem chega à conferência, mesmo com a senha certa. Vale também para a senha atual digitada na troca de senha do painel. Um login certo zera a contagem daquele e-mail naquela origem. Trocar a senha, no painel ou pelo link, zera a contagem daquele e-mail em todas as origens: quem esqueceu a senha costuma errar algumas vezes antes de pedir o link, e a senha nova não pode ficar recusada até a janela vencer;
+  - no login, a recusa pelo limite mostra o mesmo "E-mail ou senha incorretos", para não revelar quais e-mails existem. No cadastro, na troca de senha e nos pedidos de senha nova, aparece "Muitas tentativas seguidas. Espere alguns minutos e tente de novo";
+  - o banco guarda só o hash (sha256) do IP e do e-mail, e as janelas vencidas são apagadas na tentativa seguinte. A linha do limite por e-mail guarda também o hash só do e-mail (`TentativaAcesso.email`), para a troca de senha achar as de todas as origens.
 - **Senha:**
   - guardada com scrypt (N=2^15, r=8, p=1, sal aleatório de 16 bytes) no formato `scrypt$N$r$p$sal$hash`;
   - a comparação é em tempo constante.
+- **Esqueci minha senha** (`/esqueci-a-senha`, `pedirRedefinicaoDeSenha` e `criarSenhaComLink`). Usa o mesmo sistema de [links por e-mail](#e-mail-confirmado-e-links-por-e-mail), com o link de senha nova:
+  - a pessoa digita o e-mail e volta para `/entrar` com "Se existe uma conta com esse e-mail, mandamos um link para criar uma senha nova". A resposta é a mesma com ou sem conta, e o link é criado e mandado depois da resposta, para o tempo também não revelar quais e-mails têm conta;
+  - cada pedido gasta uma tentativa do limite por IP, o mesmo do login. A conta também tem o limite de 5 links por hora: depois dele, a resposta é a mesma e o e-mail não sai;
+  - o link vale **1 hora** e **uma vez só**, e funciona também na conta criada pelo Google, que passa a ter senha;
+  - o link abre `/link`, "Crie uma senha nova", com a conta e os campos da senha nova e da repetição dela. A página não redireciona quem já está logado: quem desconfia de invasão abre o link na conta aberta;
+  - a senha nova segue a regra do cadastro (8 a 200 caracteres) e precisa ser igual à repetição. Um erro no formulário não gasta o link. A troca passa pelo limite por IP, porque calcula o scrypt;
+  - a troca é uma transação só: gasta o link e **os outros links ainda abertos da conta** (inclusive o de entrar, senão quem invadiu voltaria por ele), troca a senha, confirma o e-mail, **encerra todas as sessões da conta** e grava `usuario.senha_redefinida` na auditoria. Dois envios ao mesmo tempo usam o link uma vez só;
+  - depois da troca, a contagem de tentativas daquele e-mail é zerada em todas as origens, a pessoa **entra neste aparelho** (o link prova que ela lê o e-mail da conta, como o link de entrar) e vai para o `/painel` com "Senha trocada. Os outros aparelhos saíram da sua conta.";
+  - link vencido, já usado ou sem o cookie mostra "Este link venceu ou já foi usado.", com um link para pedir outro;
+  - a conta recebe um e-mail avisando da troca, para quem não foi quem trocou perceber a invasão.
+- **Trocar a senha no painel** (`/painel`, seção "Minha conta"; `trocarSenha`):
+  - pede a senha atual, a nova (8 a 200 caracteres) e a repetição da nova. Um erro de validação não chega ao scrypt nem conta tentativa;
+  - a senha atual passa pelos limites de tentativas acima, por IP e por e-mail, antes do scrypt. Errada, aparece "Senha atual incorreta." no campo;
+  - a troca é uma transação só: grava a senha nova, **encerra as outras sessões da conta** (só a deste aparelho continua), gasta os links ainda abertos da conta e grava `usuario.senha_trocada` na auditoria. Ela só grava se a senha não mudou desde a conferência: de duas trocas ao mesmo tempo, uma passa e a outra vê "A senha mudou enquanto você trocava";
+  - depois, a contagem de tentativas daquele e-mail é zerada em todas as origens, a conta recebe um e-mail avisando da troca e a pessoa volta ao `/painel` com "Senha trocada. Os outros aparelhos saíram da sua conta.";
+  - **sem senha atual:** quem esqueceu a senha atual, e a conta sem senha (criada pelo Google), usa o botão "Mandar o link de senha nova", que manda para o e-mail da conta o mesmo link de "Esqueci minha senha". A conta sem senha não vê os campos de troca, só esse botão. Passar de 5 links por hora mostra "Você pediu muitos e-mails na última hora".
 - **Sessão:**
   - dura 30 dias;
   - o cookie `ndb_sessao` é `httpOnly`, `sameSite=lax` e `secure` em produção, e guarda um token aleatório;
@@ -70,7 +118,56 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - "Sair" apaga a sessão do banco e o cookie.
 - **Volta para onde a pessoa estava:**
   - páginas que exigem login mandam para `/entrar?voltar=<caminho>`;
-  - o `voltar` só aceita caminhos internos (`caminhoSeguro`), para não virar um redirecionamento para outro site.
+  - o `voltar` só aceita caminhos internos (`caminhoSeguro`), para não virar um redirecionamento para outro site;
+  - `caminhoSeguro` recusa o valor com caractere de controle (de U+0000 a U+001F e U+007F, como TAB, LF e CR), com `//` no começo ou com barra invertida;
+  - depois ele interpreta o valor como URL (padrão WHATWG) e só aceita se a origem continuar a do site, porque o TAB, o LF e o CR somem na interpretação e `/<TAB>/host` viraria `//host`;
+  - o que ele recusa cai no destino padrão, e o caminho interno válido (com consulta e âncora) passa sem mudar.
+
+### E-mail confirmado e links por e-mail
+
+Código: `src/lib/auth/links.ts`, `src/acoes/conta.ts`, `src/app/api/link/route.ts` e `src/app/link/page.tsx`.
+
+> **A exigência está desligada por enquanto** ([#148](https://github.com/fabs-reis/Negocio-do-bem/issues/148)). `CONFIRMACAO_DE_EMAIL_LIGADA`, em `src/lib/auth/links.ts`, está `false` porque o plano grátis do Resend manda só 100 e-mails por dia, e quem se cadastrava depois disso ficava sem o link e travado. Enquanto ela estiver desligada:
+>
+> - toda conta, nova ou antiga, vale como confirmada: indica, escreve e denuncia depoimentos e reivindica sem confirmar nada, e "Confirme seu e-mail" não aparece em lugar nenhum;
+> - o cadastro não manda o link de confirmação;
+> - o "Entrar por link" e os links de confirmação já mandados continuam funcionando, e um link usado continua gravando `emailConfirmadoEm`.
+>
+> As regras abaixo voltam a valer quando a constante for ligada de novo, junto com a troca do envio de e-mails.
+
+- **O cadastro manda um link de confirmação** para o e-mail digitado. A conta já entra no site na hora.
+- **Sem o e-mail confirmado, a conta não** indica negócios, não escreve nem denuncia depoimentos e não reivindica negócios, por nenhum dos caminhos.
+  - Nesses lugares, e no topo do `/painel`, aparece "Confirme seu e-mail", com um botão para mandar o link de novo.
+  - As Server Actions conferem de novo no servidor e respondem "Antes, confirme o seu e-mail".
+- **O resto funciona sem confirmar:** entrar, sair, o painel, editar o próprio negócio, responder depoimentos e cancelar pedidos.
+- **Contas criadas antes da confirmação existir** (`emailConfirmadoEm` vazio) confirmam na próxima vez que forem fazer uma dessas ações.
+- **A conta criada ou ligada pelo Google já fica com o e-mail confirmado**, porque o Google verificou o endereço (veja "Continuar com o Google", acima).
+- **Entrar por link** (`/entrar/link`, também em "Esqueceu a senha?" no `/entrar`, ao lado de "Crie uma nova"): a pessoa digita o e-mail e recebe um link para entrar sem senha.
+  - A resposta é sempre "Confira seu e-mail", com ou sem conta para aquele endereço.
+  - O link é criado e mandado depois da resposta, para o tempo de resposta também não revelar quais e-mails têm conta.
+  - A senha continua valendo. Entrar por link não muda a senha.
+- **Os três links:**
+
+  | Link | Vale por | Ao usar |
+  | --- | --- | --- |
+  | Confirmar o e-mail | 24 horas | Confirma o e-mail. Não abre sessão. |
+  | Entrar | 15 minutos | Abre a sessão e também confirma o e-mail. |
+  | Senha nova | 1 hora | Troca a senha, encerra as sessões, gasta os outros links da conta, confirma o e-mail e abre a sessão neste aparelho. Só se usa salvando a senha nova, nunca pelo botão de entrar. Veja "Esqueci minha senha", acima. |
+
+- **Cada link vale uma vez.** Dois cliques ao mesmo tempo usam o link uma vez só.
+- **O link só vale para o e-mail para onde foi.** Se a conta mudar de e-mail, os links antigos deixam de valer.
+- **Abrir o link não usa o link.** `/api/link` guarda o token num cookie (`ndb_link`, `httpOnly`, só no caminho `/link`) e leva a `/link`, que mostra a conta e pede um clique em "Entrar" ou em "Confirmar meu e-mail", ou mostra os campos da senha nova.
+  - Chegar a `/api/link` sem token apaga o cookie: num computador dividido, a próxima pessoa não herda um link que ainda vale. Um token novo substitui o anterior.
+  - Filtros de e-mail que abrem links sozinhos (Outlook, antivírus) não gastam o link nem confirmam um e-mail sem a pessoa.
+  - O token sai do endereço antes de a página carregar o Google Analytics.
+- **Depois do clique,** o link de entrar leva ao `voltar` de quando foi pedido. O de confirmar mostra "E-mail confirmado" e um botão para continuar de onde a pessoa estava.
+- **O banco guarda só o SHA-256 do token,** como na sessão.
+- **Limite:** no máximo **5 links por conta a cada hora**, somando os três tipos.
+  - Ao mandar de novo a confirmação, ou o link de senha nova pelo painel, quem passou do limite vê "Você pediu muitos e-mails na última hora".
+  - No "Entrar por link" e no "Esqueci minha senha", a resposta continua a mesma, e o e-mail simplesmente não sai.
+  - Os links vencidos há mais de uma hora são apagados quando a conta recebe outro.
+- **O endereço do link vem da configuração** (`ENDERECO_DO_SITE`, ou o domínio canônico configurado por ambiente), nunca do cabeçalho `Host` da requisição.
+- **Sem o envio de e-mail configurado,** o link vai para o log do servidor no `npm run dev` e nos previews, para dar para testar. Na produção, ele não vai para o log.
 
 ### Papéis
 
@@ -79,16 +176,79 @@ Um papel não exclui o outro: uma pessoa da moderação também pode ser dona de
 | Papel | Quem é | O que pode fazer |
 | --- | --- | --- |
 | **Visitante** | Sem login | Ver o diretório, os perfis publicados e os depoimentos. Não indica, não escreve depoimento, não reivindica. |
-| **Membro** | Qualquer conta | Indicar negócios, escrever depoimentos, denunciar depoimentos, reivindicar um negócio, ver as próprias indicações e solicitações em `/painel`. |
+| **Membro** | Qualquer conta | Ver as próprias indicações e solicitações em `/painel`. Com o [e-mail confirmado](#e-mail-confirmado-e-links-por-e-mail) (exigência desligada por enquanto): indicar negócios, escrever e denunciar depoimentos e reivindicar um negócio. |
 | **Dono** | Conta aprovada como dona de um negócio | Tudo do membro, mais: editar o perfil do próprio negócio, trocar a foto, responder depoimentos e ocultar ou mostrar o negócio no diretório. Não pode escrever depoimento no próprio negócio. |
-| **Moderação** | `papel = "moderador"` no banco | Tudo do membro, mais: as filas de `/moderacao`, tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil, ver a auditoria. |
+| **Moderação** | `papel = "moderador"` no banco | Tudo do membro, mais: o painel de `/moderacao` (visão geral, filas, todos os negócios, contas e depoimentos, auditoria e sistema), tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil. |
 
 Detalhes da moderação:
 
-- **Só o papel no banco dá moderação.** O cadastro não confirma o e-mail, então o e-mail nunca dá acesso: se desse, quem se cadastrasse primeiro com o endereço certo levaria a moderação.
+- **Só o papel no banco dá moderação.** O e-mail nunca dá acesso, nem confirmado: se desse, quem se cadastrasse primeiro com o endereço certo levaria a moderação, e as contas antigas nem confirmaram o e-mail.
 - Quem cuida do projeto dá e tira a moderação com `npm run moderacao`, que roda com a conexão direta do banco e registra na auditoria. Vale a partir da próxima página aberta, sem precisar sair e entrar.
-- Para quem não é moderação, `/moderacao` e `/moderacao/negocios/<@>` respondem 404: a área simplesmente não existe.
+- Para quem não é moderação, `/moderacao`, `/moderacao/negocios/<@>` e `/moderacao/contas/<id>` respondem 404: a área simplesmente não existe.
 - A moderação **não** responde depoimentos nem oculta negócios dos outros. Isso é só do dono.
+- A moderação **não** dá nem tira a moderação pela tela, não suspende nem apaga contas: o painel só consulta.
+
+### O painel da moderação
+
+Código: `src/app/moderacao/` (telas) e `src/lib/moderacao/` (filtros da URL, indicadores e consultas).
+
+O painel tem um menu com quatro grupos. No celular, ele vira uma linha que rola para o lado.
+
+| Grupo | Seção | O que mostra |
+| --- | --- | --- |
+| Painel | **Visão geral** (abre primeiro) | As filas que esperam a moderação, os números do projeto, a atividade das últimas semanas, o diretório por estado, tipo e causa, e a saúde dos dados. |
+| Filas | **Reivindicações**, **Indicações**, **Denúncias** | As filas que já existiam ([seções 5](#5-moderação-das-indicações), [6](#a-decisão-da-moderação) e [10](#denúncias)). O menu mostra quantos itens esperam em cada uma. |
+| Cadastros | **Negócios** | Todos os negócios, com filtros por situação ([seção 5](#editar-qualquer-perfil)). |
+| Cadastros | **Contas** | Todas as contas, com busca e filtros, e a ficha de cada uma. |
+| Cadastros | **Depoimentos** | Todos os depoimentos, publicados e removidos. |
+| Registros | **Auditoria** | Quem fez o quê, com filtros ([seção 13](#13-auditoria)). |
+| Registros | **Sistema** | O ambiente, as integrações ligadas, as tabelas e as migrações do banco. |
+
+**Visão geral:**
+
+- **Filas:** um cartão por fila com itens esperando. Sem nada esperando, aparece "Nenhuma fila esperando a moderação".
+- **Números do projeto:** contam tudo o que está no banco, inclusive o que o público não vê:
+  - negócios no diretório e cadastrados, verificados, sem dono, tirados do ar, ocultos pelo dono e indicados nos últimos 7 dias;
+  - contas cadastradas, donas de negócio, de moderação, com sessão aberta, sem atividade e criadas nos últimos 7 dias;
+  - depoimentos publicados, com e sem resposta do dono, com denúncia aberta, removidos e escritos nos últimos 7 dias;
+  - pedidos de reivindicação aprovados, recusados, em análise, e cancelados ou expirados.
+
+  Cada número leva à lista filtrada, quando ela existe.
+- **Atividade:** negócios indicados, contas criadas, depoimentos e pedidos em cada uma das últimas 12 semanas. Cada semana são 7 dias corridos até o momento da consulta, então a última não fica pela metade. Ao passar o mouse, cada coluna mostra o total e as datas. "Ver os números de cada semana" abre a mesma informação em tabela.
+- **O diretório:** os negócios que o público vê, por estado, por tipo e por causa. Aparecem os 8 maiores de cada lista, e os links abrem as páginas públicas.
+- **Saúde dos dados:**
+  - negócios do diretório sem foto, sem nenhum contato (site, WhatsApp ou e-mail) e sem história;
+  - cidades gravadas com um nome diferente do oficial do IBGE naquela UF, como "Sao Paulo" (ver [seção 12](#municípios)), com o nome oficial ao lado ("fora da lista" quando não há) e quantos negócios há em cada uma. O `npm run cidades:corrigir` grava os nomes oficiais;
+  - pedidos em análise com o prazo vencido;
+  - sessões vencidas que continuam no banco.
+
+  Zero aparece como "tudo certo"; acima de zero, com um link para a lista.
+
+**Contas:**
+
+- **A lista** mostra nome, e-mail, se é moderação, quando a conta foi criada, desde quando tem sessão aberta e quantos negócios, indicações, depoimentos e pedidos ela tem. As mais novas aparecem primeiro, 30 por página.
+- **A busca** procura no nome e no e-mail. Cada palavra precisa aparecer, sem diferenciar maiúsculas. Acentos contam: "joao" não acha "João".
+- **Filtros:** todas, moderação, donos de negócio, novas (criadas nos últimos 7 dias) e sem atividade (não indicaram, não escreveram depoimento nem denúncia, não pediram e não são donas de nenhum negócio).
+- **A ficha da conta** (`/moderacao/contas/<id>`) junta:
+  - nome, e-mail, telefone (ou "Não informado", nas contas de antes dele), papel, quando a conta foi criada, quando confirmou o e-mail e as sessões abertas;
+  - os negócios de que é dona, as indicações, os depoimentos, as denúncias e os pedidos de reivindicação, até 30 de cada, os mais recentes primeiro, com o total quando há mais;
+  - quantos pedidos decidiu, se é moderação;
+  - os 20 registros mais recentes da auditoria feitos por ela ou sobre a conta dela, com um link para todos.
+- **Sessão aberta** é uma sessão que ainda não venceu. Como "Sair" apaga a sessão, a ficha não sabe quando alguém entrou pela última vez.
+- **Denúncias da ficha:** só ficam guardadas as abertas e as que levaram à remoção. Quando a moderação mantém o depoimento, a denúncia é apagada ([seção 10](#denúncias)).
+- Os nomes das pessoas nas filas, nos negócios, nos depoimentos e na auditoria levam à ficha.
+
+**Depoimentos:** todos, dos mais novos aos mais antigos, 30 por página.
+
+- Filtros: publicados, com denúncia aberta, removidos e sem resposta do dono.
+- A busca procura no texto, no nome do autor e no nome do negócio, sem diferenciar maiúsculas.
+- A aba só consulta: a decisão sobre uma denúncia continua na fila "Denúncias", com o link "Decidir na fila".
+
+**Sistema:**
+
+- **Ambiente:** o nome (`production`, `preview` ou `development`), o endereço público e se os buscadores podem indexar; quando informados pelo host, também o branch e o commit.
+- **Integrações:** só se cada uma está ligada (fotos no Cloudflare R2, Instagram do projeto, Entrar com o Google, Entrar com Instagram, rotina de fotos, Google Analytics e verificação nos buscadores), com o que falta para ligar. Os valores das variáveis nunca aparecem.
+- **Banco:** quantas linhas cada tabela tem e as migrações aplicadas, da mais nova para a mais antiga. Uma migração que começou e não terminou aparece em destaque, porque trava o próximo deploy.
 
 ---
 
@@ -107,7 +267,13 @@ Código: `normalizarUsername` em `src/lib/instagram.ts`.
   - não pode começar nem terminar com `.`, nem ter `..`;
   - recusa caminhos do Instagram que não são perfis (`p`, `reel`, `reels`, `explore`, `stories`, `accounts`, `direct`, `tv`).
 - **Ninguém muda o @ depois** (nem o dono, nem a moderação). Não existe tela para isso.
-- Além do @, o negócio pode guardar dois IDs fixos do Instagram (`instagramUserId` e `instagramIgsid`). Eles só são preenchidos pelos caminhos de verificação pelo Instagram, hoje desligados (ver [seção 6](#caminhos-pelo-instagram-desligados-por-padrão)).
+- **Negócio sem Instagram:** quem cadastra pelo "O negócio não tem Instagram" ganha um endereço feito do nome e da cidade, em minúsculas, sem acento e com hífens: "Padaria do Bairro", em Recife, vira `/empresas/padaria-do-bairro-recife` (`enderecoSemInstagram` em `src/lib/endereco.ts`).
+  - O endereço fica na mesma coluna do @ (`instagramUsername`). Como o Instagram não aceita hífen no @, e a cidade no fim garante ao menos um hífen, um endereço nunca se confunde com um @ (`temInstagram`).
+  - Se outro negócio já usa o endereço, o novo ganha `-2`, `-3`… no fim.
+  - Onde o site mostra o @, um negócio sem Instagram aparece como "sem Instagram", sem link para o Instagram. A rotina de fotos e os caminhos de verificação pelo Instagram o ignoram.
+- Além do @, o negócio pode guardar dois IDs fixos do Instagram:
+  - `instagramUserId`, preenchido pelo Entrar com Instagram, hoje desligado (ver [seção 6](#entrar-com-instagram-desligado-por-padrão));
+  - `instagramIgsid`, que só vem de pedidos antigos por código de DM (ver [seção 6](#pedidos-antigos-por-código-de-dm)).
 
 ### Dados do negócio
 
@@ -119,21 +285,23 @@ Validação: `src/acoes/empresas.ts` e `src/lib/formulario.ts`.
 | Categoria | Sim | Uma da lista fixa (ver [seção 12](#categorias)). |
 | Cidade e estado (UF) | Sim | Um município da lista do IBGE, escolhido no campo de cidade, que sugere cidades enquanto a pessoa digita. O estado vem junto com a cidade. O servidor confere na mesma lista e grava o nome oficial, com acentos (ver [seção 12](#municípios)). |
 | Resumo ("em uma frase") | Sim | 10 a 160 caracteres. Aparece nos cards do diretório. |
+| Telefone comercial | Só no cadastro do dono | Número brasileiro com DDD, com as regras do WhatsApp (ver abaixo). No perfil, vira o botão "Ligar". |
 | Site | Não | Até 200 caracteres. Sem `http`, ganha `https://`. Precisa ter um ponto no domínio. |
 | WhatsApp | Não | Número brasileiro com DDD (ver abaixo). |
 | E-mail de contato | Não | E-mail válido, até 200 caracteres, guardado em minúsculas. |
+| E-mail e telefone do dono | Só no cadastro do dono | O contato de quem cadastrou o negócio como dono, com as regras do e-mail e do telefone. **Não aparecem no perfil:** só os donos (no painel) e a moderação (na fila de indicações e na edição) veem. |
 | Causas | Não | Qualquer combinação da lista oficial. Slugs desconhecidos são descartados. |
 | História | Não | Markdown, até 20 mil caracteres (ver [seção 8](#8-história-do-negócio)). |
 | Foto | Não | Ver [seção 9](#9-fotos). |
 
-**Regras do WhatsApp:**
+**Regras do WhatsApp e dos telefones:**
 
 - Aceita `(11) 99148-8052`, `11 99148-8052`, `+55 11 99148-8052`, com ou sem zero na frente.
 - Guarda **só os dígitos, com o 55 do Brasil** (`5511991488052`).
 - O DDD não pode ter zero.
 - Depois do DDD vem um celular (9 e mais 8 dígitos) ou um fixo (começa com 2, 3, 4 ou 5 e tem 8 dígitos).
 - Números estrangeiros são recusados.
-- No perfil, o número aparece formatado, e o botão abre `wa.me/<número>`.
+- No perfil, o número aparece formatado. O botão do WhatsApp abre `wa.me/<número>`, e o do telefone comercial, `tel:+<número>`.
 
 ### Três estados independentes
 
@@ -173,26 +341,54 @@ Repare: aprovar uma reivindicação **também publica** o negócio. Por isso a a
 
 ## 4. Indicação
 
-Código: `indicarEmpresa` em `src/acoes/empresas.ts`, tela em `src/app/indicar/`.
+Código: `indicarEmpresa` em `src/acoes/empresas.ts`, tela em `src/app/participar/` (`CadastroPorEtapas.tsx`).
 
-- **Precisa de login.** Sem conta, a página `/indicar` pede para entrar ou criar uma conta.
-- **Dados pedidos:** @ do Instagram, nome, categoria, cidade (o estado vem junto) e resumo, que são obrigatórios. Site, WhatsApp, e-mail, causas e "por que você indica" são opcionais.
-- **O @ não pode já estar cadastrado.** Se já existe um negócio com aquele @, em qualquer estado (inclusive pendente ou rejeitado), a indicação é recusada com um link para o perfil.
+### O cadastro por etapas
+
+- **Uma entrada só:** `/participar` é o "Cadastrar" do menu e o destino dos botões de indicar. O `/indicar` antigo redireciona para lá, com a busca (`?instagram=<@>&dono=sim`), que vira o @ e a escolha de dono já preenchidos.
+- **Uma pergunta por vez.** Primeiro o @, depois "O que você quer fazer?". As respostas ficam num formulário só: voltar não perde nada, Enter avança, e cada etapa confere os próprios campos antes de seguir. O servidor confere tudo de novo no envio, e um erro dele leva a pessoa de volta à etapa do campo errado.
+- **As etapas:** quem indica passa por @, escolha, nome e categoria, cidade e frase, causas (com o "por que você indica?") e revisão. O dono tem duas a mais antes da revisão: os contatos do negócio e o contato dele.
+- **A procura do @** (`procurarArroba` em `src/acoes/participacao.ts`) não precisa de login e só lê. As opções da etapa seguinte dependem do que ela acha (`casoDaProcura` em `src/lib/participacao.ts`):
+
+| O @ procurado | Opções |
+| --- | --- |
+| Ainda não está no site | "Quero indicar este negócio" ou "Sou dono deste negócio", com a prévia do Instagram |
+| No diretório e sem dono | "É meu negócio" (vai para a reivindicação) ou "Quero deixar um depoimento" |
+| No diretório e com dono | "É meu negócio: pedir revisão" ou "Quero deixar um depoimento" |
+| Tirado do ar, pendente ou oculto | Uma resposta neutra, sem dizer o motivo |
+
+- **Prévia do Instagram** (`src/lib/previa-instagram.ts`): para um @ novo, o servidor procura o perfil na API da Meta (Business Discovery, a mesma da [rotina de fotos](#rotina-de-fotos-do-instagram)) e mostra a foto, o nome e o site. O nome e o site entram no formulário com "Veio do Instagram. Pode mudar."
+  - Só contas profissionais (comerciais ou de criador) aparecem. Conta pessoal, @ errado, token vencido ou Meta fora do ar dão o mesmo resultado: sem prévia, e o cadastro segue normal. Para o dono, um aviso explica que a conta precisa ser profissional e oferece "Já mudei, procurar de novo".
+  - O servidor baixa a foto, só dos domínios da Meta, por https, até 300 KB, e a manda como data URL: a política de conteúdo do site continua fechada para outros endereços.
+  - Cada prévia encontrada fica guardada por 15 minutos em cada servidor, para não gastar o limite da Meta. A falta de prévia não fica guardada.
+  - Sem `META_ACCESS_TOKEN` e `META_IG_USER_ID`, não há prévia.
+- **Foto no cadastro:** depois de criar um negócio com Instagram, a foto da prévia vira a foto do perfil (`gravarFotoDaPrevia` em `src/lib/fotos-instagram.ts`), sem atrasar a resposta. Ela segue as regras da rotina de fotos: nunca troca uma foto já enviada e registra `empresa.foto_do_instagram` na auditoria. Sem prévia, a rotina tenta depois.
+- **Sem Instagram:** "O negócio não tem Instagram", na primeira etapa, pula a procura e oferece indicar ou cadastrar como dono. O resto das etapas é igual, e o negócio ganha um endereço feito do nome e da cidade ([seção 3](#identidade-o--do-instagram)).
+- **Conta no fim:** sem login, a última etapa pede para entrar ou criar a conta. As respostas ficam guardadas no navegador (`ndb:cadastro`) e voltam na revisão quando a pessoa retorna com `?continuar=1`. Publicar apaga o rascunho do navegador.
+
+### As regras do envio
+
+- **Precisa de login**, como antes.
+- **Dados pedidos:** o @ do Instagram (ou "sem Instagram"), nome, categoria, cidade (o estado vem junto) e resumo, que são obrigatórios. Causas e "por que você indica" são opcionais.
+- **Quem indica não publica contatos** (#105): site, WhatsApp, e-mail, telefone comercial e contato do dono ficam vazios numa indicação, mesmo que o envio traga algum. Quem cuida dos contatos é o dono.
+- **O @ não pode já estar cadastrado.** Se já existe um negócio com aquele @, em qualquer estado (inclusive pendente ou rejeitado), a indicação é recusada com um link para o perfil. Isso vale também quando duas pessoas indicam o mesmo @ ao mesmo tempo: uma publica e a outra recebe esta recusa. Sem Instagram, não há recusa: o endereço ganha `-2`, `-3`….
 - **Motivo da indicação:** até 600 caracteres, opcional. Aparece no perfil, com o nome de quem indicou, até o dono escrever a história.
 - **Causas:** a tela pede para marcar "só o que você sabe que é verdade". O dono ajusta depois.
-- **Limite:** cada conta faz no máximo **10 indicações em 24 horas**. Conta todo negócio criado por ela no período.
+- **Limite:** cada conta faz no máximo **10 indicações em 24 horas**. Conta todo negócio criado por ela no período. A conferência e a criação acontecem na mesma transação, com a linha da conta travada: envios simultâneos da mesma conta esperam a vez e nunca passam do limite.
 - **Resultado:** o negócio entra `aprovada` e `indicada`, já aparece no diretório, e a pessoa volta para o perfil com o aviso "Obrigado por indicar! O perfil já está no diretório." Não há moderação antes: a moderação tira do ar depois o que for impróprio ([seção 5](#5-moderação-das-indicações)).
-- **Auditoria:** registra `empresa.indicada`.
+- **Auditoria:** registra `empresa.indicada` na mesma transação da criação. Se a auditoria falhar, a indicação falha e o negócio não fica salvo. Isso inclui erros de unicidade da auditoria, que não significam que o @ já existe.
 
-### "Este negócio é meu"
+### "Sou dono deste negócio"
 
-Quando a pessoa marca **"Este negócio é meu"** no formulário de indicação:
+Quando a pessoa escolhe **"Sou dono deste negócio"** (ou "Sou dono do negócio", sem Instagram):
 
 - o campo "Por que você indica?" some e o motivo não é guardado;
+- a pessoa informa os contatos do negócio: **telefone comercial (obrigatório)**, WhatsApp, e-mail e site (opcionais). Eles aparecem no perfil;
+- e o contato dela: **e-mail e telefone de contato (obrigatórios)**. O e-mail e o telefone começam preenchidos com os da conta. Esse contato não aparece no perfil ([seção 3](#dados-do-negócio));
 - o negócio é criado do mesmo jeito, já publicado, com a pessoa como quem indicou;
-- a pessoa vai direto para a página de reivindicação (`/empresas/<@>/reivindicar`) para enviar os dados do negócio.
+- a pessoa vai direto para a página de reivindicação (`/empresas/<endereço>/reivindicar`) para enviar os dados do negócio.
 
-Marcar a opção não faz ninguém virar dono. A pessoa vira dona quando envia os dados do negócio. Como o negócio acabou de ser criado e não tem dono, isso acontece na hora ([seção 6](#aprovação-na-hora)).
+Escolher a opção não faz ninguém virar dono. A pessoa vira dona quando envia os dados do negócio. Como o negócio acabou de ser criado e não tem dono, isso acontece na hora ([seção 6](#aprovação-na-hora)).
 
 ---
 
@@ -200,7 +396,7 @@ Marcar a opção não faz ninguém virar dono. A pessoa vira dona quando envia o
 
 Código: `moderarEmpresa` e `publicarIndicacoesPendentes` em `src/acoes/moderacao.ts`, abas "Indicações" e "Negócios" em `src/app/moderacao/page.tsx`.
 
-**Toda indicação entra publicada.** A moderação não aprova antes: ela age depois, tirando do ar o que for spam, perfil falso ou impróprio. A decisão foi tomada na [issue #20](https://github.com/fabsreis/Negocio-do-bem/issues/20), quando a fila ficou grande demais para aprovar à mão.
+**Toda indicação entra publicada.** A moderação não aprova antes: ela age depois, tirando do ar o que for spam, perfil falso ou impróprio. A decisão foi tomada na [issue #20](https://github.com/fabs-reis/Negocio-do-bem/issues/20), quando a fila ficou grande demais para aprovar à mão.
 
 - **Tirar do ar:** na aba "Negócios", todo negócio publicado tem o botão **"Tirar do ar"** → `moderacao = "rejeitada"`, e o negócio some para o público.
 - **Publicar de novo:** o negócio tirado do ar ganha o botão **"Publicar de novo"** → `moderacao = "aprovada"`.
@@ -214,7 +410,8 @@ Código: `moderarEmpresa` e `publicarIndicacoesPendentes` em `src/acoes/moderaca
   - **Publicar** → `moderacao = "aprovada"`, e o negócio entra no diretório;
   - **Não publicar** → `moderacao = "rejeitada"`, e o negócio some para o público;
   - **Editar perfil** → abre a edição pela moderação antes de decidir, por exemplo para corrigir um nome ou tirar uma causa duvidosa.
-- **Auditoria:** registra `empresa.aprovada` ou `empresa.rejeitada`, uma linha por negócio, com o @ nos detalhes.
+- **Auditoria:** registra `empresa.aprovada` ou `empresa.rejeitada`, uma linha por negócio, com o @ nos detalhes. A mudança e o registro estão na mesma transação.
+- **Duas pessoas da moderação ao mesmo tempo:** cada botão leva a situação que a pessoa viu na tela, e a decisão só vale se o negócio ainda estiver nela (código em `src/lib/moderacao/decisoes.ts`). Se outra pessoa decidiu antes, nada muda, nada é registrado e aparece o aviso "Outra pessoa da moderação já tinha decidido isso. A lista mostra como ficou".
 - **O que muda num negócio tirado do ar:**
   - o @ continua ocupado, então ninguém consegue indicar de novo;
   - a página de reivindicação responde 404, e um pedido que chegue mesmo assim fica com a moderação.
@@ -223,9 +420,10 @@ Código: `moderarEmpresa` e `publicarIndicacoesPendentes` em `src/acoes/moderaca
 
 Código: aba "Negócios" e `src/app/moderacao/negocios/[usuario]/page.tsx`.
 
-- **A aba "Negócios"** lista todos os negócios, publicados, pendentes, fora do ar e ocultos, com foto, cidade, situação na moderação, se tem dono e os botões "Editar perfil" e "Tirar do ar" (ou "Publicar de novo").
-  - A busca usa os mesmos campos da busca do diretório.
-  - Sem busca, a lista mostra os 50 atualizados mais recentemente.
+- **A aba "Negócios"** lista todos os negócios, publicados, pendentes, fora do ar e ocultos, dos atualizados mais recentemente aos mais antigos, 30 por página. Cada um mostra foto, @, tipo, cidade, quantos depoimentos publicados tem, os donos, quem indicou e quando, a situação ("No diretório", "Oculto pelo dono", "Fora do ar", "Aguardando moderação" e "Verificado") e os botões "Editar perfil", "Histórico" (a auditoria do negócio) e "Tirar do ar" (ou "Publicar de novo").
+  - A busca usa os mesmos campos da busca do diretório e aceita o @ com a arroba.
+  - **Filtros:** no diretório, tirados do ar, ocultos pelo dono, aguardando moderação, verificados, sem dono e, entre os do diretório, sem foto, sem contato e sem história.
+  - Depois de "Tirar do ar" ou "Publicar de novo", a moderação volta para a mesma lista, com a busca, o filtro e a página. O endereço de volta só é aceito se for da própria moderação (`destinoNaModeracao`).
 - **Edição:** `/moderacao/negocios/<@>` usa o **mesmo formulário do painel do dono**: foto, informações, contatos, causas e história.
   - Um aviso lembra que a edição é pela moderação e que fica registrada.
   - Se o negócio tem dono, o aviso pede para mudar só o necessário.
@@ -241,13 +439,13 @@ Código: regras em `src/lib/reivindicacao.ts` (com testes em `tests/db/reivindic
 ### Quem pode pedir
 
 - **Qualquer conta logada** que ainda não seja dona daquele negócio. Quem já é dono vê "Você já é dono deste perfil" e o link para o painel.
-- A página fica em **`/empresas/<@>/reivindicar`**. Chega-se nela pelo botão **"Sou o dono"** do perfil, pelo "Este negócio é meu" da indicação ou pelo link "Este perfil é seu e outra pessoa assumiu? Fale com a moderação" dos perfis verificados.
+- A página fica em **`/empresas/<@>/reivindicar`**. Chega-se nela pelo botão **"Sou o dono"** do perfil, pelo "Sou dono deste negócio" do cadastro (`/participar`) ou pelo link "Este perfil é seu e outra pessoa assumiu? Fale com a moderação" dos perfis verificados.
 - **Negócio tirado do ar:** a página responde 404.
 - **Negócio que já tem dono:** o pedido é aceito, com um aviso de que vai para a moderação. Serve para co-donos e para troca de responsáveis.
 
 ### Aprovação na hora
 
-Desde a [issue #20](https://github.com/fabsreis/Negocio-do-bem/issues/20), **o pedido pelos dados do negócio é aprovado assim que é enviado** quando:
+Desde a [issue #20](https://github.com/fabs-reis/Negocio-do-bem/issues/20), **o pedido pelos dados do negócio é aprovado assim que é enviado** quando:
 
 - o negócio **não tem dono**; e
 - o negócio **não foi tirado do ar**.
@@ -279,7 +477,8 @@ O @ do Instagram não é pedido: é o do próprio perfil.
   - enquanto ele está em análise, o formulário dá lugar ao aviso "Seus dados estão com a moderação".
 - **Limite:**
   - no máximo **10 pedidos de reivindicação em 24 horas** por conta, somando todos os caminhos e todos os negócios;
-  - pedidos cancelados também contam.
+  - pedidos cancelados também contam;
+  - o limite vale mesmo com pedidos simultâneos: cada caminho trava a linha da conta, confere a cota e cria o pedido na mesma transação, então os pedidos da mesma conta entram um de cada vez.
 - **Cancelar:** a pessoa pode cancelar o próprio pedido pendente na página de reivindicação.
 - **Validade:**
   - o pedido guarda uma data de validade de 30 dias, que a moderação vê como "expirado em";
@@ -300,6 +499,7 @@ Cada pedido mostra:
   - relação, contato, CNPJ formatado e site;
   - a mensagem;
   - **os dados da Receita para o CNPJ** (razão social, nome fantasia, situação cadastral, município e UF), consultados na BrasilAPI na hora. A consulta manda um User-Agent próprio, porque sem ele a BrasilAPI responde 403. Ela é só um apoio: se falhar, aparece "Não foi possível consultar a Receita agora" e a análise segue;
+- num pedido antigo por código de DM, o código e o lembrete de conferir se a DM veio do @ do negócio;
 - as anotações automáticas do sistema, quando houver;
 - os donos atuais (nome e e-mail), quando houver.
 
@@ -316,17 +516,17 @@ O que a moderação confere: se o CNPJ, o site e o contato batem com o @ do Inst
 
 **O que a aprovação faz,** tudo numa transação só:
 
-1. Cria o vínculo de dono (ou mantém, se já existia).
-2. No modo "transferir", remove todos os outros donos.
-3. Marca o negócio como `verificada` e `aprovada`, o que também o publica.
-4. Liga os IDs do Instagram ao negócio, se o pedido trouxe algum. Se a mesma conta do Instagram estava ligada a outro perfil, a ligação sai de lá.
-5. Marca o pedido como `aprovada`, com quem aprovou e quando.
+1. Marca o pedido como `aprovada`, com quem aprovou e quando, se ele ainda estiver `pendente`. Se não estiver, para aqui.
+2. Cria o vínculo de dono (ou mantém, se já existia).
+3. No modo "transferir", remove todos os outros donos.
+4. Marca o negócio como `verificada` e `aprovada`, o que também o publica.
+5. Liga os IDs do Instagram ao negócio e ao pedido, se o pedido trouxe algum. Se a mesma conta do Instagram estava ligada a outro perfil, a ligação sai de lá.
 6. Cancela os **outros pedidos pendentes da mesma pessoa** para o mesmo negócio. Pedidos de **outras pessoas** para o mesmo negócio continuam pendentes, e a moderação decide cada um.
 7. Registra na auditoria `reivindicacao.aprovada` ou `reivindicacao.aprovada_com_transferencia`.
 
-**Duas pessoas da moderação ao mesmo tempo:** se um pedido já foi decidido, a segunda decisão é recusada com o aviso "Esta solicitação já tinha sido decidida por outra pessoa da moderação".
+**Duas pessoas da moderação ao mesmo tempo:** só a primeira decisão vale, mesmo quando as duas chegam juntas. A decisão começa marcando o pedido como decidido, com a condição de ele ainda estar `pendente`, e o banco segura o pedido até o fim da transação. A aprovação antes disso trava o negócio, para que toda aprovação do mesmo negócio siga a mesma ordem e duas aprovações simultâneas de pedidos da mesma pessoa nunca se travem uma na outra. A segunda decisão é recusada com o aviso "Esta solicitação já tinha sido decidida por outra pessoa da moderação", e nada dela é aplicado nem registrado na auditoria.
 
-**Depois da decisão,** a pessoa acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
+**Depois da decisão,** a pessoa recebe um e-mail com o resultado ([seção 14](#14-avisos-por-e-mail)) e acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
 
 ### Estados de um pedido
 
@@ -337,25 +537,22 @@ stateDiagram-v2
     pendente --> recusada: moderação recusa
     pendente --> cancelada: a pessoa cancela
     pendente --> cancelada: outro pedido dela foi aprovado
-    pendente --> expirada: código por DM venceu e foi trocado
+    pendente --> expirada: código por DM venceu e foi trocado (só pedidos antigos)
 ```
 
 | Status | Rótulo na tela | Quando |
 | --- | --- | --- |
 | `pendente` | Em análise | Pedido criado e ainda não decidido. |
-| `aprovada` | Aprovada | Pela moderação. Ou sozinho: no pedido por dados do negócio, quando o negócio não tem dono e está no ar; nos caminhos pelo Instagram, quando não há conflito. |
+| `aprovada` | Aprovada | Pela moderação. Ou sozinho: no pedido por dados do negócio, quando o negócio não tem dono e está no ar; no Entrar com Instagram, quando não há conflito. |
 | `recusada` | Recusada | Pela moderação, com motivo. |
 | `cancelada` | Cancelada | A pessoa cancelou, outro pedido dela para o mesmo negócio foi aprovado, ou ela refez o "Entrar com Instagram". |
-| `expirada` | Expirada | Só no código por DM: quando a pessoa gera um código novo depois que o anterior venceu. |
+| `expirada` | Expirada | Só em pedidos antigos por código de DM: quando a pessoa gerava um código novo depois que o anterior venceu. |
 
-### Caminhos pelo Instagram (desligados por padrão)
+### Entrar com Instagram (desligado por padrão)
 
-Os dois caminhos abaixo estão prontos no código e testados, mas ficam **desligados** enquanto as variáveis de ambiente estiverem vazias. Quando algum está ligado, o envio de dados vira a opção "Não tenho acesso ao Instagram do negócio". Como ligar está no [README](../README.md#ativando-o-código-por-dm-opcional).
+Este caminho está pronto no código e testado, mas fica **desligado** enquanto `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` e `APP_URL` estiverem vazias. Quando ligado, o envio de dados vira a opção "Não tenho acesso ao Instagram do negócio". Como ligar está no [README](../README.md#ativando-o-entrar-com-instagram-opcional).
 
-| Caminho | Liga quando | Aprovação |
-| --- | --- | --- |
-| **Entrar com Instagram** (`instagram_login`) | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` e `APP_URL` preenchidos | Na hora, se a conta conectada é a do negócio e não há conflito |
-| **Código por DM** (`codigo_dm`) | `INSTAGRAM_PERFIL_OFICIAL` preenchido | Pela moderação, ou sozinho se o webhook estiver configurado e não houver conflito |
+Ele aprova na hora quando a conta conectada é a do negócio e não há conflito.
 
 **A regra de ouro: não existe aprovação automática quando há conflito.** Em `conflitosDeVerificacao`, um conflito é qualquer uma destas situações:
 
@@ -366,8 +563,6 @@ Os dois caminhos abaixo estão prontos no código e testados, mas ficam **deslig
 Com conflito, o pedido fica pendente com uma anotação explicando o que aconteceu, e a moderação decide.
 
 O perfil fica ligado ao **ID fixo da conta** do Instagram, não só ao @, porque um @ pode ser abandonado e registrado por outra pessoa.
-
-**Entrar com Instagram:**
 
 - **Pedido de login:**
   - pede só a permissão `instagram_business_basic`, que dá o ID e o @ da conta, e nada de publicar ou ler mensagens;
@@ -380,23 +575,14 @@ O perfil fica ligado ao **ID fixo da conta** do Instagram, não só ao @, porque
   - a pessoa já é dona: tudo certo;
   - caso contrário: aplica o limite diário, cancela tentativas anteriores pelo mesmo caminho, cria o pedido e aprova na hora se não houver conflito.
 
-**Código por DM:**
+### Pedidos antigos por código de DM
 
-- **O código:**
-  - tem o formato `BEM-XXXXXX`, com 6 caracteres de um alfabeto sem os parecidos (`0/O`, `1/I/L`);
-  - vale **48 horas**;
-  - enquanto vale, a mesma pessoa recebe o mesmo código para o mesmo negócio;
-  - vencido, ele vira `expirada` e outro é gerado.
-- **Quem vira dono é quem gerou o código.** A tela avisa: "Nunca envie um código que outra pessoa te passou".
-- **A DM precisa vir do @ do negócio** e ir para o perfil oficial.
-  - O sistema reconhece o código mesmo escrito como `bem 7k3f9q` ou `BEM7K3F9Q`.
-- **Sem webhook:** a moderação confere a DM. Na fila, há uma busca pelo código.
-- **Com webhook:**
-  - o sistema confere a assinatura `X-Hub-Signature-256` de cada chamada da Meta e descobre o @ de quem mandou;
-  - aprova sozinho só se o @ bater e não houver conflito;
-  - código vencido, @ diferente ou @ que não deu para descobrir viram anotações para a moderação;
-  - se der erro, a rota responde 500 e a Meta tenta de novo;
-  - aprovações automáticas aparecem na auditoria como "sistema".
+Até a [issue #193](https://github.com/fabs-reis/Negocio-do-bem/issues/193), havia um terceiro caminho, o **código por DM** (`codigo_dm`): a pessoa gerava um código `BEM-XXXXXX` e o mandava por DM, a partir do @ do negócio, para o perfil oficial do projeto. Ele saiu do site. A página de reivindicação não oferece mais o código, a rota do webhook da Meta (`/api/webhooks/instagram`) não existe mais e a fila da moderação não tem mais a busca por código.
+
+- **Nenhum pedido novo** é criado por esse caminho.
+- **Os pedidos antigos continuam no banco,** com o código e, quando houver, o IGSID de quem mandou a DM. As colunas `codigo` e `instagramIgsid` não saíram.
+- **Eles aparecem como "Código por DM"** na página de reivindicação, no painel da pessoa e na moderação.
+- **Um pedido antigo pendente** pode ser cancelado pela pessoa ou decidido pela moderação, que vê o código e o @ de onde a DM deveria ter vindo. Ao aprovar, o IGSID guardado é ligado ao negócio, como antes.
 
 ---
 
@@ -410,9 +596,11 @@ Código: `src/app/empresas/[usuario]/page.tsx`.
 - **Selo:**
   - **"Verificado pelo dono"** quando `status = "verificada"`;
   - **"Indicado pela comunidade"** quando ainda não tem dono.
-- **Nome, @** (com link para o Instagram), **categoria, cidade e UF.**
-- **Botões de contato** (só os preenchidos):
-  - WhatsApp, que abre `wa.me`;
+- **Nome, @** (com o ícone e o link para o Instagram, ou "sem Instagram"), **categoria, cidade e UF.**
+- **Botões de contato** (só os preenchidos). WhatsApp, Instagram e site abrem numa aba nova, para a pessoa não sair do site:
+  - telefone comercial, "Ligar", que abre `tel:`;
+  - WhatsApp, com o ícone, que abre `wa.me`;
+  - Instagram, com o ícone, que abre o perfil (só para quem tem Instagram);
   - site, que mostra o domínio sem `www`;
   - e-mail, que abre `mailto:`.
 - **Resumo** e **causas** como selos.
@@ -445,6 +633,18 @@ Para todo o resto, a página responde 404. Quem pode ver encontra um aviso no to
 - **rejeitado:** a mesma frase, começando com "Não publicada";
 - **oculto:** "Este perfil está oculto pelo dono e não aparece no diretório."
 
+### Buscadores e prévia do link
+
+Código: `src/app/sitemap.ts`, `src/app/robots.ts`, `src/lib/seo.ts` e `src/app/empresas/[usuario]/opengraph-image.tsx`.
+
+- **Só perfis do diretório vão para os buscadores.** O sitemap lista os negócios aprovados e não ocultos, lido do banco a cada pedido: um negócio aprovado entra na hora, e um oculto sai na hora. Ele também lista as páginas de cidade, causa e tipo que têm negócios (ver [seção 11](#páginas-de-cidade-causa-e-tipo)).
+- **Título do perfil na busca:** "Nome — Categoria em Cidade, UF". Na categoria "Outros", só "Nome em Cidade, UF". A descrição é o resumo.
+- **Dados estruturados:** o perfil público leva a ficha do negócio (`LocalBusiness`) com nome, resumo, foto, cidade, UF, WhatsApp, e-mail, Instagram, site, categoria e causas. São os mesmos dados que a página já mostra. O caminho até o perfil passa pela página da cidade: "Início › Recife, PE › Padaria Florescer".
+- **Prévia do link** (WhatsApp, Instagram, LinkedIn…): foto ou monograma, nome, categoria, cidade, até três causas e o selo "Verificado pelo dono". Uma foto em WebP vira monograma, porque o gerador da imagem não lê WebP.
+- **Perfil fora do diretório:** para quem pode vê-lo, a página leva `noindex`. A prévia do link é a geral do site, sem dados do negócio.
+- **Fora da busca:** login, cadastro, painel, reivindicação e moderação levam `noindex`. `/painel`, `/moderacao` e `/api/` também ficam bloqueados no `robots.txt`.
+- **Previews** (`DEPLOY_ENV=preview`) bloqueiam todos os robôs no `robots.txt`. Só a produção entra no índice.
+
 ### Painel do dono
 
 Código: `src/app/painel/`.
@@ -452,7 +652,9 @@ Código: `src/app/painel/`.
 - **`/painel`** mostra:
   - os negócios de que a pessoa é dona, com avisos de "Oculto do diretório" e "Falta contar a história";
   - as solicitações de reivindicação;
-  - as indicações dela, com a situação de cada uma na moderação.
+  - as indicações dela, com a situação de cada uma na moderação;
+  - a seção "Minha conta", com a troca de senha, ou o link para criar uma na conta sem senha (veja [Cadastro e login](#cadastro-e-login));
+  - o aviso da ação anterior (`?aviso=`), como "Senha trocada".
 - **`/painel/<@>`** só abre para os donos daquele negócio (os outros recebem 404). Nele, o dono:
   - **edita o perfil:** foto, informações, contatos, causas e história. O @ não muda;
   - **responde depoimentos:** até 1.000 caracteres. A resposta pode ser trocada a qualquer momento, e apagar o texto tira a resposta;
@@ -508,13 +710,13 @@ Código: `src/lib/fotos.ts`, `src/lib/armazenamento.ts`, `src/components/reduzir
 
 ### Rotina de fotos do Instagram
 
-Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do projeto), `src/app/api/fotos-instagram/route.ts` e `src/lib/fotos-instagram.ts`, com testes em `tests/db/fotos-instagram.test.ts`. Decidida na [issue #31](https://github.com/fabsreis/Negocio-do-bem/issues/31).
+Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do projeto), `src/app/api/fotos-instagram/route.ts` e `src/lib/fotos-instagram.ts`, com testes em `tests/db/fotos-instagram.test.ts`. Decidida na [issue #31](https://github.com/fabs-reis/Negocio-do-bem/issues/31).
 
-- **Quais negócios:** os que estão **sem foto** e **não foram tirados do ar**, inclusive os pendentes. Os mais antigos primeiro, até 100 por rodada.
+- **Quais negócios:** os que estão **sem foto** e **não foram tirados do ar**, inclusive os pendentes, menos os sem Instagram. Os mais antigos primeiro, até 100 por rodada. Os negócios cadastrados com uma prévia do Instagram já nascem com a foto ([seção 4](#o-cadastro-por-etapas)).
 - **De onde vem a foto:**
   1. de um arquivo na pasta local `fotos-manuais/`, com o @ no nome (`<@>.jpg`, `.png` ou `.webp`), se existir;
   2. senão, da **API oficial da Meta** (Business Discovery), que devolve a foto de perfil de contas **comerciais ou de criador** em 1080×1080. Contas pessoais, privadas ou inexistentes não aparecem e o negócio continua sem foto.
-- **Preparo, no computador:** a foto é recortada no centro, em quadrado de 600×600, e convertida para WebP. O Vercel só recebe o arquivo pronto.
+- **Preparo, no computador:** a foto é recortada no centro, em quadrado de 600×600, e convertida para WebP. O Worker só recebe o arquivo pronto.
 - **Gravação, no site:** a rota `/api/fotos-instagram` exige o token `FOTOS_TOKEN` e confere a foto como qualquer outra. Ela **só grava se o negócio continuar sem foto**: a foto enviada pelo dono ou pela moderação nunca é trocada, nem se chegar no meio do envio.
 - **Sem `FOTOS_TOKEN` configurado,** a rota responde 404.
 - **Auditoria:** cada foto gravada registra `empresa.foto_do_instagram`, como "sistema".
@@ -529,16 +731,15 @@ Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do proje
 
 **No servidor:**
 
-- Limite de **3 MB por foto**. O limite de envio das Server Actions é 4 MB (`next.config.ts`), e o do Vercel é 4,5 MB.
+- Limite de **3 MB por foto**. O limite de envio das Server Actions é 4 MB (`next.config.ts`).
 - O tipo é conferido **pelos primeiros bytes do arquivo** (JPEG, PNG ou WebP), não pelo que o navegador diz.
 - O nome do arquivo é aleatório, nas pastas `perfis/` ou `historias/`.
 - Onde a foto fica:
-  - em produção, no **Vercel Blob**, com acesso público. O site usa o Blob quando existe `BLOB_STORE_ID` (no Vercel, com o OIDC do deploy) ou `BLOB_READ_WRITE_TOKEN`;
-  - nos previews do Vercel, inclusive o da `stage`, em outro Vercel Blob, só deles;
-  - no computador de quem desenvolve, sem nenhuma das duas, em `public/enviados/`, fora do Git;
-  - em produção sem nenhuma das duas, a pessoa vê uma mensagem de erro em vez de o site quebrar.
+  - em produção e preview, no bucket **Cloudflare R2** ligado ao Worker; cada ambiente precisa do seu próprio bucket público de uploads;
+  - no computador de quem desenvolve, sem URL R2 configurada, em `public/enviados/`, fora do Git;
+  - em produção sem o binding ou a URL pública R2, a pessoa vê uma mensagem de erro em vez de o site quebrar.
 
-**O site só mostra fotos guardadas por ele mesmo** (`ehFotoDoSite`): endereços de qualquer store do Vercel Blob (o de produção ou o dos previews) ou da pasta `/enviados/`. Uma imagem de outro endereço avisaria aquele servidor a cada visita ao perfil, então ela simplesmente não aparece.
+**O site só mostra fotos guardadas por ele mesmo** (`ehFotoDoSite`): endereços do domínio do bucket R2 configurado, endereços antigos do Vercel Blob durante a transição, ou da pasta `/enviados/`. Uma imagem de outro endereço avisaria aquele servidor a cada visita ao perfil, então ela simplesmente não aparece.
 
 ---
 
@@ -554,6 +755,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Um depoimento por pessoa por negócio.**
 - **Tamanho:** de 20 a 1.500 caracteres.
 - **Vai ao ar na hora,** sem moderação prévia, com o nome de quem escreveu e a data.
+- **Os donos recebem um e-mail** com o texto e o link para responder ([seção 14](#14-avisos-por-e-mail)).
 - **Ordem:** os depoimentos aparecem do mais novo para o mais antigo.
 - **Edição:** o autor não edita nem apaga o próprio depoimento. Não existe tela para isso.
 - **Resposta do dono:**
@@ -563,9 +765,10 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 
 ### Denúncias
 
-- **Quem denuncia:** qualquer pessoa logada que **não seja a autora** do depoimento, incluindo o dono do negócio.
+- **Quem denuncia:** qualquer pessoa logada que **não seja a autora** do depoimento, incluindo o dono do negócio. A página esconde o botão para a autora, e a ação também recusa: se ela chamar a ação direto, volta para o perfil sem gravar nada.
 - **Motivo:** opcional, até 300 caracteres. Sem motivo, fica "Sem motivo informado".
 - **Denunciar não esconde o depoimento.** Ele continua no ar até a moderação decidir.
+- **A moderação recebe um e-mail** com o negócio e o link da fila, sem dizer quem denunciou.
 - **Uma denúncia aberta por vez:**
   - enquanto há uma denúncia aberta, o botão "Denunciar" some para todos;
   - uma segunda denúncia não substitui a primeira.
@@ -577,6 +780,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Decisões:**
   - **Manter no ar:** limpa a denúncia, e o depoimento pode ser denunciado de novo no futuro. Registra `depoimento.mantido`.
   - **Remover:** o depoimento passa a `removido` e sai do site. Registra `depoimento.removido`. Não existe botão para desfazer.
+- **Duas pessoas da moderação ao mesmo tempo:** a decisão só vale se o depoimento ainda está publicado e com a denúncia aberta. Se outra pessoa decidiu antes, nada muda e aparece o aviso "Outra pessoa da moderação já tinha decidido isso. A lista mostra como ficou".
 
 ---
 
@@ -610,6 +814,7 @@ Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/cons
   - cada palavra digitada precisa aparecer, e só valem as 6 primeiras palavras e os 100 primeiros caracteres.
 - **"Onde?":**
   - sugere os estados e as cidades que já têm negócios, com quantos há em cada um. Sem texto, mostra "Todo o Brasil" e as cidades com mais negócios;
+  - junta a mesma cidade escrita de jeitos diferentes no banco ("Florianopolis" e "Florianópolis"), sem diferenciar acentos, maiúsculas, espaços, hífen e apóstrofo ("São João del-Rei" e "São João del Rei"), e com a UF da própria cidade grudada no fim ("Tubarão-SC"). Ela aparece uma vez só, com o nome oficial do IBGE e o total de todas as grafias, e o filtro acha os negócios de todas elas. Fora da lista do IBGE, vale a grafia mais usada;
   - aceita um estado ("PE", "Pernambuco" ou "Pernambuco (estado)"), "Cidade, UF" ou só o nome da cidade, sem diferenciar acentos e maiúsculas;
   - um nome que é de estado e de cidade (São Paulo) sem a UF vale como estado, que inclui a cidade;
   - um nome de cidade que existe em vários estados, sem a UF, vale para todos eles;
@@ -623,6 +828,37 @@ Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/cons
 - **Grade ou lista:** a lista mostra um negócio por linha, com resumo, categoria e cidade.
 - **Paginação:** 18 negócios por página, até a página 500, com os números das páginas. Com mais de 7 páginas, aparecem a primeira, a última e as vizinhas da atual.
 - **Os filtros ficam na URL** (`/explorar?q=…&onde=…&tipo=…&causa=…&verificados=sim&ordem=…&vista=lista&pagina=…`), então dá para compartilhar uma busca. O tipo vai como slug (`cafe-e-padaria`). Links antigos com `?uf=PE` viram "Pernambuco (estado)".
+- **Com qualquer filtro, o endereço canônico continua `/explorar`:** as combinações de filtros não entram na busca do Google. Quem busca por cidade, causa ou tipo cai nas páginas fixas abaixo.
+
+### Páginas de cidade, causa e tipo
+
+Código: `src/app/cidades/`, `src/app/causas/[causa]/`, `src/app/tipos/[tipo]/`, o componente `src/components/Vitrine.tsx`, os endereços em `src/lib/diretorio.ts` e as consultas `cidadeDoSlug` e `cidadesCom` em `src/lib/consultas.ts`.
+
+São as páginas que respondem às buscas mais comuns, como "negócios do bem em Salvador" ou "negócios liderados por mulheres".
+
+| Página | Endereço | Título |
+| --- | --- | --- |
+| Cidade | `/cidades/salvador-ba` | "Negócios do bem em Salvador, BA" |
+| Todas as cidades | `/cidades` | "Negócios do bem por cidade", agrupadas por estado |
+| Causa | `/causas/opcoes-veganas` (o slug da causa) | o título da causa, como "Negócios com opções veganas" |
+| Tipo | `/tipos/cafe-e-padaria` (o slug do tipo) | "Negócios de café e padaria" |
+
+- **Mostram** um texto de introdução, quantos negócios há, os 18 primeiros na ordem padrão do diretório (verificados primeiro) e "Ver todos os N no diretório" quando há mais. "Filtrar no diretório" abre o `/explorar` com o mesmo filtro.
+- **Links para continuar:**
+  - na cidade: os tipos e as causas que existem nela, que abrem o diretório com a cidade e aquele filtro, e as outras cidades do mesmo estado;
+  - na causa: as cidades e os tipos que têm a causa, que abrem o diretório com os dois filtros, e as outras causas do mesmo grupo;
+  - no tipo: as cidades e as causas desse tipo, que abrem o diretório com os dois filtros, e os outros tipos.
+- **A cidade vai pelo nome oficial do IBGE,** como no "Onde?". O endereço não tem acento nem maiúscula, e a UF vai no final. Grafias diferentes da mesma cidade ("Sao Paulo", "São Paulo", "Tubarão-SC") levam à mesma página, inclusive pelos links do perfil e do sitemap. Nas listas de cidades de uma causa ou de um tipo, elas contam juntas. Uma cidade fora da lista do IBGE fica com a grafia mais usada.
+- **Cidade sem negócios no diretório** mostra "Não encontramos esta página", com `noindex`. Isso inclui cidades que só têm negócios pendentes, rejeitados ou ocultos. Endereço de causa ou tipo que não existe, e o `/tipos/outros`, também.
+  - Como no perfil, o status HTTP é 200: o Next já mandou o começo da página quando descobre que ela não existe. Para os buscadores, o `noindex` basta.
+- **Causa ou tipo sem negócios:** a página existe, com um convite para indicar, mas leva `noindex` e fica fora do sitemap.
+- **"Outros" não tem página:** não diz nada para quem busca.
+- **Quem chega às páginas:**
+  - o perfil público liga o tipo, a cidade e cada causa às suas páginas;
+  - a página inicial mostra as 12 cidades com mais negócios, em "Explore por cidade";
+  - "Como funciona" liga cada causa à sua página;
+  - o rodapé tem "Negócios por cidade";
+  - o sitemap e o `llms.txt` listam as páginas.
 
 ---
 
@@ -640,7 +876,7 @@ A lista é fixa no código, em três grupos:
 | **Diversidade e respeito** | Antirracista (`antirracista`), Afroempreendedor (`afroempreendedor`), LGBTQIA+ friendly (`lgbtqia`), Liderado por mulheres (`liderado-por-mulheres`), Acessível (`acessivel`), Empreendimento indígena (`indigena`) |
 | **Comunidade e planeta** | Pet friendly (`pet-friendly`), Sustentável (`sustentavel`), Opções veganas (`opcoes-veganas`), Agricultura familiar (`agricultura-familiar`), Negócio de bairro (`negocio-de-bairro`), Apoia projetos sociais (`apoia-projetos-sociais`), Economia solidária (`economia-solidaria`) |
 
-Cada causa tem nome, emoji, descrição e grupo. A página "Como funciona" lista todas com a descrição.
+Cada causa tem nome, título da página (como "Negócios com opções veganas"), emoji, descrição e grupo. A página "Como funciona" lista todas com a descrição, e cada uma tem a sua página em `/causas/slug`.
 
 Regras:
 
@@ -677,6 +913,7 @@ A cidade vem da lista de municípios do IBGE, gravada no projeto em `src/lib/mun
 - **O formulário envia "Cidade, UF".** O servidor também aceita "Cidade/UF", "Cidade - UF" e só o nome, quando ele não se repete em outro estado. Assim o formulário funciona antes do JavaScript carregar.
 - **Recusas:** cidade em branco ("Em que cidade fica?"), nome que existe em mais de um estado sem a UF ("Existe mais de uma cidade chamada…") e nome fora da lista ("Escolha a cidade na lista. Se ela não aparecer, confira a grafia.").
 - **Grava o nome oficial:** quem digita "niteroi" e sai do campo fica com "Niterói, RJ".
+- **Cadastros de antes da lista** podem ter a cidade escrita de outro jeito ("Sao Paulo"). O `npm run cidades:corrigir` (`scripts/corrigir-cidades.ts`) mostra essas cidades e, com `--aplicar`, grava o nome oficial. Ele refaz o texto da busca do negócio e não muda a data de atualização, que ordena o diretório. As cidades que não estão na lista aparecem para a moderação corrigir pelo painel.
 - **A lista é atualizada à mão,** com `npm run municipios:atualizar`, quando o IBGE criar ou renomear um município.
 
 ---
@@ -685,7 +922,13 @@ A cidade vem da lista de municípios do IBGE, gravada no projeto em `src/lib/mun
 
 Código: `src/lib/auditoria.ts`.
 
-Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quando. A aba "Auditoria" mostra os 100 registros mais recentes. "Sistema" aparece quando a ação foi automática, por exemplo uma aprovação pelo webhook.
+Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quando. "Sistema" aparece quando a ação foi automática, por exemplo a aprovação na hora de um pedido pelos dados do negócio.
+
+A aba "Auditoria" do painel mostra os registros do mais novo ao mais antigo, 50 por página:
+
+- cada ação aparece com uma descrição em português (`ACOES_AUDITORIA`, em `src/lib/dominio.ts`) e com o código embaixo;
+- quem fez leva à ficha da conta, e o alvo leva ao negócio, à conta ou ao perfil do depoimento, enquanto ele existir. Alvo apagado aparece como "removido";
+- **filtros:** por ação (a lista mostra quantas vezes cada uma aparece), por quem fez (inclusive "sistema") e por alvo. O link "histórico" de cada linha, o "Histórico" da aba Negócios e o "Tudo o que esta conta fez" da ficha usam esses filtros.
 
 | Ação registrada | Quando |
 | --- | --- |
@@ -699,6 +942,8 @@ Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quand
 | `reivindicacao.aprovada` / `reivindicacao.aprovada_com_transferencia` | Um pedido foi aprovado, como co-dono ou com transferência. Os detalhes trazem o pedido, o caminho e a pessoa. |
 | `reivindicacao.recusada` | Um pedido foi recusado. Os detalhes trazem o motivo. |
 | `depoimento.mantido` / `depoimento.removido` | A moderação decidiu uma denúncia. |
+| `usuario.senha_trocada` | A pessoa trocou a própria senha no painel. |
+| `usuario.senha_redefinida` | A pessoa criou uma senha nova pelo link de "Esqueci minha senha" (ou pelo link pedido no painel). |
 | `usuario.moderacao_dada` / `usuario.moderacao_tirada` | Alguém virou moderação ou deixou de ser, pelo `npm run moderacao`. Aparece como "Sistema"; os detalhes trazem o e-mail. |
 
 O que **não** vai para a auditoria hoje:
@@ -708,36 +953,71 @@ O que **não** vai para a auditoria hoje:
 - depoimentos, respostas e denúncias;
 - envio de fotos da história.
 
-Para uma ação nova de moderação, registre sempre na auditoria.
+Para uma ação nova de moderação, registre sempre na auditoria e dê a ela uma descrição em `ACOES_AUDITORIA`.
 
 ---
 
-## 14. Privacidade: o que guardamos e quem vê
+## 14. Avisos por e-mail
+
+Código: `src/lib/email.ts` (o envio) e `src/lib/notificacoes.ts` (quem recebe o quê).
+
+O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma decisão.
+
+| Quando | Quem recebe | O que vai no e-mail |
+| --- | --- | --- |
+| A moderação aprova um pedido de reivindicação: como co-dono, com transferência ou pelo botão "Aprovar os N pedidos sem dono" | Quem pediu | O negócio e o link do painel dele. |
+| A moderação recusa um pedido | Quem pediu | O negócio, o motivo da recusa e o link do painel. |
+| Um pedido pelos dados do negócio fica na fila (o negócio tem dono ou está fora do ar), ou um "Entrar com Instagram" fica em análise | Cada pessoa da moderação | O negócio e o link da fila de reivindicações. |
+| Um depoimento é denunciado | Cada pessoa da moderação | O negócio e o link da fila de denúncias. |
+| Chega um depoimento novo | Cada dono do negócio | Quem escreveu, o texto e o link para responder. |
+| Alguém cria uma conta, ou pede de novo em "Confirme seu e-mail". Só com a confirmação ligada, e hoje ela está desligada | A própria pessoa | O link para confirmar o e-mail, que vale por 24 horas. |
+| Alguém pede para entrar por link | O e-mail digitado, se tiver conta | O link para entrar, que vale por 15 minutos. |
+| Alguém pede uma senha nova em `/esqueci-a-senha`, ou pelo botão do painel | O e-mail digitado (ou o da conta logada), se tiver conta | O link para criar uma senha nova, que vale por 1 hora. |
+| A senha é trocada, no painel ou pelo link de senha nova | A própria pessoa | Aviso de que a senha foi trocada e de que os outros aparelhos saíram, com o link de "Esqueci minha senha" para quem não foi quem trocou. |
+
+- **Os links de confirmar, de entrar e de senha nova** seguem as regras de [e-mail confirmado e links por e-mail](#e-mail-confirmado-e-links-por-e-mail).
+- **A aprovação na hora não manda e-mail.** Quem vira dono pelos dados do negócio ou pelo Instagram já vê o resultado na tela.
+- **Cada pessoa recebe o próprio e-mail.** Ninguém vê o endereço de outra, nem entre a moderação nem entre co-donos.
+- **Os avisos para a moderação não levam dados pessoais:** nada de nome, e-mail ou contato de quem pediu ou denunciou. Isso fica só nas filas.
+- **O e-mail sai depois da resposta,** pelo `after()` do Next. A pessoa não espera o envio, e uma falha fica só no log, sem desfazer a ação.
+- **Remetente e resposta:** o e-mail sai de `EMAIL_REMETENTE`, um endereço de domínio verificado no Resend, e as respostas vão para `EMAIL_RESPOSTA`.
+- **Ligado só com `RESEND_API_KEY` e `EMAIL_REMETENTE`.** Sem elas, ninguém recebe e-mail, e o resto funciona igual. Nos previews do Cloudflare o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. A aba "Sistema" da moderação mostra se o envio está ligado.
+- **Fica de fora:** quem indica um negócio, tem o negócio tirado do ar ou deixa de ser dono numa transferência não recebe e-mail.
+
+---
+
+## 15. Privacidade: o que guardamos e quem vê
 
 ### O que é guardado
 
 | Dado | Onde | Quem vê |
 | --- | --- | --- |
 | Nome da conta | `Usuario` | **Público** quando a pessoa escreve um depoimento ou quando a indicação dela aparece no perfil ("indicado por …"). A moderação vê nas filas. |
-| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação (de quem pede a reivindicação, dos donos atuais e de quem escreveu um depoimento denunciado). Nunca aparece no site público. |
-| Senha | `Usuario.senhaHash` | Ninguém: só o hash scrypt é guardado. |
-| Sessões | `Sessao` | Ninguém: só o hash do token. |
+| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação, que vê o e-mail de todas as contas na aba "Contas" e na ficha de cada uma, além das filas. Nunca aparece no site público. Serve para entrar e para receber os [avisos por e-mail](#14-avisos-por-e-mail). |
+| Telefone da conta | `Usuario.telefone` | Só a moderação, na ficha da conta. Nunca aparece no site público. Serve só para avisos sobre a conta e o negócio da pessoa, sem divulgação. |
+| Cadastro pelo Google esperando o telefone | `CadastroGoogle` | Ninguém vê o token: só o hash é guardado, com o ID da conta do Google, o e-mail, o nome e para onde a pessoa vai. Vale 30 minutos e é apagado quando a conta é criada; os vencidos, quando outro é guardado. |
+| Senha | `Usuario.senhaHash` | Ninguém: só o hash scrypt é guardado. A conta criada pelo Google não tem senha. |
+| Conta do Google ligada | `Usuario.googleId` | Ninguém: é só o identificador (`sub`) que o Google dá à conta, para reconhecê-la no próximo login. |
+| Sessões | `Sessao` | Ninguém vê o token: só o hash é guardado. A moderação vê quantas sessões abertas uma conta tem e quando foram abertas. |
+| Links por e-mail | `LinkEmail` | Ninguém vê o token: só o hash é guardado, com o e-mail para onde o link foi, para onde ele leva e quando foi usado. Os vencidos há mais de uma hora são apagados quando a conta recebe outro link. |
 | Dados do perfil do negócio | `Empresa` | **Público** quando o negócio está publicado. |
 | Dados do pedido de reivindicação (relação, contato, CNPJ, site, mensagem) | `Reivindicacao` | Só a moderação. A pessoa vê o status e o motivo da recusa. |
 | Depoimentos | `Depoimento` | **Públicos**, com nome e data. |
 | Quem denunciou e o motivo | `Depoimento` | Só a moderação. |
 | Auditoria | `RegistroAuditoria` | Só a moderação. |
+| Tentativas de login e cadastro | `TentativaAcesso` | Ninguém vê o IP nem o e-mail: só o sha256 deles e a contagem são guardados. A moderação vê só quantos contadores existem. |
 
 ### O que não fazemos
 
 - **Não raspamos o Instagram.** O @ é digitado por pessoas.
 - **Não guardamos tokens do Instagram.** Nos caminhos pelo Instagram, guardamos só o ID da conta.
+- **Não guardamos tokens do Google.** No login pelo Google, guardamos só o ID da conta, o e-mail e, numa conta nova, o nome.
 - **Não mostramos imagens de outros sites.** Elas avisariam esses servidores a cada visita.
 - **Não temos ranking nem anúncio pago.**
 
 ### Medição de visitas
 
-- O site usa o **Google Analytics 4**, só em produção: ele só carrega quando `NEXT_PUBLIC_GA_ID` está configurado, e essa variável só existe no ambiente Production do Vercel.
+- O site usa o **Google Analytics 4**, só em produção: ele só carrega quando `NEXT_PUBLIC_GA_ID` está configurado, e essa variável só existe no ambiente de produção do Cloudflare.
 - A "medição otimizada" está ligada. Ela conta:
   - páginas vistas;
   - rolagem;
@@ -758,16 +1038,22 @@ Para uma ação nova de moderação, registre sempre na auditoria.
 
 ---
 
-## 15. Números e limites
+## 16. Números e limites
 
 | Regra | Valor | Onde |
 | --- | --- | --- |
 | Duração da sessão | 30 dias | `src/lib/auth/sessao.ts` |
 | Senha | 8 a 200 caracteres | `src/acoes/conta.ts` |
+| Prazo para voltar do Google no login | 10 minutos | `src/app/api/google/entrar/route.ts` |
+| Prazo para informar o telefone na conta nova pelo Google | 30 minutos | `src/lib/auth/google.ts` |
+| Telefone da conta | do Brasil, com DDD (10 ou 11 dígitos) | `src/lib/formulario.ts` |
+| Tentativas de login, cadastro, troca de senha e senha nova por IP | 10 a cada 15 minutos | `src/lib/auth/tentativas.ts` |
+| Tentativas de senha por e-mail, em cada origem (IP ou /64) | 5 a cada 15 minutos | `src/lib/auth/tentativas.ts` |
+| Validade do link de senha nova | 1 hora | `src/lib/auth/links.ts` |
+| Links por e-mail por conta (confirmar, entrar e senha nova) | 5 por hora | `src/lib/auth/links.ts` |
 | Indicações por conta | 10 a cada 24 horas | `src/acoes/empresas.ts` |
 | Pedidos de reivindicação por conta | 10 a cada 24 horas | `src/lib/reivindicacao.ts` |
-| Validade do código por DM | 48 horas | `src/lib/reivindicacao.ts` |
-| Validade dos outros pedidos | 30 dias (informativa) | `src/lib/reivindicacao.ts` |
+| Validade dos pedidos | 30 dias (informativa) | `src/lib/reivindicacao.ts` |
 | Nome do negócio | 2 a 80 caracteres | `src/acoes/empresas.ts` |
 | Resumo | 10 a 160 caracteres | `src/acoes/empresas.ts` |
 | Sugestões do campo de cidade | até 8, a partir de 2 letras | `src/lib/municipios.ts` |
@@ -787,12 +1073,19 @@ Para uma ação nova de moderação, registre sempre na auditoria.
 | Tipos de negócio visíveis nos filtros | 8 (o resto em "Ver todos") | `src/app/explorar/page.tsx` |
 | Sugestões do "Onde?" | até 8 | `src/lib/diretorio.ts` |
 | Itens por fila da moderação | 50 | `src/app/moderacao/page.tsx` |
-| Registros na aba de auditoria | 100 | `src/app/moderacao/page.tsx` |
+| Itens por página nas listas do painel (negócios, contas e depoimentos) | 30 | `src/lib/moderacao/filtros.ts` |
+| Registros por página na auditoria | 50 | `src/lib/moderacao/filtros.ts` |
+| Itens de cada lista na ficha da conta | 30 | `src/lib/moderacao/consultas.ts` |
+| Registros da auditoria na ficha da conta | 20 | `src/lib/moderacao/consultas.ts` |
+| Semanas no gráfico de atividade | 12 | `src/lib/moderacao/indicadores.ts` |
+| Itens de cada lista do diretório na visão geral | 8 | `src/app/moderacao/VisaoGeral.tsx` |
 | Leitura da história | 200 palavras por minuto | `src/lib/texto.ts` |
+| Espera pela resposta do Resend | 10 segundos | `src/lib/email.ts` |
+| E-mails pelo plano gratuito do Resend | 100 por dia, 3.000 por mês | Conta do Resend |
 
 ---
 
-## 16. Comportamentos atuais que valem conhecer
+## 17. Comportamentos atuais que valem conhecer
 
 O sistema funciona hoje assim. Algumas destas situações podem ser intencionais e outras são lacunas. Antes de mudar qualquer uma, abra uma issue para combinar o caminho.
 
@@ -818,10 +1111,11 @@ O sistema funciona hoje assim. Algumas destas situações podem ser intencionais
 
 **Contas**
 
-- Não há recuperação de senha, confirmação de e-mail, troca de nome ou e-mail, nem exclusão da conta.
-- Não há limite de tentativas de login.
+- Não há troca de nome ou e-mail, nem exclusão da conta. A confirmação de e-mail existe, mas está desligada (veja [E-mail confirmado e links por e-mail](#e-mail-confirmado-e-links-por-e-mail)).
+- Um link de senha nova aberto e não usado fica no cookie de `/link` até vencer (1 hora) ou até outro link substituí-lo. Quem usar o mesmo navegador nesse meio-tempo pode abrir `/link` e criar a senha. O mesmo vale para o link de entrar, por 15 minutos.
+- Não há registro do último acesso: "Sair" apaga a sessão, então o painel só sabe das sessões que continuam abertas.
 - Sessões vencidas deixam de valer, mas não são apagadas do banco.
-- Ninguém recebe e-mail: nem o dono quando o pedido é decidido, nem a moderação quando chega algo novo. Hoje o site não tem serviço de envio de e-mail.
+- O e-mail da conta não é confirmado. Um aviso pode ir para um endereço digitado errado, e ninguém fica sabendo.
 
 **Fotos**
 

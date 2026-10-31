@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "sh scripts/vercel-build.sh",
+    "cf:build": "sh scripts/cloudflare-build.sh",
+    "cf:preview": "sh scripts/cloudflare-preview.sh",
+    "preview:cloudflare": "DEPLOY_ENV=preview npm run cf:build && DEPLOY_ENV=preview opennextjs-cloudflare preview",
+    "deploy:cloudflare": "DEPLOY_ENV=production npm run cf:build && DEPLOY_ENV=production opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
@@ -15,15 +19,21 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "banco:copiar": "sh scripts/copiar-banco.sh",
     "fotos:instagram": "tsx scripts/fotos-instagram.ts",
     "fotos:agendar": "sh scripts/agendar-fotos.sh",
+    "fotos:para-r2": "tsx scripts/fotos-para-r2.ts",
     "municipios:atualizar": "tsx scripts/municipios-ibge.ts",
-    "moderacao": "tsx scripts/moderacao.ts"
+    "cidades:corrigir": "tsx scripts/corrigir-cidades.ts",
+    "moderacao": "tsx scripts/moderacao.ts",
+    "marca:icones": "tsx scripts/gerar-icones.ts",
+    "marca:fontes": "tsx scripts/gerar-fontes.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",
     "@fontsource-variable/newsreader": "5.3.0",
     "@next/third-parties": "16.4.3",
+    "@opennextjs/cloudflare": "1.20.14",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "@tiptap/extension-image": "3.31.4",
@@ -32,9 +42,9 @@
     "@tiptap/pm": "3.31.4",
     "@tiptap/react": "3.31.4",
     "@tiptap/starter-kit": "3.31.4",
-    "@vercel/blob": "2.8.2",
     "next": "16.4.3",
     "pg": "8.23.1",
+    "pg-cloudflare": "1.4.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
@@ -55,12 +65,8 @@
     "tailwindcss": "^4",
     "tsx": "4.23.15",
     "typescript": "^5",
-    "vitest": "5.0.5"
-  },
-  "overrides": {
-    "@vercel/cli-config": {
-      "zod": "$zod"
-    }
+    "vitest": "5.0.5",
+    "wrangler": "4.156.0"
   },
   "engines": {
     "node": ">=22.12"

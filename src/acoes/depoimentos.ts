@@ -1,10 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { exigirUsuario } from "@/lib/auth/sessao";
+import { AVISOS } from "@/lib/avisos";
 import { db } from "@/lib/db";
 import { texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
+import { avisarNovaDenuncia, avisarNovoDepoimento } from "@/lib/notificacoes";
 
 const esquemaDepoimento = z
   .string()
@@ -19,6 +22,7 @@ export async function publicarDepoimento(_estado: EstadoFormulario, dados: FormD
   });
   if (!empresa) return { erro: "Negócio não encontrado." };
   const usuario = await exigirUsuario(`/empresas/${empresa.instagramUsername}#depoimentos`);
+  if (!usuario.emailConfirmado) return { erro: AVISOS.confirmar_email.texto, valores: valoresDoFormulario(dados) };
 
   if (empresa.moderacao !== "aprovada" || empresa.oculta) {
     return { erro: "Este perfil ainda não está recebendo depoimentos." };
@@ -37,7 +41,8 @@ export async function publicarDepoimento(_estado: EstadoFormulario, dados: FormD
   });
   if (jaEscreveu) return { erro: "Você já deixou um depoimento para este negócio. Obrigado!" };
 
-  await db.depoimento.create({ data: { empresaId: empresa.id, autorId: usuario.id, texto: resultado.data } });
+  const depoimento = await db.depoimento.create({ data: { empresaId: empresa.id, autorId: usuario.id, texto: resultado.data } });
+  after(() => avisarNovoDepoimento(depoimento.id));
   redirect(`/empresas/${empresa.instagramUsername}?aviso=depoimento_publicado#depoimentos`);
 }
 
@@ -68,6 +73,9 @@ export async function denunciarDepoimento(dados: FormData): Promise<void> {
   if (!depoimento) redirect("/");
   const voltar = `/empresas/${depoimento.empresa.instagramUsername}`;
   const usuario = await exigirUsuario(voltar);
+  // A página esconde o botão para o autor; a regra vale aqui também.
+  if (depoimento.autorId === usuario.id) redirect(`${voltar}#depoimentos`);
+  if (!usuario.emailConfirmado) redirect(`${voltar}?aviso=confirmar_email#depoimentos`);
 
   if (!depoimento.denunciado) {
     await db.depoimento.update({
@@ -78,6 +86,7 @@ export async function denunciarDepoimento(dados: FormData): Promise<void> {
         denunciadoPorId: usuario.id,
       },
     });
+    after(() => avisarNovaDenuncia(depoimento.id));
   }
   redirect(`${voltar}?aviso=denuncia_enviada#depoimentos`);
 }

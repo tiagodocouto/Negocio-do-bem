@@ -1,13 +1,17 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
-import { apagarFoto, guardarFoto } from "@/lib/armazenamento";
+import { apagarFoto, conferirFoto, guardarFoto } from "@/lib/armazenamento";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { db } from "@/lib/db";
 import type { TipoDeFoto } from "@/lib/fotos";
+import { arquivoDaFoto, buscarPreviaDoInstagram } from "@/lib/previa-instagram";
 
-// Fotos de perfil vindas do Instagram. Um script no computador de quem cuida do
-// projeto (scripts/fotos-instagram.ts) busca a foto na API da Meta, deixa pronta
-// e envia para /api/fotos-instagram. Aqui ficam as regras do lado do site.
+// Fotos de perfil vindas do Instagram, por dois caminhos:
+// 1. No cadastro: a foto da prévia do @ é gravada logo depois de criar o negócio.
+// 2. Na rotina: um script no computador de quem cuida do projeto
+//    (scripts/fotos-instagram.ts) busca a foto dos que ficaram sem, deixa pronta e
+//    envia para /api/fotos-instagram.
+// Aqui ficam as regras do lado do site.
 
 /** Token que o script usa. Sem ele (ou curto demais), a rota responde 404. */
 export function tokenDasFotos(): string | null {
@@ -22,10 +26,13 @@ export function autorizado(cabecalho: string | null, token: string): boolean {
   return recebido.length === esperado.length && timingSafeEqual(recebido, esperado);
 }
 
-/** Negócios sem foto que a rotina tenta preencher. Os tirados do ar ficam de fora. */
+/**
+ * Negócios sem foto que a rotina tenta preencher. Os tirados do ar ficam de fora, e
+ * os sem Instagram também: o endereço deles tem hífen (ver temInstagram).
+ */
 export function negociosSemFoto(limite = 200) {
   return db.empresa.findMany({
-    where: { fotoUrl: null, moderacao: { not: "rejeitada" } },
+    where: { fotoUrl: null, moderacao: { not: "rejeitada" }, NOT: { instagramUsername: { contains: "-" } } },
     orderBy: { criadoEm: "asc" },
     take: limite,
     select: { id: true, instagramUsername: true },
@@ -61,4 +68,21 @@ export async function aplicarFotoDoInstagram(
     detalhes: `@${empresa.instagramUsername}`,
   });
   return "gravada";
+}
+
+/**
+ * Logo depois do cadastro, grava a foto da prévia do @: o perfil já nasce com foto.
+ * Sem prévia (conta pessoal, @ errado, Meta fora do ar), a rotina tenta depois.
+ */
+export async function gravarFotoDaPrevia(empresaId: string, username: string): Promise<void> {
+  try {
+    const previa = await buscarPreviaDoInstagram(username);
+    const arquivo = previa?.foto ? arquivoDaFoto(previa.foto) : null;
+    if (!arquivo) return;
+    const foto = await conferirFoto(arquivo);
+    if ("erro" in foto) return;
+    await aplicarFotoDoInstagram(empresaId, foto);
+  } catch (erro) {
+    console.error("Falha ao gravar a foto do Instagram no cadastro", empresaId, erro);
+  }
 }

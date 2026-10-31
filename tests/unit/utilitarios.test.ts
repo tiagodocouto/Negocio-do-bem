@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { gerarHashSenha, verificarSenha } from "@/lib/auth/senha";
 import { filtrarCausas } from "@/lib/causas";
 import { cnpjValido, formatarCnpj } from "@/lib/cnpj";
-import { campoEmail, campoSite, campoWhatsapp } from "@/lib/formulario";
-import { formatarWhatsapp, iniciais, normalizarTexto, tempoDeLeitura } from "@/lib/texto";
+import { campoEmail, campoSite, campoTelefone, campoWhatsapp } from "@/lib/formulario";
+import { formatarTelefone, iniciais, normalizarTexto, tempoDeLeitura } from "@/lib/texto";
 
 describe("cnpjValido", () => {
   it("aceita CNPJ numérico válido, com ou sem pontuação", () => {
@@ -92,8 +92,26 @@ describe("campoWhatsapp", () => {
   });
 
   it("formata para exibir", () => {
-    expect(formatarWhatsapp("5511991488052")).toBe("(11) 99148-8052");
-    expect(formatarWhatsapp("552134567890")).toBe("(21) 3456-7890");
+    expect(formatarTelefone("5511991488052")).toBe("(11) 99148-8052");
+    expect(formatarTelefone("552134567890")).toBe("(21) 3456-7890");
+  });
+});
+
+describe("campoTelefone", () => {
+  it("guarda como o WhatsApp: só os dígitos, com o 55 do Brasil", () => {
+    expect(campoTelefone.parse("(11) 99148-8052")).toBe("5511991488052");
+    expect(campoTelefone.parse(" +55 11 99148-8052 ")).toBe("5511991488052");
+    expect(campoTelefone.parse("(21) 3456-7890")).toBe("552134567890");
+  });
+
+  it("é obrigatório", () => {
+    const resultado = campoTelefone.safeParse("");
+    expect(resultado.success).toBe(false);
+    expect(resultado.error?.issues[0]?.message).toBe("Informe seu telefone com DDD.");
+  });
+
+  it.each(["99148-8052", "+1 415 555 0100", "(11) 1234-5678", "(01) 99148-8052", "1".repeat(31)])("recusa %j", (valor) => {
+    expect(campoTelefone.safeParse(valor).success).toBe(false);
   });
 });
 

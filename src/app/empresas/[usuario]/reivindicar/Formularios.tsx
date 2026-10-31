@@ -1,24 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { enviarDocumento, gerarCodigoDm } from "@/acoes/reivindicacoes";
+import { enviarDocumento } from "@/acoes/reivindicacoes";
 import { Aviso } from "@/components/Aviso";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { enviarSemLimpar } from "@/components/envio";
 import { Campo } from "@/components/Campo";
-
-export function FormGerarCodigo({ empresaId }: { empresaId: string }) {
-  const [estado, acao, pendente] = useActionState(gerarCodigoDm, undefined);
-  return (
-    <form action={acao} onSubmit={enviarSemLimpar(acao)} className="mt-5 space-y-3">
-      <input type="hidden" name="empresaId" value={empresaId} />
-      {estado?.erro && <Aviso tipo="erro">{estado.erro}</Aviso>}
-      <BotaoEnviar pendente={pendente} className="botao-coral" enviando="Gerando…">
-        Gerar meu código
-      </BotaoEnviar>
-    </form>
-  );
-}
 
 export function FormDocumento({ empresaId }: { empresaId: string }) {
   const [estado, acao, pendente] = useActionState(enviarDocumento, undefined);

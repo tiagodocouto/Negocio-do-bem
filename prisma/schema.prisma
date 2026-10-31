@@ -16,12 +16,22 @@ model Usuario {
   id        String   @id @default(cuid())
   nome      String
   email     String   @unique
-  senhaHash String
+  // Vazio na conta criada pelo Google: ela entra pelo Google ou por link no e-mail.
+  senhaHash String?
+  // "sub" da conta do Google ligada a esta, que não muda nem quando o Gmail muda.
+  googleId  String?  @unique
+  // Só os dígitos, com o 55 do Brasil: "5511991488052". Obrigatório no cadastro;
+  // vazio nas contas criadas antes dele.
+  telefone  String?
   // "membro" | "moderador"
   papel     String   @default("membro")
+  // Quando a pessoa abriu um link mandado para o e-mail dela. Sem isso a conta entra,
+  // mas não indica, não escreve nem denuncia depoimentos e não reivindica negócios.
+  emailConfirmadoEm DateTime?
   criadoEm  DateTime @default(now())
 
   sessoes             Sessao[]
+  links               LinkEmail[]
   indicacoes          Empresa[]        @relation("IndicadaPor")
   depoimentos         Depoimento[]     @relation("AutorDepoimento")
   denuncias           Depoimento[]     @relation("DenunciadoPor")
@@ -42,13 +52,63 @@ model Sessao {
   @@index([usuarioId])
 }
 
+model TentativaAcesso {
+  chave            String   @id
+  contagem         Int
+  janelaIniciadaEm DateTime
+  // sha256 do e-mail, nas linhas do limite por e-mail: trocar a senha zera as de todas as origens de uma vez
+  email            String?
+
+  @@index([janelaIniciadaEm])
+  @@index([email])
+}
+
+// Link mandado por e-mail para confirmar o endereço, entrar sem senha ou criar uma senha nova (src/lib/auth/links.ts).
+model LinkEmail {
+  // sha256 do token que vai no link, como na Sessao
+  id         String    @id
+  usuarioId  String
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  // "confirmar" | "entrar" | "redefinir"
+  finalidade String
+  // Endereço para onde o link foi: ele só vale enquanto a conta tiver este e-mail.
+  email      String
+  // Caminho interno aonde a pessoa vai depois de usar o link.
+  destino    String    @default("/")
+  expiraEm   DateTime
+  // Cada link vale uma vez só.
+  usadoEm    DateTime?
+  criadoEm   DateTime  @default(now())
+
+  @@index([usuarioId, criadoEm])
+}
+
+// Conta nova pelo Google esperando o telefone: o Google já disse quem é a pessoa,
+// e a conta só é criada quando ela informa o telefone em /cadastrar/google.
+model CadastroGoogle {
+  // sha256 do token guardado no cookie, como na Sessao
+  id        String   @id
+  googleId  String
+  email     String
+  nome      String
+  // Caminho interno aonde a pessoa vai depois de criar a conta.
+  destino   String   @default("/")
+  expiraEm  DateTime
+  criadoEm  DateTime @default(now())
+
+  @@index([expiraEm])
+}
+
 model Empresa {
   id                String   @id @default(cuid())
   // @ atual do Instagram, minúsculo e sem "@". Também é o endereço da página.
+  // Negócio sem Instagram: endereço feito do nome e da cidade, com hífen, que o
+  // Instagram não aceita no @ (ver src/lib/instagram.ts).
   instagramUsername String   @unique
   // ID fixo da conta profissional, obtido no "Entrar com Instagram".
   instagramUserId   String?  @unique
-  // ID da conta no escopo do nosso perfil (IGSID), obtido quando o dono manda DM.
+  // ID da conta no escopo do nosso perfil (IGSID). Só vem de pedidos antigos por
+  // código de DM, caminho que não é mais oferecido.
   instagramIgsid    String?  @unique
   nome              String
   resumo            String
@@ -62,6 +122,11 @@ model Empresa {
   // Só dígitos, com o 55 do Brasil (ex.: 5511991488052).
   whatsapp          String?
   emailContato      String?
+  // Telefone do negócio, no mesmo formato do WhatsApp. Aparece no perfil.
+  telefoneComercial String?
+  // Contato de quem cadastrou o negócio como dono. Só o dono e a moderação veem.
+  emailDoDono       String?
+  telefoneDoDono    String?
   // "indicada" (sem dono) | "verificada" (tem dono que provou controlar o @)
   status            String   @default("indicada")
   // "pendente" | "aprovada" | "rejeitada" — só "aprovada" aparece no diretório
@@ -114,9 +179,9 @@ model Reivindicacao {
   empresa         Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   usuarioId       String
   usuario         Usuario   @relation("Solicitante", fields: [usuarioId], references: [id], onDelete: Cascade)
-  // "instagram_login" | "codigo_dm" | "documento"
+  // "instagram_login" | "documento" | "codigo_dm" (este só em pedidos antigos)
   metodo          String
-  // Código que o dono envia por DM (só no método "codigo_dm").
+  // Código que o dono enviava por DM (só nos pedidos antigos com "codigo_dm").
   codigo          String?   @unique
   // "pendente" | "aprovada" | "recusada" | "expirada" | "cancelada"
   status          String    @default("pendente")
@@ -126,7 +191,7 @@ model Reivindicacao {
   relacao         String?
   contato         String?
   mensagem        String?
-  // Anotações do sistema para a moderação (ex.: "DM recebida de @outra_conta").
+  // Anotações do sistema para a moderação (ex.: "Login confirmado como @conta").
   notas           String    @default("")
   // Motivo informado pela moderação ao recusar.
   motivoRecusa    String?
@@ -169,7 +234,7 @@ model Depoimento {
 
 model RegistroAuditoria {
   id        String   @id @default(cuid())
-  // null quando a ação foi automática (ex.: webhook do Instagram)
+  // null quando a ação foi automática (ex.: aprovação na hora pelos dados do negócio)
   usuarioId String?
   usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
   acao      String

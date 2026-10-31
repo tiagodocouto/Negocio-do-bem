@@ -47,7 +47,7 @@ export async function consultarCnpj(valor: string): Promise<DadosCnpj | null> {
   try {
     const resposta = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, {
       // Sem um User-Agent próprio, a BrasilAPI recusa o pedido (403).
-      headers: { "User-Agent": "NegocioDoBem/1.0 (+https://github.com/fabsreis/Negocio-do-bem)" },
+      headers: { "User-Agent": "NegocioDoBem/1.0 (+https://github.com/fabs-reis/Negocio-do-bem)" },
       signal: AbortSignal.timeout(5000),
     });
     if (!resposta.ok) return null;

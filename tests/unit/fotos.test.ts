@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { conferirFoto } from "@/lib/armazenamento";
 import { ehFotoDoSite } from "@/lib/fotos";
 
@@ -37,9 +37,15 @@ describe("ehFotoDoSite", () => {
     expect(ehFotoDoSite("/enviados/historias/x.jpg")).toBe(true);
   });
 
-  it("aceita qualquer store do Vercel Blob, como o de produção e o dos previews", () => {
+  it("aceita endereços antigos de qualquer store do Vercel Blob durante a migração", () => {
     expect(ehFotoDoSite("https://producao1.public.blob.vercel-storage.com/perfis/x.jpg")).toBe(true);
     expect(ehFotoDoSite("https://previews2.public.blob.vercel-storage.com/historias/x.jpg")).toBe(true);
+  });
+
+  it("aceita o domínio R2 configurado para o ambiente", () => {
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "https://fotos.exemplo.com");
+    expect(ehFotoDoSite("https://fotos.exemplo.com/perfis/x.jpg")).toBe(true);
+    vi.unstubAllEnvs();
   });
 
   it("recusa imagens de outros endereços e caminhos suspeitos", () => {

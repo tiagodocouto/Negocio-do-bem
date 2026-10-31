@@ -1,14 +1,14 @@
 // Regras para o dono reivindicar o perfil do seu negócio.
 //
-// Há três caminhos (ver README):
+// Há dois caminhos (ver README):
 //   - "documento": o caminho principal. A pessoa envia os dados do negócio (CNPJ,
 //     site, contato). Se o negócio ainda não tem dono, ela vira dona na hora; se já
 //     tem (disputa) ou foi tirado do ar, a moderação decide.
 //   - "instagram_login": login na conta profissional; aprovação instantânea.
 //     Desligado enquanto as variáveis do app da Meta estiverem vazias.
-//   - "codigo_dm": o dono manda um código por DM, a partir do @ do negócio, para o
-//     perfil oficial. A moderação confere (ou o webhook confere sozinho).
-//     Desligado enquanto INSTAGRAM_PERFIL_OFICIAL estiver vazio.
+//
+// Pedidos antigos podem ter o método "codigo_dm" (código mandado por DM), que não
+// é mais oferecido. Eles continuam no banco e a moderação ainda pode decidi-los.
 //
 // A aprovação automática só acontece quando não há nenhum conflito. Qualquer
 // situação estranha (negócio que já tem dono, @ que mudou de conta, mesma conta
@@ -16,11 +16,9 @@
 // moderação decidir.
 
 import { registrarAuditoria } from "@/lib/auditoria";
-import { gerarCodigo, extrairCodigo } from "@/lib/codigo";
-import { db } from "@/lib/db";
+import { db, type Prisma } from "@/lib/db";
 import { formatarDataHora } from "@/lib/texto";
 
-export const VALIDADE_CODIGO_HORAS = 48;
 const VALIDADE_ANALISE_DIAS = 30;
 const LIMITE_SOLICITACOES_POR_DIA = 10;
 
@@ -33,10 +31,6 @@ function daquiA(ms: number): Date {
 const HORA = 60 * 60 * 1000;
 const DIA = 24 * HORA;
 
-function violouUnicidade(erro: unknown): boolean {
-  return typeof erro === "object" && erro !== null && "code" in erro && erro.code === "P2002";
-}
-
 async function exigirQueNaoSejaDono(empresaId: string, usuarioId: string) {
   const membro = await db.empresaMembro.findUnique({
     where: { empresaId_usuarioId: { empresaId, usuarioId } },
@@ -44,107 +38,34 @@ async function exigirQueNaoSejaDono(empresaId: string, usuarioId: string) {
   if (membro) throw new ErroReivindicacao("Você já é dono deste negócio.");
 }
 
-async function exigirLimiteDiario(usuarioId: string) {
-  const recentes = await db.reivindicacao.count({
+/**
+ * Trava a linha da pessoa até o fim da transação. Todo caminho que cria um
+ * pedido chama isto primeiro, antes de contar: pedidos simultâneos da mesma
+ * conta entram um de cada vez e cada um enxerga os anteriores já gravados. Sem
+ * a trava, todos leriam a mesma contagem e passariam do limite.
+ *
+ * A trava é FOR NO KEY UPDATE (e não FOR UPDATE) de propósito: o banco pede
+ * FOR KEY SHARE na linha da pessoa a cada linha que aponta para ela, como o
+ * `aprovar` faz ao criar o dono. Essa trava não conflita com a nossa, então
+ * a aprovação não espera pela trava da cota enquanto segura a empresa.
+ */
+async function bloquearPessoa(tx: Prisma.TransactionClient, usuarioId: string) {
+  await tx.$queryRaw`SELECT id FROM "Usuario" WHERE id = ${usuarioId} FOR NO KEY UPDATE`;
+}
+
+// Antecipa a trava da chave estrangeira: empresa antes de pedidos, como em aprovar.
+async function bloquearEmpresa(tx: Prisma.TransactionClient, empresaId: string) {
+  await tx.$queryRaw`SELECT id FROM "Empresa" WHERE id = ${empresaId} FOR KEY SHARE`;
+}
+
+/** Só vale depois de `bloquearPessoa`, na mesma transação que cria o pedido. */
+async function exigirLimiteDiario(tx: Prisma.TransactionClient, usuarioId: string) {
+  const recentes = await tx.reivindicacao.count({
     where: { usuarioId, criadoEm: { gte: new Date(Date.now() - DIA) } },
   });
   if (recentes >= LIMITE_SOLICITACOES_POR_DIA) {
     throw new ErroReivindicacao("Você fez muitas solicitações nas últimas 24 horas. Tente de novo amanhã.");
   }
-}
-
-// ---------------------------------------------------------------------------
-// Caminho 2: código por DM
-// ---------------------------------------------------------------------------
-
-/** Gera (ou reaproveita, se ainda valer) o código que o dono vai mandar por DM. */
-export async function iniciarPorCodigoDm(empresaId: string, usuarioId: string) {
-  await exigirQueNaoSejaDono(empresaId, usuarioId);
-
-  const vigente = await db.reivindicacao.findFirst({
-    where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { gt: new Date() } },
-  });
-  if (vigente) return vigente;
-
-  await exigirLimiteDiario(usuarioId);
-  await db.reivindicacao.updateMany({
-    where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { lte: new Date() } },
-    data: { status: "expirada" },
-  });
-
-  for (let tentativa = 0; tentativa < 5; tentativa++) {
-    try {
-      return await db.reivindicacao.create({
-        data: {
-          empresaId,
-          usuarioId,
-          metodo: "codigo_dm",
-          codigo: gerarCodigo(),
-          expiraEm: daquiA(VALIDADE_CODIGO_HORAS * HORA),
-        },
-      });
-    } catch (erro) {
-      if (!violouUnicidade(erro)) throw erro;
-    }
-  }
-  throw new Error("Não foi possível gerar um código único.");
-}
-
-/**
- * Processa uma DM recebida pelo perfil oficial (webhook).
- * `buscarUsername` descobre o @ de quem enviou a partir do IGSID.
- */
-export async function processarDm(params: {
-  remetenteId: string;
-  texto: string;
-  buscarUsername: (igsid: string) => Promise<string | null>;
-}): Promise<"aprovada" | "em_analise" | "ignorada"> {
-  const codigo = extrairCodigo(params.texto);
-  if (!codigo) return "ignorada";
-
-  const reivindicacao = await db.reivindicacao.findUnique({
-    where: { codigo },
-    include: { empresa: { include: { membros: true } } },
-  });
-  if (!reivindicacao || reivindicacao.metodo !== "codigo_dm" || reivindicacao.status !== "pendente") {
-    return "ignorada";
-  }
-  const { empresa } = reivindicacao;
-
-  if (reivindicacao.expiraEm <= new Date()) {
-    await anotar(reivindicacao.id, "Código recebido por DM depois de expirar.");
-    return "em_analise";
-  }
-
-  const username = await params.buscarUsername(params.remetenteId);
-  if (!username) {
-    await anotar(
-      reivindicacao.id,
-      "Código recebido por DM, mas não deu para confirmar o @ automaticamente. Confira no Instagram.",
-    );
-    return "em_analise";
-  }
-  if (username !== empresa.instagramUsername) {
-    await anotar(reivindicacao.id, `Código recebido por DM de @${username}, que não é o @ deste negócio.`);
-    return "em_analise";
-  }
-
-  const conflitos = await conflitosDeVerificacao({
-    empresa,
-    usuarioId: reivindicacao.usuarioId,
-    instagramIgsid: params.remetenteId,
-  });
-  if (conflitos.length > 0) {
-    await db.reivindicacao.update({
-      where: { id: reivindicacao.id },
-      data: { instagramIgsid: params.remetenteId },
-    });
-    await anotar(reivindicacao.id, `Código recebido por DM de @${username}. ${conflitos.join(" ")}`);
-    return "em_analise";
-  }
-
-  await aprovar({ reivindicacaoId: reivindicacao.id, revisorId: null, instagramIgsid: params.remetenteId });
-  return "aprovada";
 }
 
 // ---------------------------------------------------------------------------
@@ -173,23 +94,27 @@ export async function processarLoginInstagram(params: {
     return { tipo: "verificada" };
   }
 
-  await exigirLimiteDiario(usuarioId);
   const conflitos = await conflitosDeVerificacao({ empresa, usuarioId, instagramUserId: conta.userId });
 
-  // Tentativas anteriores pelo mesmo caminho ficam obsoletas.
-  await db.reivindicacao.updateMany({
-    where: { empresaId, usuarioId, metodo: "instagram_login", status: "pendente" },
-    data: { status: "cancelada" },
-  });
-  const reivindicacao = await db.reivindicacao.create({
-    data: {
-      empresaId,
-      usuarioId,
-      metodo: "instagram_login",
-      instagramUserId: conta.userId,
-      notas: conflitos.length > 0 ? linhaDeNota(`Login confirmado como @${conta.username}. ${conflitos.join(" ")}`) : "",
-      expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
-    },
+  const reivindicacao = await db.$transaction(async (tx) => {
+    await bloquearPessoa(tx, usuarioId);
+    await exigirLimiteDiario(tx, usuarioId);
+    await bloquearEmpresa(tx, empresaId);
+    // Tentativas anteriores pelo mesmo caminho ficam obsoletas.
+    await tx.reivindicacao.updateMany({
+      where: { empresaId, usuarioId, metodo: "instagram_login", status: "pendente" },
+      data: { status: "cancelada" },
+    });
+    return tx.reivindicacao.create({
+      data: {
+        empresaId,
+        usuarioId,
+        metodo: "instagram_login",
+        instagramUserId: conta.userId,
+        notas: conflitos.length > 0 ? linhaDeNota(`Login confirmado como @${conta.username}. ${conflitos.join(" ")}`) : "",
+        expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
+      },
+    });
   });
 
   if (conflitos.length > 0) return { tipo: "em_analise" };
@@ -198,7 +123,7 @@ export async function processarLoginInstagram(params: {
 }
 
 // ---------------------------------------------------------------------------
-// Caminho 3: documento
+// Caminho 2: documento
 // ---------------------------------------------------------------------------
 
 /** Negócio sem dono e no ar: a reivindicação pelos dados do negócio é aprovada sozinha. */
@@ -220,24 +145,28 @@ export async function solicitarPorDocumento(params: {
   mensagem: string | null;
 }) {
   await exigirQueNaoSejaDono(params.empresaId, params.usuarioId);
-  const emAnalise = await db.reivindicacao.findFirst({
-    where: { empresaId: params.empresaId, usuarioId: params.usuarioId, metodo: "documento", status: "pendente" },
-  });
-  if (emAnalise) throw new ErroReivindicacao("Você já enviou os dados deste negócio e eles estão em análise.");
-  await exigirLimiteDiario(params.usuarioId);
 
-  const reivindicacao = await db.reivindicacao.create({
-    data: {
-      empresaId: params.empresaId,
-      usuarioId: params.usuarioId,
-      metodo: "documento",
-      cnpj: params.cnpj,
-      site: params.site,
-      relacao: params.relacao,
-      contato: params.contato,
-      mensagem: params.mensagem,
-      expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
-    },
+  const reivindicacao = await db.$transaction(async (tx) => {
+    await bloquearPessoa(tx, params.usuarioId);
+    const emAnalise = await tx.reivindicacao.findFirst({
+      where: { empresaId: params.empresaId, usuarioId: params.usuarioId, metodo: "documento", status: "pendente" },
+    });
+    if (emAnalise) throw new ErroReivindicacao("Você já enviou os dados deste negócio e eles estão em análise.");
+    await exigirLimiteDiario(tx, params.usuarioId);
+
+    return tx.reivindicacao.create({
+      data: {
+        empresaId: params.empresaId,
+        usuarioId: params.usuarioId,
+        metodo: "documento",
+        cnpj: params.cnpj,
+        site: params.site,
+        relacao: params.relacao,
+        contato: params.contato,
+        mensagem: params.mensagem,
+        expiraEm: daquiA(VALIDADE_ANALISE_DIAS * DIA),
+      },
+    });
   });
 
   const empresa = await db.empresa.findUniqueOrThrow({ where: { id: params.empresaId }, include: { membros: true } });
@@ -249,22 +178,22 @@ export async function solicitarPorDocumento(params: {
 /**
  * Aplica a regra acima às solicitações pelos dados do negócio que ficaram na fila.
  * Vale a ordem de chegada: se duas pessoas pediram o mesmo negócio, a primeira vira
- * dona e a segunda continua com a moderação. Devolve quantas foram aprovadas.
+ * dona e a segunda continua com a moderação. Devolve as solicitações aprovadas.
  */
-export async function aprovarPendentesSemDono(revisorId: string): Promise<number> {
+export async function aprovarPendentesSemDono(revisorId: string): Promise<string[]> {
   const pendentes = await db.reivindicacao.findMany({
     where: { status: "pendente", metodo: "documento" },
     orderBy: { criadoEm: "asc" },
     select: { id: true, empresaId: true },
   });
 
-  let aprovadas = 0;
+  const aprovadas: string[] = [];
   for (const { id, empresaId } of pendentes) {
     const empresa = await db.empresa.findUniqueOrThrow({ where: { id: empresaId }, include: { membros: true } });
     if (!aprovaSozinhoPorDocumento(empresa)) continue;
     try {
       await aprovar({ reivindicacaoId: id, revisorId });
-      aprovadas++;
+      aprovadas.push(id);
     } catch (erro) {
       // Outra pessoa da moderação decidiu esta solicitação no meio do caminho.
       if (!(erro instanceof ErroReivindicacao)) throw erro;
@@ -282,31 +211,21 @@ export async function aprovarPendentesSemDono(revisorId: string): Promise<number
  * "pode aprovar sozinho".
  */
 async function conflitosDeVerificacao(params: {
-  empresa: { id: string; instagramUserId: string | null; instagramIgsid: string | null; membros: { usuarioId: string }[] };
+  empresa: { id: string; instagramUserId: string | null; membros: { usuarioId: string }[] };
   usuarioId: string;
-  instagramUserId?: string;
-  instagramIgsid?: string;
+  instagramUserId: string;
 }): Promise<string[]> {
-  const { empresa, usuarioId, instagramUserId, instagramIgsid } = params;
+  const { empresa, usuarioId, instagramUserId } = params;
   const conflitos: string[] = [];
 
   if (empresa.membros.some((m) => m.usuarioId !== usuarioId)) {
     conflitos.push("O negócio já tem dono verificado: decida entre adicionar como co-dono ou transferir.");
   }
-  if (
-    (instagramUserId && empresa.instagramUserId && empresa.instagramUserId !== instagramUserId) ||
-    (instagramIgsid && empresa.instagramIgsid && empresa.instagramIgsid !== instagramIgsid)
-  ) {
+  if (empresa.instagramUserId && empresa.instagramUserId !== instagramUserId) {
     conflitos.push("A conta do Instagram é diferente da registrada antes: o @ pode ter mudado de dono.");
   }
   const outra = await db.empresa.findFirst({
-    where: {
-      id: { not: empresa.id },
-      OR: [
-        ...(instagramUserId ? [{ instagramUserId }] : []),
-        ...(instagramIgsid ? [{ instagramIgsid }] : []),
-      ],
-    },
+    where: { id: { not: empresa.id }, instagramUserId },
     select: { instagramUsername: true },
   });
   if (outra) {
@@ -321,24 +240,37 @@ export type ModoAprovacao = "adicionar" | "transferir";
  * Aprova a reivindicação: a pessoa vira dona e o negócio fica verificado.
  * `revisorId` null significa aprovação automática.
  * `transferir` remove os donos anteriores (usado em disputas).
+ *
+ * A primeira instrução trava o negócio com FOR UPDATE: toda aprovação segue a ordem negócio,
+ * depois pedidos, a mesma de quem cria pedidos. Sem isso, duas aprovações de pedidos da mesma
+ * pessoa podem esperar uma pela outra (deadlock). O nível é FOR UPDATE porque a aprovação pode
+ * trocar o ID do Instagram, que é chave única: essa escrita conflita com o FOR KEY SHARE de
+ * `bloquearEmpresa`, então a trava já nasce no mesmo nível.
  */
 export async function aprovar(params: {
   reivindicacaoId: string;
   revisorId: string | null;
   modo?: ModoAprovacao;
   instagramUserId?: string;
-  instagramIgsid?: string;
 }): Promise<void> {
   const { reivindicacaoId, revisorId, modo = "adicionar" } = params;
 
   await db.$transaction(async (tx) => {
-    const reivindicacao = await tx.reivindicacao.findUnique({ where: { id: reivindicacaoId } });
-    if (!reivindicacao || reivindicacao.status !== "pendente") {
-      throw new ErroReivindicacao("Esta solicitação não está mais pendente.");
-    }
-    const { empresaId, usuarioId } = reivindicacao;
+    const travados = await tx.$queryRaw<{ id: string }[]>`
+      SELECT e.id FROM "Empresa" e
+      WHERE e.id = (SELECT r."empresaId" FROM "Reivindicacao" r WHERE r.id = ${reivindicacaoId})
+      FOR UPDATE OF e`;
+    if (travados.length === 0) throw new ErroReivindicacao("Esta solicitação não está mais pendente.");
+
+    const { count } = await tx.reivindicacao.updateMany({
+      where: { id: reivindicacaoId, status: "pendente" },
+      data: { status: "aprovada", revisadoPorId: revisorId, revisadoEm: new Date() },
+    });
+    if (count === 0) throw new ErroReivindicacao("Esta solicitação não está mais pendente.");
+    const reivindicacao = await tx.reivindicacao.findUniqueOrThrow({ where: { id: reivindicacaoId } });
+    // Só pedidos antigos por código de DM trazem o IGSID de quem mandou a DM.
+    const { empresaId, usuarioId, instagramIgsid } = reivindicacao;
     const instagramUserId = params.instagramUserId ?? reivindicacao.instagramUserId;
-    const instagramIgsid = params.instagramIgsid ?? reivindicacao.instagramIgsid;
 
     if (modo === "transferir") {
       await tx.empresaMembro.deleteMany({ where: { empresaId, usuarioId: { not: usuarioId } } });
@@ -375,13 +307,7 @@ export async function aprovar(params: {
 
     await tx.reivindicacao.update({
       where: { id: reivindicacaoId },
-      data: {
-        status: "aprovada",
-        revisadoPorId: revisorId,
-        revisadoEm: new Date(),
-        instagramUserId,
-        instagramIgsid,
-      },
+      data: { instagramUserId, instagramIgsid },
     });
     await tx.reivindicacao.updateMany({
       where: { empresaId, usuarioId, status: "pendente", id: { not: reivindicacaoId } },
@@ -400,12 +326,8 @@ export async function aprovar(params: {
 
 export async function recusar(params: { reivindicacaoId: string; revisorId: string; motivo: string }): Promise<void> {
   await db.$transaction(async (tx) => {
-    const reivindicacao = await tx.reivindicacao.findUnique({ where: { id: params.reivindicacaoId } });
-    if (!reivindicacao || reivindicacao.status !== "pendente") {
-      throw new ErroReivindicacao("Esta solicitação não está mais pendente.");
-    }
-    await tx.reivindicacao.update({
-      where: { id: params.reivindicacaoId },
+    const { count } = await tx.reivindicacao.updateMany({
+      where: { id: params.reivindicacaoId, status: "pendente" },
       data: {
         status: "recusada",
         motivoRecusa: params.motivo,
@@ -413,6 +335,8 @@ export async function recusar(params: { reivindicacaoId: string; revisorId: stri
         revisadoEm: new Date(),
       },
     });
+    if (count === 0) throw new ErroReivindicacao("Esta solicitação não está mais pendente.");
+    const reivindicacao = await tx.reivindicacao.findUniqueOrThrow({ where: { id: params.reivindicacaoId } });
     await registrarAuditoria(tx, {
       usuarioId: params.revisorId,
       acao: "reivindicacao.recusada",
@@ -432,10 +356,4 @@ export async function cancelar(reivindicacaoId: string, usuarioId: string): Prom
 
 function linhaDeNota(texto: string): string {
   return `[${formatarDataHora(new Date())}] ${texto}`;
-}
-
-async function anotar(reivindicacaoId: string, texto: string) {
-  const atual = await db.reivindicacao.findUnique({ where: { id: reivindicacaoId }, select: { notas: true } });
-  const notas = [atual?.notas, linhaDeNota(texto)].filter(Boolean).join("\n");
-  await db.reivindicacao.update({ where: { id: reivindicacaoId }, data: { notas } });
 }

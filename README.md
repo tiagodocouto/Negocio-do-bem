@@ -3,12 +3,13 @@
 Um diretório de negócios com consciência social e conexão com a comunidade. As pessoas encontram negócios que compartilham dos seus valores, indicam quem admiram e deixam depoimentos. Os donos assumem o perfil do negócio e contam a própria história.
 
 - **Diretório** com busca (sem diferenciar acentos) e filtros por causa e estado.
+- **Páginas por cidade, causa e tipo de negócio** (`/cidades/salvador-ba`, `/causas/opcoes-veganas`, `/tipos/cafe-e-padaria`), feitas para a busca do Google.
 - **Perfis** com foto, botões de contato (WhatsApp, site e e-mail), a história do negócio no estilo Substack (Markdown, tipografia serifada, fotos com legenda), badges de causas e depoimentos.
 - **Causas** como Pet friendly, Antirracista, Escala 5x2, Escala 4x3 e outras (lista em `src/lib/causas.ts`).
 - **Indicação** pela comunidade, publicada na hora. A moderação tira do ar o que for impróprio.
 - **Reivindicação de propriedade** pelo dono, explicada abaixo.
-- **Painel do dono** para editar o perfil, responder depoimentos e ocultar o negócio.
-- **Moderação** com fila de disputas de reivindicação e de denúncias, botão para tirar um negócio do ar, edição de qualquer perfil (foto, contatos, textos e causas) e registro de auditoria.
+- **Painel do dono** para editar o perfil, responder depoimentos, ocultar o negócio e trocar a senha.
+- **Moderação** com um painel próprio: os números do projeto, a atividade das últimas semanas e a saúde dos dados; filas de disputas de reivindicação e de denúncias; todos os negócios, contas e depoimentos, com a ficha de cada conta; botão para tirar um negócio do ar; edição de qualquer perfil (foto, contatos, textos e causas); e o registro de auditoria, com filtros.
 
 Vai colaborar? Comece por estes dois guias:
 
@@ -34,7 +35,7 @@ As imagens usam os dados de exemplo do seed.
 
 ## Stack
 
-Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, Prisma 7 + PostgreSQL, Zod e Vitest. A autenticação é por e-mail e senha (scrypt), com sessão em cookie `httpOnly`. O cookie guarda o token e o banco guarda só o hash dele.
+Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, Prisma 7 + PostgreSQL, Zod e Vitest. A autenticação é por e-mail e senha (scrypt) ou por link mandado ao e-mail, com sessão em cookie `httpOnly`. O cookie guarda o token e o banco guarda só o hash dele.
 
 ## Rodando localmente
 
@@ -49,7 +50,9 @@ npm run db:seed               # dados de exemplo (opcional)
 npm run dev                   # http://localhost:3000
 ```
 
-O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-123`:
+Sem proxy declarado, o login e o cadastro dividem 10 tentativas a cada 15 minutos no `npm run dev`. Para zerar, apague as linhas da tabela `TentativaAcesso`.
+
+O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-123` e o e-mail já confirmado:
 
 | E-mail | Papel |
 | --- | --- |
@@ -57,9 +60,11 @@ O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-1
 | `ana@exemplo.com`, `joao@exemplo.com`, `bia@exemplo.com` | donos de negócios de exemplo |
 | `carla@exemplo.com` | enviou os dados do Café Arco-Íris e espera a moderação |
 
+A confirmação de e-mail está desligada por enquanto (`CONFIRMACAO_DE_EMAIL_LIGADA` em `src/lib/auth/links.ts`): uma conta criada no site já indica, escreve depoimentos e reivindica. Ligada, a conta precisa confirmar o e-mail para isso. Sem o envio de e-mail configurado, o link de confirmação (e o de "Entrar por link") aparece no terminal do `npm run dev`.
+
 Para a sua própria conta virar moderação, cadastre-se no site e rode `npm run moderacao -- dar seu@email.com`. O `npm run moderacao -- listar` mostra quem é moderação.
 
-As fotos enviadas no seu computador ficam em `public/enviados/` (fora do Git). No Vercel, elas vão para o Vercel Blob: um para a produção e outro para os previews.
+As fotos enviadas no seu computador ficam em `public/enviados/` (fora do Git). No Cloudflare, elas vão para o bucket R2 ligado ao Worker.
 
 ### Problemas comuns
 
@@ -77,28 +82,18 @@ Tudo começa no botão "Sou o dono" do perfil (`/empresas/<@>/reivindicar`). Por
 - **Instagram**: é o @ do próprio perfil, que a moderação abre para comparar com o CNPJ e o site.
 - **Relação com o negócio** e **contato** (obrigatórios), para a moderação tirar dúvidas.
 
-Duas formas automáticas de verificação já estão no código, mas ficam **desligadas** até você preencher as variáveis no `.env`:
+O **Entrar com Instagram** já está no código, mas fica **desligado** até você preencher `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET` no `.env`. Ligado, ele aprova na hora quando o @ conectado é o do negócio (só contas comerciais ou de criador), e o envio de dados vira a opção "Não tenho acesso ao Instagram do negócio". Se ligar, atualize também o texto de `src/app/sobre/page.tsx`, que hoje só descreve o envio de dados.
 
-| Caminho | Liga quando | Como é aprovado |
-| --- | --- | --- |
-| **Entrar com Instagram** | `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET` preenchidos | Na hora, se o @ conectado for o do negócio (só contas comerciais ou de criador) |
-| **Código por DM** | `INSTAGRAM_PERFIL_OFICIAL` preenchido | Pela moderação, ou sozinho se o webhook estiver configurado |
-
-Com algum deles ligado, o envio de dados vira a opção "Não tenho acesso ao Instagram do negócio". Se ligar um deles, atualize também o texto de `src/app/sobre/page.tsx`, que hoje só descreve o envio de dados.
+O código por DM, um terceiro caminho, saiu do site ([#193](https://github.com/fabs-reis/Negocio-do-bem/issues/193)). Os pedidos antigos por ele continuam no banco e aparecem como "Código por DM".
 
 Regras que protegem os negócios (em `src/lib/reivindicacao.ts`):
 
-- Nos caminhos pelo Instagram, o perfil fica ligado ao **ID da conta**, não só ao @. Se um @ mudar de dono, a verificação nova vai para análise em vez de ser aprovada sozinha.
+- No Entrar com Instagram, o perfil fica ligado ao **ID da conta**, não só ao @. Se um @ mudar de dono, a verificação nova vai para análise em vez de ser aprovada sozinha.
 - **Não existe aprovação automática quando há conflito**: o negócio já tem dono, o ID da conta é diferente do registrado ou a conta já está ligada a outro perfil. Nesses casos a moderação decide se adiciona a pessoa como co-dona ou transfere o perfil.
-- Quando ligado, o código da DM vale 48 horas, fica preso à conta de quem o gerou e só é aceito se vier do @ do negócio. A tela avisa para nunca enviar um código passado por outra pessoa.
 - Cada pessoa pode fazer no máximo 10 solicitações e 10 indicações por dia.
 - Toda aprovação, recusa, edição e decisão de moderação fica registrada na auditoria (`/moderacao?aba=auditoria`).
 - Donos respondem depoimentos, mas não apagam. Uma denúncia não esconde o depoimento: só a moderação remove.
 - O dono pode **ocultar** o negócio do diretório a qualquer momento, por exemplo se foi indicado e não quer aparecer.
-
-### Ativando o código por DM (opcional)
-
-Preencha `INSTAGRAM_PERFIL_OFICIAL` com o @ do perfil oficial do Negócio do Bem, que recebe as DMs. A moderação confere cada DM e localiza o pedido pelo código na aba de reivindicações. Para a confirmação ser automática, veja a seção do webhook abaixo.
 
 ### Ativando o "Entrar com Instagram" (opcional)
 
@@ -111,14 +106,6 @@ Preencha `INSTAGRAM_PERFIL_OFICIAL` com o @ do perfil oficial do Negócio do Bem
 
 O site pede só `instagram_business_basic`, lê apenas o `user_id` e o `username` e **não guarda o token**.
 
-### Ativando a confirmação automática da DM (opcional)
-
-1. Conecte o perfil oficial (`INSTAGRAM_PERFIL_OFICIAL`) ao app e gere um token dele com `instagram_business_basic` e `instagram_business_manage_messages`. Coloque o token em `INSTAGRAM_ACCESS_TOKEN`.
-2. Cadastre o webhook com a URL `https://SEU-DOMINIO/api/webhooks/instagram` e o mesmo texto de `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`. Depois assine o campo `messages`.
-3. Tokens de longa duração do Instagram vencem e precisam ser renovados periodicamente. Se o token vencer, nada quebra: as DMs passam a cair na fila da moderação com uma anotação.
-
-O webhook confere a assinatura `X-Hub-Signature-256` de cada chamada, descobre o @ de quem mandou a DM e só aprova sozinho quando o @ bate e não há conflito.
-
 ## Ativando a rotina de fotos do Instagram (opcional)
 
 Um script no seu computador preenche, todo dia, a foto de perfil dos negócios que ainda não têm foto. Ele busca a foto pela API oficial da Meta (Business Discovery), recorta em 600×600 e envia pronta para o site, que só grava se o negócio continuar sem foto. As regras estão na [seção 9 das regras de negócio](docs/regras-de-negocio.md#rotina-de-fotos-do-instagram).
@@ -130,7 +117,7 @@ Um script no seu computador preenche, todo dia, a foto de perfil dos negócios q
 3. No portfólio empresarial que tem a Página e o Instagram, conecte o app (Configurações → Contas → Apps) e crie um **usuário do sistema** (Usuários → Usuários do sistema).
 4. Atribua ao usuário do sistema o app, a Página e a conta do Instagram. Gere um token para ele com as quatro permissões e validade **Nunca**.
 
-**No Vercel:** configure `FOTOS_TOKEN` em Production com um valor de pelo menos 32 caracteres (`openssl rand -hex 32`). Sem ela, a rota `/api/fotos-instagram` responde 404.
+**No Cloudflare:** configure `FOTOS_TOKEN` em Production com um valor de pelo menos 32 caracteres (`openssl rand -hex 32`). Sem ela, a rota `/api/fotos-instagram` responde 404.
 
 **No seu computador:**
 
@@ -139,6 +126,38 @@ Um script no seu computador preenche, todo dia, a foto de perfil dos negócios q
 3. Agende para todo dia às 7h: `npm run fotos:agendar`. O registro fica em `~/Library/Logs/negocio-do-bem-fotos.log`. Para tirar o agendamento: `npm run fotos:agendar -- --remover`.
 
 Contas pessoais ou privadas não aparecem na API. Para esses negócios, salve a foto em `fotos-manuais/<@>.jpg` (ou `.png`, `.webp`): ela tem prioridade sobre a da API.
+
+### A prévia do Instagram no cadastro
+
+A mesma API mostra a foto, o nome e o site do perfil assim que a pessoa digita o @ em `/participar`, e a foto vira a foto do negócio ao cadastrar. Para ligar, configure no Worker de produção (Variables & Secrets) `META_ACCESS_TOKEN` (como secret) e `META_IG_USER_ID`, com os mesmos valores do `.env.fotos`. Sem elas, o cadastro funciona sem a prévia. As regras estão na [seção 4 das regras de negócio](docs/regras-de-negocio.md#o-cadastro-por-etapas).
+
+## Ativando o login com o Google (opcional)
+
+O botão "Continuar com o Google" aparece em `/entrar` e `/cadastrar` quando `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `APP_URL` estão configurados. As regras estão na [seção 2 das regras de negócio](docs/regras-de-negocio.md#cadastro-e-login).
+
+> Os nomes das telas do Google Cloud mudam com frequência. Confira a [documentação oficial](https://developers.google.com/identity/protocols/oauth2/web-server) antes de configurar.
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e abra o **Google Auth Platform**.
+2. Em **Branding**, preencha o nome do app, o e-mail de suporte e o domínio autorizado (`negociodobem.com`). Em **Audience**, escolha **External** e publique o app (**In production**): em teste, só os usuários de teste cadastrados conseguem entrar. Os escopos usados (`openid`, `email` e `profile`) não pedem a verificação do Google.
+3. Em **Clients**, crie um cliente do tipo **Web application**, com a URI de redirecionamento `https://www.negociodobem.com/api/google/retorno`: o `APP_URL` mais `/api/google/retorno`. Para testar no seu computador, acrescente `http://localhost:3000/api/google/retorno`.
+4. No Cloudflare, configure `GOOGLE_CLIENT_ID` com o ID do cliente e `GOOGLE_CLIENT_SECRET` com a chave secreta, como secret. A aba "Sistema" da moderação mostra se o login com o Google está ligado.
+
+Nos previews, o retorno vai para o `APP_URL` configurado no preview. O botão só funciona lá se esse endereço também estiver nas URIs do cliente; senão, deixe as variáveis do Google só na produção.
+
+O site pede só `openid email profile`, lê a conta, o e-mail e o nome e **não guarda o token**.
+
+## Ativando os avisos por e-mail (opcional)
+
+O site manda por e-mail o link para confirmar o e-mail, o link para entrar sem senha e o link para criar uma senha nova, e avisa a pessoa quando a senha da conta é trocada. Também avisa quem pediu uma reivindicação quando a moderação decide, a moderação quando chega um pedido ou uma denúncia na fila, e os donos quando chega um depoimento. O envio é pelo [Resend](https://resend.com). As regras estão na [seção 14 das regras de negócio](docs/regras-de-negocio.md#14-avisos-por-e-mail).
+
+1. Crie uma conta no Resend e adicione o domínio do site em **Domains**. Crie no DNS do domínio os registros que ele mostrar: o DKIM em `resend._domainkey` e, no subdomínio `send`, um MX e um SPF. Eles não mexem no MX nem no SPF da caixa de e-mail do domínio.
+2. Quando o domínio aparecer como verificado, crie uma chave em **API Keys**, com permissão só de envio (**Sending access**).
+3. No Cloudflare, só em **Production**, configure `RESEND_API_KEY` com a chave e `EMAIL_REMETENTE` com o remetente, como `Negócio do Bem <avisos@negociodobem.com>`. Opcional: `EMAIL_RESPOSTA`, para onde vão as respostas, como `ola@negociodobem.com`.
+4. Faça um redeploy. A aba "Sistema" da moderação mostra se os avisos estão ligados.
+
+Nos previews o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. Lá, os links de confirmar e de entrar aparecem no log do Worker.
+
+Com a confirmação de e-mail ligada e sem o envio ligado em produção, ninguém consegue confirmar o e-mail, e as contas novas não indicam, não escrevem depoimentos e não reivindicam. Por isso, e pelo limite de 100 e-mails por dia do plano grátis do Resend, a confirmação está desligada por enquanto.
 
 ## Testes e verificações
 
@@ -150,40 +169,41 @@ npm run typecheck
 
 Os testes usam um banco separado (`negocio_do_bem_teste`, ou o de `TEST_DATABASE_URL`). Ele é criado na primeira execução e as tabelas são limpas entre os testes. Por segurança, a suíte só roda se o nome do banco tiver "test".
 
-## Publicando
+## Publicando no Cloudflare
 
-Funciona em qualquer hospedagem de Next.js com um PostgreSQL gerenciado.
+O site roda em Cloudflare Workers pelo adaptador OpenNext, com PostgreSQL gerenciado e fotos no R2. O bundle medido tem cerca de **15,7 MiB sem compressão**, abaixo do limite atual de 64 MiB ([limites dos Workers](https://developers.cloudflare.com/workers/platform/limits/)); o tamanho gzip exibido pelo Wrangler é apenas informativo. Os comandos `npm run preview:cloudflare` e `npm run deploy:cloudflare` constroem e executam no runtime de Workers; o build aplica as migrações em produção e nos previews, e roda o seed só nos previews.
 
-**No Vercel**
+1. Na conta Cloudflare, crie um Worker chamado `negocio-do-bem` e conecte o repositório Git. Configure produção pela branch `main`, habilite previews de branches/PRs, use `npm run cf:build` como build command, `npx opennextjs-cloudflare deploy` como deploy command (sem o `npx`, o deploy falha com "not found") e `npm run cf:preview` como preview command. O `cf:preview` preenche o cache das páginas no bucket dos previews antes do `wrangler preview`; sem isso, as páginas do preview travam com erro 1101 ([#172](https://github.com/fabs-reis/Negocio-do-bem/issues/172)).
+2. Crie os buckets R2 `negocio-do-bem-cache` e `negocio-do-bem-fotos`, com bindings `NEXT_INC_CACHE_R2_BUCKET` e `UPLOADS`, respectivamente, e os dos previews, `negocio-do-bem-preview-cache` e `negocio-do-bem-preview-fotos`. Os buckets de cache devem ser privados. Para uma POC sem domínio, habilite a **Public Development URL** (`r2.dev`) no bucket de fotos e use a URL gerada como `NEXT_PUBLIC_R2_PUBLIC_URL`; essa URL é limitada e deixa os objetos acessíveis publicamente, então não armazene arquivos privados nela. Para produção, conecte ao bucket de fotos um domínio próprio, por exemplo `fotos.negociodobem.com`. O domínio precisa estar adicionado como zona na mesma conta Cloudflare. Se o DNS ainda estiver na Hostinger, revise e recrie todos os registros — em especial MX, SPF e DKIM do Zoho/Resend — antes de trocar os nameservers.
+3. Use o plano **Workers Paid**. No grátis, cada requisição tem 10 ms de CPU, e só a conferência da senha (scrypt) passa disso. Há também um teto de 100 mil requisições por dia, que os robôs já passaram.
+   - **Banco:** crie o PlanetScale Postgres pelo painel do Cloudflare (Hyperdrive → Criar banco de dados PlanetScale) e uma configuração do Hyperdrive apontando para ele, com o cache de consultas desligado e um limite de conexões abaixo do limite do banco (8, para as 25 do PS-5). O ID dela vai no binding `HYPERDRIVE` do `wrangler.jsonc`. Fora do Worker (build e scripts), use a conexão direta com `?sslmode=verify-full`: o `node-postgres` não entende o `sslrootcert=system` que o PlanetScale põe na conexão.
+   - **Domínio:** o `www` é domínio personalizado do Worker, declarado no `wrangler.jsonc`. O domínio sem `www` usa o proxy do Cloudflare e uma regra de redirecionamento da zona para o `www`.
+4. Configure **Build Variables and Secrets**. A produção e os previews têm abas separadas no painel, e o `scripts/cloudflare-build.sh` ainda decide o ambiente pela branch (`WORKERS_CI_BRANCH`): só a `main` é produção. Cadastre:
+   - na aba da produção: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `APP_URL` (o domínio canônico) e `NEXT_PUBLIC_R2_PUBLIC_URL`;
+   - na **Preview base config** (a aba "Base de Prévias" no painel em português): `PREVIEW_DATABASE_URL`, `PREVIEW_DATABASE_URL_UNPOOLED`, `PREVIEW_APP_URL` e `PREVIEW_R2_PUBLIC_URL`, com o banco e o bucket de teste. Sem elas, o build do preview falha, em vez de usar as de produção.
 
-1. Em **Storage**, crie um banco **Neon** e conecte ao projeto sem prefixo, só no ambiente **Production**, para as variáveis se chamarem `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
-2. Crie um **segundo banco Neon**, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca lê nem altera os dados de produção.
-3. Em **Environment Variables**, configure `APP_URL` (o domínio público, como `https://seu-projeto.vercel.app`). As do Instagram são opcionais.
-4. Em **Storage**, crie um **Blob** com acesso público e conecte ao projeto só no ambiente **Production**. É onde ficam as fotos dos perfis e das histórias. A conexão cria a `BLOB_STORE_ID`, e o site se autentica pelo OIDC do deploy, sem token.
-   - Crie o Blob pelo Storage da conta, e não pelo do projeto: criado dentro do projeto, ele já se conecta a Production e Preview.
-   - O site não precisa da `BLOB_READ_WRITE_TOKEN`. Se o painel recomendar revogar o token (na página **Projects** do Blob), faça um redeploy e revogue.
-5. Crie um **segundo Blob** público, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca grava nem apaga as fotos de produção.
-6. Opcional: em **Environment Variables**, só para **Production**, configure `NEXT_PUBLIC_GA_ID` com o ID de medição do Google Analytics (`G-…`). Sem ela, o Analytics não carrega.
-7. A cada deploy, de produção ou de preview, o `scripts/vercel-build.sh` aplica as migrações pendentes no banco daquele ambiente antes do build. Nos previews, ele também roda o seed, que só preenche um banco vazio.
-8. Depois do primeiro deploy, cadastre a sua conta no site e dê a moderação a ela com a conexão direta do banco de produção: `DATABASE_URL="postgresql://..." npm run moderacao -- dar voce@exemplo.com`.
+   O build usa essas variáveis para aplicar as migrações e gravar no HTML pré-renderizado o endereço canônico (`APP_URL`), o domínio das fotos e a política de segurança (CSP). Por isso, elas precisam estar no build, e não só no runtime.
 
-**Em outra hospedagem**
+   **A Preview base config é copiada quando o preview de uma branch é criado.** Um preview que já existia, como o da `stage`, não recebe o que você muda nela com o **Salvar** simples. Para levar a mudança a eles, use a seta do Salvar, **"Aplicar a pré-visualizações existentes"**, ou abra o preview no painel (o seletor ao lado do nome do Worker) e mude em Configurações dele. Vale para as variáveis de build, as de runtime e o preview command.
+5. Cadastre as variáveis de runtime em **Variables & Secrets**: `DATABASE_URL` (como secret), `APP_URL`, `NEXT_PUBLIC_R2_PUBLIC_URL` e as opcionais do Resend, do Instagram, do Analytics e da verificação nos buscadores. `DEPLOY_ENV=production` e `CLOUDFLARE_DEPLOY=1` já estão no `wrangler.jsonc`, e o `keep_vars` impede que o deploy apague as outras variáveis do painel. Em **Worker Previews**, os buckets e as variáveis dos previews ficam no bloco `previews` do `wrangler.jsonc`. Cadastre a `DATABASE_URL` do banco de teste como secret de preview (`npx wrangler preview secret put DATABASE_URL`) e, nos previews que já existiam, na página de cada um. Nunca use recursos de produção nos previews.
+6. Opcional: configure `NEXT_PUBLIC_GA_ID`, `GOOGLE_SITE_VERIFICATION` e `BING_SITE_VERIFICATION` em produção. Envie o `sitemap.xml` aos painéis do Google e Bing conforme [Como o projeto foi feito](docs/como-foi-feito.md#cadastrar-o-site-no-google-e-no-bing).
+7. Depois do primeiro deploy, cadastre sua conta e dê a moderação com a conexão direta ao banco de produção: `DATABASE_URL="<conexão de produção>" npm run moderacao -- dar voce@exemplo.com`.
 
-1. Configure as variáveis de `.env.example` no painel da hospedagem. `APP_URL` precisa ser o domínio público. Para as fotos, use a `BLOB_READ_WRITE_TOKEN` de um Vercel Blob: fora do Vercel não há OIDC.
-2. Aplique as migrações no banco de produção com `npm run db:deploy`. Faça isso a cada mudança no `prisma/schema.prisma`.
-3. O `npm install` gera o cliente do Prisma, e o `npm run build` faz o resto.
-4. Cadastre a sua conta no site e dê a moderação a ela: `DATABASE_URL="<conexão de produção>" npm run moderacao -- dar voce@exemplo.com`.
+As fotos enviadas antes da migração estavam no Vercel Blob e foram copiadas para o R2 em 31 de outubro. O Blob continua no ar como reserva. Se aparecer alguma foto com endereço do Blob, rode `npm run fotos:para-r2` com a conexão de produção na frente: sem `--aplicar`, ele só mostra o que faria; com `--aplicar`, copia cada foto para o bucket `negocio-do-bem-fotos` e troca o endereço no banco. Precisa do `npx wrangler login`. Não apague o Blob antes de conferir os perfis. Enquanto isso, trocar ou remover uma foto antiga não a apaga do Blob: o arquivo continua público no endereço antigo até a cópia e a limpeza.
 
-Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production` ou, no Vercel, quando `VERCEL_ENV=production`.
+Para copiar o banco do Neon para outro Postgres, como o PlanetScale, use `npm run banco:copiar`, com `ORIGEM_URL` e `DESTINO_URL` no ambiente ou no `.env.migracao`. O cabeçalho do `scripts/copiar-banco.sh` explica as opções, inclusive como deixar a origem só para leitura durante a troca ([#177](https://github.com/fabs-reis/Negocio-do-bem/issues/177)).
+
+Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production`, `DEPLOY_ENV=production` ou `VERCEL_ENV=production`.
 
 ## Estrutura
 
 ```
+assets/fontes/       fontes das imagens de compartilhamento (licença OFL)
 docs/                regras de negócio, como o projeto foi feito e prints
 prisma/              esquema, migrações e dados de exemplo
 src/acoes/           Server Actions (formulários), sempre conferindo permissão no servidor
-scripts/             build do Vercel e a rotina de fotos do Instagram (roda no seu computador)
-src/app/             páginas e rotas (api/instagram, api/webhooks/instagram e api/fotos-instagram)
+scripts/             build do Cloudflare, ícones da marca e a rotina de fotos do Instagram (roda no seu computador)
+src/app/             páginas e rotas (api/link, api/instagram e api/fotos-instagram)
 src/components/      componentes de interface
 src/lib/             regras de negócio: reivindicacao.ts, instagram.ts, auth/, causas.ts, cnpj.ts…
 tests/               testes (unit/ sem banco, db/ com banco)
@@ -192,10 +212,6 @@ tests/               testes (unit/ sem banco, db/ com banco)
 ## Próximos passos sugeridos
 
 - Uma verificação de verdade para o dono: hoje quem pede um negócio sem dono vira dono na hora, sem conferência. Um caminho é comparar o nome de quem pede com os sócios que a Receita devolve para o CNPJ.
-- Recuperação de senha e confirmação de e-mail (precisa de um serviço de envio de e-mail).
-- Limite de tentativas de login por IP.
-- Avisar o dono por e-mail quando a reivindicação for decidida ou quando chegar um depoimento.
-- Renovação automática do token do Instagram usado pelo webhook.
 
 ## Como contribuir
 
