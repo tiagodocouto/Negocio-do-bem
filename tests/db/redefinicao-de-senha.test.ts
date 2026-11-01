@@ -21,7 +21,9 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(contexto.cabecalhos),
   cookies: async () => ({
     get: (nome: string) => (contexto.cookies.has(nome) ? { value: contexto.cookies.get(nome) } : undefined),
-    delete: ({ name }: { name: string }) => contexto.cookies.delete(name),
+    delete: (valor: string | { name: string }) => contexto.cookies.delete(typeof valor === "string" ? valor : valor.name),
+    set: (nome: string, valor: string) => contexto.cookies.set(nome, valor),
+    toString: () => [...contexto.cookies].map(([nome, valor]) => `${nome}=${valor}`).join("; "),
   }),
 }));
 vi.mock("next/navigation", () => ({
@@ -30,16 +32,19 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("next/server", () => ({ after: (tarefa: () => unknown) => contexto.depois.push(tarefa) }));
-vi.mock("@/lib/auth/sessao", () => ({
-  caminhoSeguro: () => "/",
-  criarSessao,
-  encerrarSessao: vi.fn(),
-  exigirUsuario: async () => {
-    if (!contexto.usuario) throw new Error("sem login");
-    return { ...contexto.usuario, moderador: false, emailConfirmado: true };
-  },
-  idDaSessaoAtual: async () => null,
-}));
+vi.mock("@/lib/auth/sessao", async (importarOriginal) => {
+  const original = await importarOriginal<typeof import("@/lib/auth/sessao")>();
+  criarSessao.mockImplementation(original.criarSessao);
+  return {
+    ...original,
+    caminhoSeguro: () => "/",
+    criarSessao,
+    exigirUsuario: async () => {
+      if (!contexto.usuario) throw new Error("sem login");
+      return { ...contexto.usuario, moderador: false, emailConfirmado: true };
+    },
+  };
+});
 vi.mock("@/lib/email", () => ({ envioLigado: vi.fn(() => true), enviarEmail: vi.fn(async () => true) }));
 
 const enviados = () => vi.mocked(enviarEmail).mock.calls.map(([email]) => email as Email);
@@ -73,10 +78,13 @@ function dadosSenha(novaSenha: string, confirmarSenha = novaSenha) {
 }
 
 async function criarConta(email = "ana@exemplo.com", senha: string | null = "senha-antiga-123") {
-  return db.usuario.create({
-    data: { nome: "Ana Souza", email, senhaHash: senha ? await gerarHashSenha(senha) : null },
+  const senhaHash = senha ? await gerarHashSenha(senha) : null;
+  const usuario = await db.usuario.create({
+    data: { nome: "Ana Souza", email, senhaHash },
     select: { id: true, nome: true, email: true },
   });
+  if (senhaHash) await db.vinculoAuth.create({ data: { usuarioId: usuario.id, contaId: usuario.id, provedorId: "credential", senha: senhaHash } });
+  return usuario;
 }
 
 async function senhaConfere(id: string, senha: string) {
@@ -122,6 +130,51 @@ describe("redefinirSenhaComLink", () => {
       alvoTipo: "usuario",
       alvoId: ana.id,
     });
+  });
+
+  it("atualiza as duas senhas e aceita somente a nova pelo login real", async () => {
+    const ana = await criarConta();
+    const login = (senha: string) => { const dados = dadosEmail(ana.email); dados.set("senha", senha); return entrar({}, dados); };
+    expect(await redirecionou(login("senha-antiga-123"))).toBe("redirecionado:/");
+    expect(await redefinirSenhaComLink((await criarLink(ana, "redefinir"))!, "senha-nova-456")).toEqual(ana);
+    const usuario = await db.usuario.findUniqueOrThrow({ where: { id: ana.id } });
+    const credencial = await db.vinculoAuth.findFirstOrThrow({ where: { usuarioId: ana.id, provedorId: "credential" } });
+    expect(credencial.senha === usuario.senhaHash).toBe(true);
+    expect((await login("senha-antiga-123"))?.erro).toBe("E-mail ou senha incorretos.");
+    expect(await redirecionou(login("senha-nova-456"))).toBe("redirecionado:/");
+  });
+
+  it("falha na auditoria preserva ambas as senhas, links e sessões", async () => {
+    const ana = await criarConta();
+    const login = (senha: string) => { const dados = dadosEmail(ana.email); dados.set("senha", senha); return entrar({}, dados); };
+    expect(await redirecionou(login("senha-antiga-123"))).toBe("redirecionado:/");
+    const token = (await criarLink(ana, "redefinir"))!;
+    await criarLink(ana, "entrar");
+    const antes = {
+      usuario: await db.usuario.findUniqueOrThrow({ where: { id: ana.id } }),
+      credenciais: await db.vinculoAuth.findMany({ orderBy: { id: "asc" } }),
+      links: await db.linkEmail.findMany({ orderBy: { id: "asc" } }),
+      sessoes: await db.sessao.findMany({ orderBy: { id: "asc" } }),
+    };
+    await db.$executeRawUnsafe(`CREATE FUNCTION prova_auth_falha_auditoria() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Local proof audit failure'; END $$`);
+    await db.$executeRawUnsafe(`CREATE TRIGGER prova_auth_falha BEFORE INSERT ON "RegistroAuditoria" FOR EACH ROW EXECUTE FUNCTION prova_auth_falha_auditoria()`);
+    try {
+      await expect(redefinirSenhaComLink(token, "senha-nova-456")).rejects.toThrow();
+    } finally {
+      await db.$executeRawUnsafe(`DROP TRIGGER prova_auth_falha ON "RegistroAuditoria"`);
+      await db.$executeRawUnsafe(`DROP FUNCTION prova_auth_falha_auditoria()`);
+    }
+    const depois = {
+      usuario: await db.usuario.findUniqueOrThrow({ where: { id: ana.id } }),
+      credenciais: await db.vinculoAuth.findMany({ orderBy: { id: "asc" } }),
+      links: await db.linkEmail.findMany({ orderBy: { id: "asc" } }),
+      sessoes: await db.sessao.findMany({ orderBy: { id: "asc" } }),
+    };
+    // Compare internally. A failed assertion must not print tokens or password hashes.
+    expect(JSON.stringify(depois) === JSON.stringify(antes)).toBe(true);
+    expect(await db.registroAuditoria.count()).toBe(0);
+    expect((await login("senha-nova-456"))?.erro).toBe("E-mail ou senha incorretos.");
+    expect(await redirecionou(login("senha-antiga-123"))).toBe("redirecionado:/");
   });
 
   it("o link vale uma vez só, mesmo com três envios ao mesmo tempo", async () => {
@@ -181,6 +234,7 @@ describe("redefinirSenhaComLink", () => {
     const ana = await criarConta("ana@exemplo.com", null);
     expect(await redefinirSenhaComLink((await criarLink(ana, "redefinir"))!, "senha-nova-456")).toEqual(ana);
     expect(await senhaConfere(ana.id, "senha-nova-456")).toBe(true);
+    expect(await db.vinculoAuth.count({ where: { usuarioId: ana.id, provedorId: "credential" } })).toBe(1);
   });
 });
 
@@ -272,7 +326,8 @@ describe("criarSenhaComLink", () => {
     criarSessao.mockClear();
 
     expect(await redirecionou(entrar({}, dadosEntrar("senha-nova-456")))).toBe("redirecionado:/");
-    expect(criarSessao).toHaveBeenCalledExactlyOnceWith(ana.id);
+    expect(await db.sessao.count({ where: { usuarioId: ana.id } })).toBeGreaterThan(0);
+    expect(contexto.cookies.has("ndb_sessao")).toBe(true);
   });
 
   it("não zera as tentativas de outro e-mail", async () => {

@@ -29,7 +29,11 @@ model Usuario {
   // mas não indica, não escreve nem denuncia depoimentos e não reivindica negócios.
   emailConfirmadoEm DateTime?
   criadoEm  DateTime @default(now())
+  emailVerificado Boolean @default(false)
+  atualizadoEm DateTime @default(now()) @updatedAt
+  imagem String?
 
+  vinculosAuth VinculoAuth[]
   sessoes             Sessao[]
   links               LinkEmail[]
   indicacoes          Empresa[]        @relation("IndicadaPor")
@@ -42,14 +46,49 @@ model Usuario {
 }
 
 model Sessao {
-  // sha256 do token guardado no cookie: quem lê o banco não consegue se passar pelo usuário
+  // Legacy IDs remain unchanged. Better Auth requires a signed cookie for new tokens.
   id        String   @id
   usuarioId String
   usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   expiraEm  DateTime
   criadoEm  DateTime @default(now())
+  token String? @unique
+  atualizadoEm DateTime @default(now()) @updatedAt
+  ip String?
+  userAgent String?
 
   @@index([usuarioId])
+}
+
+model VinculoAuth {
+  id String @id @default(cuid())
+  contaId String
+  provedorId String
+  usuarioId String
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  senha String?
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiraEm DateTime?
+  refreshTokenExpiraEm DateTime?
+  escopo String?
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  @@unique([provedorId, contaId])
+  @@index([usuarioId])
+}
+
+model VerificacaoAuth {
+  id String @id @default(cuid())
+  identificador String
+  valor String
+  expiraEm DateTime
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  @@index([identificador])
 }
 
 model TentativaAcesso {

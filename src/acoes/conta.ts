@@ -4,6 +4,8 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
+import { APIError } from "better-auth/api";
+import { cabecalhosAuth, criarAuth, gravarCookiesAuth, gravarCredencial } from "@/lib/auth/better-auth";
 import { apagarCadastroGoogle, contaDoGoogle, COOKIE_CADASTRO_GOOGLE, lerCadastroGoogle } from "@/lib/auth/google";
 import {
   CONFIRMACAO_DE_EMAIL_LIGADA,
@@ -15,7 +17,6 @@ import {
   redefinirSenhaComLink,
   usarLink,
 } from "@/lib/auth/links";
-import { gerarHashSenha, verificarSenha } from "@/lib/auth/senha";
 import { caminhoSeguro, criarSessao, encerrarSessao, exigirUsuario, idDaSessaoAtual } from "@/lib/auth/sessao";
 import {
   ipDoCabecalho,
@@ -81,7 +82,12 @@ export async function cadastrar(_estado: EstadoFormulario, dados: FormData): Pro
     return { erros: { email: "Já existe uma conta com este e-mail. Que tal entrar?" }, valores: valoresDoFormulario(dados) };
   }
 
-  const usuario = await db.usuario.create({ data: { nome, email, telefone, senhaHash: await gerarHashSenha(senha) } });
+  const senhaHash = await (await criarAuth().$context).password.hash(senha);
+  const usuario = await db.$transaction(async (tx) => {
+    const nova = await tx.usuario.create({ data: { nome, email, telefone, senhaHash } });
+    await gravarCredencial(tx, nova.id, senhaHash);
+    return nova;
+  });
   await criarSessao(usuario.id);
   await medir({ nome: "sign_up", params: { method: "senha" } });
   const voltar = caminhoSeguro(texto(dados, "voltar"));
@@ -117,10 +123,6 @@ export async function concluirCadastroGoogle(_estado: EstadoFormulario, dados: F
   redirect(caminhoSeguro(cadastro.destino));
 }
 
-// Hash de uma senha qualquer: quando o e-mail não existe, conferimos contra ele
-// para a resposta demorar o mesmo tempo e não revelar quais e-mails têm conta.
-let hashFalso: Promise<string> | undefined;
-
 export async function entrar(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
   const email = texto(dados, "email").trim().toLowerCase();
   const senha = texto(dados, "senha");
@@ -131,12 +133,14 @@ export async function entrar(_estado: EstadoFormulario, dados: FormData): Promis
     return recusado;
   }
 
-  const usuario = email ? await db.usuario.findUnique({ where: { email } }) : null;
-  const senhaConfere = await verificarSenha(senha, usuario?.senhaHash ?? (await (hashFalso ??= gerarHashSenha("senha-que-nao-existe"))));
-
-  if (!usuario || !senhaConfere) return recusado;
+  try {
+    const resposta = await criarAuth().api.signInEmail({ body: { email, password: senha }, headers: await cabecalhosAuth(), returnHeaders: true });
+    await gravarCookiesAuth(resposta.headers);
+  } catch (erro) {
+    if (erro instanceof APIError && [400, 401].includes(erro.statusCode)) return recusado;
+    throw erro;
+  }
   await zerarTentativasDoEmail(email, ip);
-  await criarSessao(usuario.id);
   await medir({ nome: "login", params: { method: "senha" } });
   redirect(caminhoSeguro(texto(dados, "voltar")));
 }
@@ -264,19 +268,21 @@ export async function trocarSenha(_estado: EstadoFormulario, dados: FormData): P
   if (!(await tentativaDoIpLiberada(ip)) || !(await reservarTentativaDoEmail(usuario.email, ip))) {
     return { erro: MENSAGEM_LIMITE };
   }
-  const { senhaHash: senhaAntiga } = await db.usuario.findUniqueOrThrow({ where: { id: usuario.id }, select: { senhaHash: true } });
+  const credencial = await db.vinculoAuth.findUnique({ where: { provedorId_contaId: { provedorId: "credential", contaId: usuario.id } } });
+  const senhaAntiga = credencial?.senha;
   // A conta sem senha (criada pelo Google) cria a primeira pelo link do e-mail, e não por aqui.
-  if (!senhaAntiga || !(await verificarSenha(senhaAtual, senhaAntiga))) {
+  if (!senhaAntiga || !(await (await criarAuth().$context).password.verify({ password: senhaAtual, hash: senhaAntiga }))) {
     return { erros: { senhaAtual: "Senha atual incorreta." } };
   }
 
-  const senhaHash = await gerarHashSenha(novaSenha);
+  const senhaHash = await (await criarAuth().$context).password.hash(novaSenha);
   const sessaoAtual = await idDaSessaoAtual();
   const agora = new Date();
   const trocou = await db.$transaction(async (tx) => {
     // Só troca se a senha não mudou desde a conferência: de duas trocas juntas, passa uma.
     const { count } = await tx.usuario.updateMany({ where: { id: usuario.id, senhaHash: senhaAntiga }, data: { senhaHash } });
     if (count === 0) return false;
+    await gravarCredencial(tx, usuario.id, senhaHash);
     await tx.sessao.deleteMany({ where: { usuarioId: usuario.id, ...(sessaoAtual ? { id: { not: sessaoAtual } } : {}) } });
     await gastarLinksAbertos(tx, usuario.id, agora);
     await registrarAuditoria(tx, { usuarioId: usuario.id, acao: "usuario.senha_trocada", alvoTipo: "usuario", alvoId: usuario.id });

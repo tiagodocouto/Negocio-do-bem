@@ -11,6 +11,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { ambienteDeDeploy } from "@/lib/ambiente";
 import { gerarHashSenha } from "@/lib/auth/senha";
+import { gravarCredencial } from "@/lib/auth/better-auth";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { db, type Prisma } from "@/lib/db";
 import { enviarEmail, envioLigado } from "@/lib/email";
@@ -99,7 +100,7 @@ export async function usarLink(token: string): Promise<LinkValido | null> {
   if (count === 0) return null;
   await db.usuario.updateMany({
     where: { id: link.usuario.id, email: link.usuario.email, emailConfirmadoEm: null },
-    data: { emailConfirmadoEm: agora },
+    data: { emailConfirmadoEm: agora, emailVerificado: true },
   });
   return link;
 }
@@ -133,8 +134,9 @@ export async function redefinirSenhaComLink(token: string, novaSenha: string): P
     });
     if (count === 0) return false;
     await gastarLinksAbertos(tx, usuario.id, agora);
-    await tx.usuario.updateMany({ where: { id: usuario.id, email: usuario.email, emailConfirmadoEm: null }, data: { emailConfirmadoEm: agora } });
+    await tx.usuario.updateMany({ where: { id: usuario.id, email: usuario.email, emailConfirmadoEm: null }, data: { emailConfirmadoEm: agora, emailVerificado: true } });
     await tx.usuario.update({ where: { id: usuario.id }, data: { senhaHash } });
+    await gravarCredencial(tx, usuario.id, senhaHash);
     await tx.sessao.deleteMany({ where: { usuarioId: usuario.id } });
     await registrarAuditoria(tx, { usuarioId: usuario.id, acao: "usuario.senha_redefinida", alvoTipo: "usuario", alvoId: usuario.id });
     return true;

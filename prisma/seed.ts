@@ -210,12 +210,16 @@ async function main() {
   // As contas de exemplo já vêm com o e-mail confirmado, para indicar e escrever sem abrir link nenhum.
   const emailConfirmadoEm = new Date();
   const pessoas = {
-    moderacao: await db.usuario.create({ data: { nome: "Equipe de Moderação", email: "moderacao@exemplo.com", senhaHash, emailConfirmadoEm, papel: "moderador" } }),
-    ana: await db.usuario.create({ data: { nome: "Ana Lúcia Santos", email: "ana@exemplo.com", senhaHash, emailConfirmadoEm } }),
-    joao: await db.usuario.create({ data: { nome: "João Batista", email: "joao@exemplo.com", senhaHash, emailConfirmadoEm } }),
-    bia: await db.usuario.create({ data: { nome: "Bia Fernandes", email: "bia@exemplo.com", senhaHash, emailConfirmadoEm } }),
-    carla: await db.usuario.create({ data: { nome: "Carla Moreira", email: "carla@exemplo.com", senhaHash, emailConfirmadoEm } }),
+    moderacao: await db.usuario.create({ data: { nome: "Equipe de Moderação", email: "moderacao@exemplo.com", senhaHash, emailConfirmadoEm, emailVerificado: true, papel: "moderador" } }),
+    ana: await db.usuario.create({ data: { nome: "Ana Lúcia Santos", email: "ana@exemplo.com", senhaHash, emailConfirmadoEm, emailVerificado: true } }),
+    joao: await db.usuario.create({ data: { nome: "João Batista", email: "joao@exemplo.com", senhaHash, emailConfirmadoEm, emailVerificado: true } }),
+    bia: await db.usuario.create({ data: { nome: "Bia Fernandes", email: "bia@exemplo.com", senhaHash, emailConfirmadoEm, emailVerificado: true } }),
+    carla: await db.usuario.create({ data: { nome: "Carla Moreira", email: "carla@exemplo.com", senhaHash, emailConfirmadoEm, emailVerificado: true } }),
   };
+
+  for (const pessoa of Object.values(pessoas)) {
+    await db.vinculoAuth.create({ data: { usuarioId: pessoa.id, contaId: pessoa.id, provedorId: "credential", senha: senhaHash } });
+  }
 
   const empresas = new Map<string, string>();
   for (const [i, n] of NEGOCIOS.entries()) {

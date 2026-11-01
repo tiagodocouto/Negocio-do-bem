@@ -1,13 +1,10 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
+import { cabecalhosAuth, criarAuth, gravarCookiesAuth } from "@/lib/auth/better-auth";
+import { authParaContaValidada } from "@/lib/auth/ponte-sessao";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { CONFIRMACAO_DE_EMAIL_LIGADA } from "@/lib/auth/links";
 import { db } from "@/lib/db";
-
-const COOKIE = "ndb_sessao";
-const DURACAO_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type UsuarioSessao = {
   id: string;
@@ -19,10 +16,6 @@ export type UsuarioSessao = {
   emailConfirmado: boolean;
 };
 
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
 /**
  * Só o papel gravado no banco dá moderação, nunca o e-mail: quem se cadastrasse
  * com o endereço certo antes da pessoa levaria a moderação, e as contas antigas
@@ -32,43 +25,30 @@ export function ehModerador(usuario: { papel: string }): boolean {
   return usuario.papel === "moderador";
 }
 
-/** Cria a sessão e grava o cookie. Só pode ser chamada em Server Actions e Route Handlers. */
 export async function criarSessao(usuarioId: string): Promise<void> {
-  const token = randomBytes(32).toString("base64url");
-  const expiraEm = new Date(Date.now() + DURACAO_MS);
-  await db.sessao.create({ data: { id: hashToken(token), usuarioId, expiraEm } });
-  (await cookies()).set(COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiraEm,
-  });
+  const resposta = await authParaContaValidada(usuarioId).api.sessaoValidada({ body: {}, headers: await cabecalhosAuth(), returnHeaders: true });
+  await gravarCookiesAuth(resposta.headers);
 }
 
 export async function encerrarSessao(): Promise<void> {
-  const loja = await cookies();
-  const token = loja.get(COOKIE)?.value;
-  if (token) await db.sessao.deleteMany({ where: { id: hashToken(token) } });
-  loja.delete(COOKIE);
+  const resposta = await criarAuth().api.signOut({ headers: await cabecalhosAuth(), returnHeaders: true });
+  await gravarCookiesAuth(resposta.headers);
 }
 
-/** Id (o sha256 do token) da sessão desta requisição, ou null. Serve para manter só ela ao trocar a senha. */
+/** Current Better Auth session ID. Password changes preserve only this session. */
 export async function idDaSessaoAtual(): Promise<string | null> {
-  const token = (await cookies()).get(COOKIE)?.value;
-  return token ? hashToken(token) : null;
+  const cabecalhos = await cabecalhosAuth();
+  const sessao = await criarAuth().api.getSession({ headers: cabecalhos });
+  return sessao?.session.id ?? null;
 }
 
 /** Usuário logado nesta requisição, ou null. Lido uma vez por requisição. */
 export const usuarioAtual = cache(async (): Promise<UsuarioSessao | null> => {
-  const token = (await cookies()).get(COOKIE)?.value;
-  if (!token) return null;
-  const sessao = await db.sessao.findUnique({
-    where: { id: hashToken(token) },
-    include: { usuario: true },
-  });
-  if (!sessao || sessao.expiraEm <= new Date()) return null;
-  const { usuario } = sessao;
+  const cabecalhos = await cabecalhosAuth();
+  const sessao = await criarAuth().api.getSession({ headers: cabecalhos });
+  if (!sessao) return null;
+  const usuario = await db.usuario.findUnique({ where: { id: sessao.user.id } });
+  if (!usuario) return null;
   return {
     id: usuario.id,
     nome: usuario.nome,

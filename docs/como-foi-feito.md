@@ -578,6 +578,44 @@ Decisões do esquema:
 
 Siga estes padrões numa mudança nova. Eles estão em todo o projeto.
 
+### Local Better Auth proof (#209)
+
+The proof keeps `Usuario` and `Sessao`. Better Auth maps its model and field names to the existing Prisma delegates.
+`VinculoAuth` and `VerificacaoAuth` provide the two required new models. Old session tokens stay null.
+The additive migration copies password hashes without recalculation. Only `emailConfirmadoEm` supplies email ownership evidence.
+
+Each request creates its own Better Auth instance. The existing Cloudflare Prisma proxy keeps database work in that request.
+Sessions last 30 fixed days. The session creation hook removes IP and user-agent values.
+Project actions retain attempt limits, phone validation, safe returns, and measurement events.
+The mounted HTTP route accepts only session reads. Better Auth also disables all five password HTTP paths.
+
+Google and consumed email links use a server-only session bridge. Its strict body is empty.
+The checked account ID stays in a server-only closure. No Server Action accepts a user ID to create a session.
+The bridge uses `createAuthEndpoint.serverOnly` and the public `setSessionCookie` helper.
+It also uses two Better Auth 1.7.14 internal APIs: `internalAdapter.findUserById` and `internalAdapter.createSession`.
+Package upgrades must test these APIs and the route exclusion again.
+Cookie writes use the public cookie parser and Next's cookie store. They do not suppress cookie-write errors.
+
+Password creation and panel changes call the configured callbacks through `auth.$context.password`. These context APIs also need upgrade checks.
+Password creation, panel changes, reset, and Google linking keep the legacy columns consistent until B5.
+Reset uses the existing Prisma transaction for both password hashes, link consumption, confirmation, session removal, and audit.
+Tests induce an audit failure in PostgreSQL to check transaction atomicity.
+The proof does not replace the project email-link design.
+
+Run `npm run prova:auth -- esquema` for storage checks.
+Run `npm run prova:auth -- identidade` for real credential, session, and HTTP checks.
+Run `npm run prova:auth -- regressao` for lint, types, and the complete test suite.
+Run `npm run prova:auth -- navegador` for Chromium and the official local Cloudflare preview.
+The command creates an exclusive Compose database. It generates credentials inside the fixture.
+It rejects other database destinations before mutation. It also removes shared Hyperdrive bindings and public routes from its temporary configuration.
+The official preview prepares local R2 cache before the Worker starts. Both steps use the worktree's exclusive temporary state.
+The fixture removes its database, volume, network, Worker processes, configuration, and local cache after each run.
+
+The guarded OpenNext 1.20.14 compatibility step preserves server component names. It matches upstream pull request 1465 and issue #221.
+Cache Components remain enabled. The browser check rejects streamed error pages and request-owned I/O failures.
+Simulated Google responses prove local integration only. Live Google authorization and production Hyperdrive remain outside this local proof.
+No proof command publishes, deploys, or opens a pull request.
+
 ### Server Actions
 
 Cada formulário chama uma função em `src/acoes/`, sempre na mesma ordem:

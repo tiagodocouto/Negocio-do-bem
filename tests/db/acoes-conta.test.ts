@@ -5,6 +5,8 @@ import { criarLink, lerLink } from "@/lib/auth/links";
 import * as senha from "@/lib/auth/senha";
 import { LIMITE_POR_EMAIL, LIMITE_POR_IP, reservarTentativaDoEmail } from "@/lib/auth/tentativas";
 import { db } from "@/lib/db";
+import { authParaContaValidada } from "@/lib/auth/ponte-sessao";
+import { gravarCookiesAuth } from "@/lib/auth/better-auth";
 import { enviarEmail, type Email } from "@/lib/email";
 
 // Estes testes passam pelas ações de verdade (entrar, cadastrar e trocarSenha). Só o que
@@ -26,6 +28,8 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(contexto.proximos.shift() ?? contexto.cabecalhos),
   cookies: async () => ({
     get: (nome: string) => (nome === "ndb_sessao" && contexto.cookieSessao ? { value: contexto.cookieSessao } : undefined),
+    set: (nome: string, valor: string) => { if (nome === "ndb_sessao") contexto.cookieSessao = valor; },
+    toString: () => contexto.cookieSessao ? `ndb_sessao=${contexto.cookieSessao}` : "",
   }),
 }));
 vi.mock("next/navigation", () => ({
@@ -98,8 +102,13 @@ async function cadastrarVezes(vezes: number, cabecalhosDaVez: (indice: number) =
 
 async function criarUsuario(email: string) {
   const usuario = await db.usuario.create({ data: { nome: "Pessoa de teste", email, senhaHash: await senha.gerarHashSenha(SENHA_CERTA) } });
+  await db.vinculoAuth.create({ data: { usuarioId: usuario.id, contaId: usuario.id, provedorId: "credential", senha: usuario.senhaHash } });
   vi.clearAllMocks();
   return usuario;
+}
+
+function trabalhosSenha() {
+  return vi.mocked(senha.gerarHashSenha).mock.calls.length + vi.mocked(senha.verificarSenha).mock.calls.length;
 }
 
 // O hash falso do entrar é calculado uma vez só e guardado no módulo. Aqui ele
@@ -137,13 +146,13 @@ describe("de onde vem o IP", () => {
       "x-real-ip": `198.51.100.${i + 1}`,
       "x-forwarded-for": `192.0.2.${i + 1}, 203.0.113.7`,
     }));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
     expect(respostas.map((r) => r?.erro)).toEqual(Array(LIMITE_POR_IP + 2).fill(MENSAGEM_RECUSA));
   });
 
   it("no Vercel, sem x-vercel-forwarded-for, o IP é desconhecido: o x-forwarded-for e o x-real-ip não valem", async () => {
     await entrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-real-ip": `198.51.100.${i + 1}`, "x-forwarded-for": `192.0.2.${i + 1}` }));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
   });
 
   it("fora do Vercel e sem proxy declarado, nenhum cabeçalho vale", async () => {
@@ -153,7 +162,7 @@ describe("de onde vem o IP", () => {
       "x-real-ip": `198.51.100.${i + 1}`,
       "x-forwarded-for": `192.0.2.${i + 1}`,
     }));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
   });
 
   it("com o proxy declarado, usa o último valor do x-forwarded-for, que é o que o proxy pôs", async () => {
@@ -163,18 +172,18 @@ describe("de onde vem o IP", () => {
       "x-forwarded-for": `192.0.2.${i + 1}, 198.51.100.${i + 1}, 203.0.113.7`,
       "x-real-ip": `198.51.100.${i + 1}`,
     }));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
     // Outro IP posto pelo proxy tem a cota própria.
     contexto.cabecalhos = { "x-forwarded-for": "203.0.113.8" };
     await entrar({}, formulario("outra-pessoa@exemplo.com"));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP + 1);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP + 1);
   });
 
   it("com o proxy declarado, um valor que não é IP vai para o contador do IP desconhecido", async () => {
     vi.stubEnv("VERCEL", undefined);
     vi.stubEnv("AUTENTICACAO_PROXY_CONFIAVEL", "1");
     await entrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-forwarded-for": i % 2 ? `nao-e-ip-${i}` : "" }));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
   });
 });
 
@@ -204,7 +213,8 @@ describe("limite por e-mail", () => {
 
     contexto.cabecalhos = { "x-vercel-forwarded-for": "203.0.113.50" };
     await expect(entrar({}, formulario("ana@exemplo.com", SENHA_CERTA))).rejects.toThrow("redirecionado");
-    expect(criarSessao).toHaveBeenCalledExactlyOnceWith(usuario.id);
+    expect(await db.sessao.count({ where: { usuarioId: usuario.id, token: { not: null } } })).toBe(1);
+    expect(Boolean(contexto.cookieSessao)).toBe(true);
   });
 
   it("cada lugar tem as próprias 5 tentativas para o mesmo e-mail", async () => {
@@ -230,8 +240,8 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
   it("cadastro e login dividem a cota do mesmo IP", async () => {
     await cadastrarVezes(6, () => vercel);
     await entrarVezes(6, () => vercel);
-    expect(senha.gerarHashSenha).toHaveBeenCalledTimes(6);
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP - 6);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
+    expect(senha.gerarHashSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
   });
 
   it("cadastros ao mesmo tempo, do mesmo IP, também geram só 10 hashes", async () => {
@@ -287,7 +297,8 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
     contexto.cabecalhos = { "x-vercel-forwarded-for": "198.51.100.1" };
     for (let i = 0; i < LIMITE_POR_EMAIL - 1; i++) await entrar({}, formulario("ana@exemplo.com"));
     await expect(entrar({}, formulario("ana@exemplo.com", SENHA_CERTA))).rejects.toThrow("redirecionado");
-    expect(criarSessao).toHaveBeenCalledExactlyOnceWith(usuario.id);
+    expect(await db.sessao.count({ where: { usuarioId: usuario.id, token: { not: null } } })).toBe(1);
+    expect(Boolean(contexto.cookieSessao)).toBe(true);
 
     vi.clearAllMocks();
     for (let i = 0; i < LIMITE_POR_EMAIL; i++) await entrar({}, formulario("ana@exemplo.com"));
@@ -312,17 +323,17 @@ describe("IPv6", () => {
     const respostas = await entrarVezes(LIMITE_POR_IP + 2, (i) => ({
       "x-vercel-forwarded-for": i % 2 ? `2001:db8:abcd:12::${i + 1}` : `2001:0DB8:ABCD:0012:${i + 1}:ffff:ffff:ffff`,
     }));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
     expect(respostas.map((r) => r?.erro)).toEqual(Array(LIMITE_POR_IP + 2).fill(MENSAGEM_RECUSA));
     // Outro prefixo /64 tem a cota própria.
     contexto.cabecalhos = { "x-vercel-forwarded-for": "2001:db8:abcd:13::1" };
     await entrar({}, formulario("outra-pessoa@exemplo.com"));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP + 1);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP + 1);
   });
 
   it("o IPv4 escrito como IPv6 divide a cota com o IPv4", async () => {
     await entrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-vercel-forwarded-for": i % 2 ? "::ffff:203.0.113.5" : "203.0.113.5" }));
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
   });
 
   it("o cadastro também divide a cota por prefixo /64", async () => {
@@ -342,8 +353,8 @@ describe("IP desconhecido", () => {
   it("login e cadastro sem IP dividem o mesmo contador", async () => {
     await cadastrarVezes(LIMITE_POR_IP - 2, () => ({}));
     await entrarVezes(4, () => ({}));
-    expect(senha.gerarHashSenha).toHaveBeenCalledTimes(LIMITE_POR_IP - 2);
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(2);
+    expect(senha.gerarHashSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
+    expect(trabalhosSenha()).toBe(LIMITE_POR_IP);
     expect(await db.tentativaAcesso.count()).toBe(1 + 2);
   });
 });
@@ -355,8 +366,9 @@ describe("conta sem senha", () => {
 
     expect((await entrar({}, formulario("google@exemplo.com", "")))?.erro).toBe(MENSAGEM_RECUSA);
     expect((await entrar({}, formulario("google@exemplo.com", SENHA_CERTA)))?.erro).toBe(MENSAGEM_RECUSA);
-    // Conferida contra o hash falso, como um e-mail sem conta, para levar o mesmo tempo.
-    expect(senha.verificarSenha).toHaveBeenCalledTimes(2);
+    // Better Auth calculates a hash when no password credential exists.
+    expect(senha.gerarHashSenha).toHaveBeenCalledTimes(2);
+    expect(senha.verificarSenha).not.toHaveBeenCalled();
     expect(criarSessao).not.toHaveBeenCalled();
   });
 });
@@ -420,14 +432,15 @@ describe("trocar a senha no painel", () => {
     const usuario = await logar("ana@exemplo.com");
     const outra = await db.usuario.create({ data: { nome: "Outra", email: "outra@exemplo.com", senhaHash: "x" } });
     const expiraEm = new Date(Date.now() + 60_000);
+    const resposta = await authParaContaValidada(usuario.id).api.sessaoValidada({ body: {}, returnHeaders: true });
+    await gravarCookiesAuth(resposta.headers);
+    const sessaoAtual = await db.sessao.findFirstOrThrow({ where: { usuarioId: usuario.id } });
     await db.sessao.createMany({
       data: [
-        { id: hashDoToken("token-desta-requisicao"), usuarioId: usuario.id, expiraEm },
         { id: hashDoToken("token-de-outro-aparelho"), usuarioId: usuario.id, expiraEm },
         { id: hashDoToken("token-de-outra-conta"), usuarioId: outra.id, expiraEm },
       ],
     });
-    contexto.cookieSessao = "token-desta-requisicao";
     const linkDeEntrar = (await criarLink(usuario, "entrar"))!;
     const linkDaOutra = (await criarLink(outra, "entrar"))!;
 
@@ -435,7 +448,7 @@ describe("trocar a senha no painel", () => {
 
     expect(await senha.verificarSenha(NOVA_SENHA, (await senhaGravada(usuario.id))!)).toBe(true);
     const sessoes = await db.sessao.findMany({ select: { id: true } });
-    expect(sessoes.map((s) => s.id).sort()).toEqual([hashDoToken("token-desta-requisicao"), hashDoToken("token-de-outra-conta")].sort());
+    expect(sessoes.map((s) => s.id).sort()).toEqual([sessaoAtual.id, hashDoToken("token-de-outra-conta")].sort());
     expect(await lerLink(linkDeEntrar)).toBeNull();
     expect(await lerLink(linkDaOutra)).not.toBeNull();
     expect(await db.registroAuditoria.findFirstOrThrow()).toMatchObject({

@@ -62,8 +62,8 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
 - **Um e-mail, uma conta.** O cadastro avisa quando o e-mail já existe ("Que tal entrar?").
 - **Login** (`/entrar`): e-mail e senha.
   - O erro é sempre o mesmo, "E-mail ou senha incorretos".
-  - Quando o e-mail não existe, a senha é conferida contra um hash falso, para a resposta levar o mesmo tempo e não revelar quais e-mails têm conta.
-  - A conta sem senha (criada pelo Google, ou ligada a ele com o e-mail sem confirmar) também é conferida contra o hash falso e recebe o mesmo "E-mail ou senha incorretos". Ela entra pelo Google ou por link no e-mail, e pode criar uma senha pelo link de senha nova (veja "Esqueci minha senha", abaixo).
+  - In this local proof, Better Auth checks the mapped password credential. It calculates scrypt when the account or credential does not exist.
+  - An account without a password receives the same "E-mail ou senha incorretos" message. Google and email links remain available.
   - Embaixo da senha, "Esqueceu a senha? Crie uma nova ou entre com um link por e-mail." leva a `/esqueci-a-senha` e a `/entrar/link`.
 - **Continuar com o Google** (`src/lib/auth/google.ts`, `/api/google/entrar` e `/api/google/retorno`): botão acima do formulário de `/entrar` e de `/cadastrar`.
   - Só aparece com `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `APP_URL` configurados. Sem eles, quem chega a `/api/google/entrar` volta para `/entrar` com "O login com o Google ainda não está disponível".
@@ -111,11 +111,22 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - a troca é uma transação só: grava a senha nova, **encerra as outras sessões da conta** (só a deste aparelho continua), gasta os links ainda abertos da conta e grava `usuario.senha_trocada` na auditoria. Ela só grava se a senha não mudou desde a conferência: de duas trocas ao mesmo tempo, uma passa e a outra vê "A senha mudou enquanto você trocava";
   - depois, a contagem de tentativas daquele e-mail é zerada em todas as origens, a conta recebe um e-mail avisando da troca e a pessoa volta ao `/painel` com "Senha trocada. Os outros aparelhos saíram da sua conta.";
   - **sem senha atual:** quem esqueceu a senha atual, e a conta sem senha (criada pelo Google), usa o botão "Mandar o link de senha nova", que manda para o e-mail da conta o mesmo link de "Esqueci minha senha". A conta sem senha não vê os campos de troca, só esse botão. Passar de 5 links por hora mostra "Você pediu muitos e-mails na última hora".
-- **Sessão:**
-  - dura 30 dias;
-  - o cookie `ndb_sessao` é `httpOnly`, `sameSite=lax` e `secure` em produção, e guarda um token aleatório;
-  - o banco guarda só o SHA-256 do token, então quem lê o banco não consegue se passar pela pessoa;
-  - "Sair" apaga a sessão do banco e o cookie.
+- **Session in the local Better Auth proof (#209):**
+  - A session lasts 30 fixed days. Reads do not extend its expiry.
+  - Better Auth signs `ndb_sessao`. The cookie remains `httpOnly` and `sameSite=lax`. HTTPS uses `secure`.
+  - `Sessao.token` stores the token. The server requires its cookie signature. A database token alone cannot authenticate a request.
+  - Existing session IDs remain unchanged. Their new token column is null. These legacy sessions do not authenticate through Better Auth.
+  - The creation hook removes IP and user-agent values before storage. It does not disable IP tracking in the engine.
+  - Logout removes the session and expires the cookie.
+  - Cookie data caching stays disabled. The next request reads role changes from the database.
+- **Additive identity storage in this proof:**
+  - `Usuario` and `Sessao` keep their identities and relations. `VinculoAuth` stores credential and Google links.
+  - Password creation and change keep `Usuario.senhaHash` and the credential hash consistent.
+  - Password reset updates both hashes in the existing link-consumption transaction. Confirmation, session removal, and audit remain in that transaction.
+  - `emailVerificado` records actual confirmation evidence. The temporary confirmation exemption never sets it.
+  - Password HTTP endpoints stay disabled. Project actions reserve attempts before password work.
+  - Google still requires a phone before account creation. Unconfirmed-account linking removes both password representations and existing sessions.
+  - This branch is a local A1 proof. It does not authorize a production migration or deployment.
 - **Volta para onde a pessoa estava:**
   - páginas que exigem login mandam para `/entrar?voltar=<caminho>`;
   - o `voltar` só aceita caminhos internos (`caminhoSeguro`), para não virar um redirecionamento para outro site;

@@ -139,7 +139,10 @@ export async function contaDoGoogle(perfil: PerfilGoogle, telefone?: string, ten
     if (!telefone) return { tipo: "precisa_telefone" };
     try {
       const nova = await db.usuario.create({
-        data: { nome: perfil.nome, email: perfil.email, googleId: perfil.sub, telefone, emailConfirmadoEm: new Date() },
+        data: {
+          nome: perfil.nome, email: perfil.email, googleId: perfil.sub, telefone, emailConfirmadoEm: new Date(), emailVerificado: true,
+          vinculosAuth: { create: { provedorId: "google", contaId: perfil.sub } },
+        },
         select: { id: true },
       });
       return { tipo: "entrou", usuarioId: nova.id };
@@ -155,10 +158,14 @@ export async function contaDoGoogle(perfil: PerfilGoogle, telefone?: string, ten
     // Só liga se nada mudou desde a leitura: nem outro Google, nem o e-mail, nem a confirmação.
     const { count } = await tx.usuario.updateMany({
       where: { id: existente.id, email: perfil.email, googleId: null, emailConfirmadoEm: existente.emailConfirmadoEm },
-      data: confirmada ? { googleId: perfil.sub } : { googleId: perfil.sub, emailConfirmadoEm: new Date(), senhaHash: null },
+      data: confirmada ? { googleId: perfil.sub, emailVerificado: true } : { googleId: perfil.sub, emailConfirmadoEm: new Date(), emailVerificado: true, senhaHash: null },
     });
     if (count === 0) return false;
-    if (!confirmada) await tx.sessao.deleteMany({ where: { usuarioId: existente.id } });
+    await tx.vinculoAuth.create({ data: { usuarioId: existente.id, provedorId: "google", contaId: perfil.sub } });
+    if (!confirmada) {
+      await tx.vinculoAuth.deleteMany({ where: { usuarioId: existente.id, provedorId: "credential" } });
+      await tx.sessao.deleteMany({ where: { usuarioId: existente.id } });
+    }
     return true;
   });
   return ligou ? { tipo: "entrou", usuarioId: existente.id } : deNovo();
