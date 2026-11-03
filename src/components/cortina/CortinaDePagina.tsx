@@ -14,7 +14,7 @@ export function CortinaDePagina() {
   const pendente = useRef<Navegacao | null>(null);
   const faseAtual = useRef<FaseCortina>("oculta");
   const seguranca = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const direita = useRef<HTMLDivElement>(null);
+  const folha = useRef<HTMLDivElement>(null);
   const [fase, setFase] = useState<FaseCortina>("oculta");
   const [tinta, setTinta] = useState<DestinoCortina["tinta"]>("verde-escuro");
 
@@ -107,7 +107,7 @@ export function CortinaDePagina() {
   }, [caminho, mudar]);
 
   function terminou(evento: TransitionEvent<HTMLDivElement>) {
-    if (evento.target !== direita.current || evento.propertyName !== "transform") return;
+    if (evento.target !== folha.current || evento.propertyName !== "transform") return;
     if (faseAtual.current === "fechando") {
       const navegacao = pendente.current;
       if (!navegacao) return;
@@ -129,8 +129,8 @@ export function CortinaDePagina() {
   return (
     <div className="cortina-navegacao" data-fase={fase} aria-hidden="true" onTransitionEnd={terminou}
       style={{ "--cortina-tinta": `var(--color-${tinta}, #1f5a3c)` } as CSSProperties}>
-      <div className="cortina-folha cortina-folha-esquerda" />
-      <div className="cortina-folha cortina-folha-direita" ref={direita} />
+      <div className="cortina-folha" ref={folha} />
+      <div className="cortina-emblema" />
     </div>
   );
 }

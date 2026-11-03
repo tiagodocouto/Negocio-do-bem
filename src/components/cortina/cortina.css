@@ -1,4 +1,23 @@
+/*
+ * Cortina de navegação "losango-íris": evoca o campo verde e o losango
+ * amarelo da bandeira, sem reproduzi-la.
+ * Fecha: uma folha verde passa da esquerda e cobre a tela.
+ * Coberta: o losango nasce no centro.
+ * Abre: um recorte em losango cresce do centro e revela a página,
+ * enquanto o losango cresce junto e a folha sai pela direita.
+ */
 .cortina-navegacao {
+  --cortina-verde: #1f5a3c;
+  --cortina-amarelo: #f2c230;
+  --cortina-passa: cubic-bezier(0.65, 0, 0.35, 1);
+  --cortina-abre: cubic-bezier(0.7, 0, 0.2, 1);
+  --cortina-nasce: cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* Proporção do losango e quanto ele cresce para cobrir a tela inteira. */
+  --cortina-proporcao: 1.55;
+  --cortina-k: 3.2;
+  --cortina-largura: min(84vw, 120vh);
+  --cortina-a: calc(var(--cortina-largura) / 2 * var(--cortina-k));
+  --cortina-b: calc(var(--cortina-a) / var(--cortina-proporcao));
   position: fixed;
   inset: 0;
   z-index: 90;
@@ -6,25 +25,33 @@
   visibility: hidden;
   pointer-events: none;
   contain: paint;
+  /* Fechada: o recorte em losango no centro ainda não tem área. */
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+    50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%);
+}
+
+/* Em tela de pé o losango é pequeno em relação à altura e precisa crescer mais. */
+@media (max-aspect-ratio: 1/1) {
+  .cortina-navegacao { --cortina-k: 6.2; }
 }
 
 .cortina-folha {
   position: absolute;
-  inset-block: 0;
-  width: calc(50% + 1px);
+  inset: 0;
+  background: var(--cortina-verde);
+  transform: translateX(-101%);
   will-change: auto;
 }
 
-.cortina-folha-esquerda {
-  left: 0;
-  background: var(--color-papel, #f7f0e3);
-  transform: translateX(-102%);
-}
-
-.cortina-folha-direita {
-  right: 0;
-  background: var(--cortina-tinta, var(--color-verde-escuro, #1f5a3c));
-  transform: translateX(102%);
+.cortina-emblema {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--cortina-largura);
+  aspect-ratio: var(--cortina-proporcao);
+  background: var(--cortina-amarelo);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  transform: translate(-50%, -50%) scale(0);
 }
 
 .cortina-navegacao:not([data-fase="oculta"]) {
@@ -32,30 +59,46 @@
   pointer-events: auto;
 }
 
-.cortina-navegacao:not([data-fase="oculta"]) .cortina-folha {
+.cortina-navegacao:not([data-fase="oculta"]) .cortina-folha,
+.cortina-navegacao:not([data-fase="oculta"]) .cortina-emblema {
   will-change: transform;
 }
 
-.cortina-navegacao[data-fase="fechando"] .cortina-folha {
-  transform: translateX(0);
-  transition: transform 220ms cubic-bezier(0.55, 0, 0.8, 0.45);
-}
-
-.cortina-navegacao[data-fase="fechando"] .cortina-folha-direita {
-  transition-delay: 35ms;
-}
-
+.cortina-navegacao[data-fase="fechando"] .cortina-folha,
 .cortina-navegacao[data-fase="coberta"] .cortina-folha {
   transform: translateX(0);
 }
 
-.cortina-navegacao[data-fase="abrindo"] .cortina-folha {
-  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+.cortina-navegacao[data-fase="fechando"] .cortina-folha {
+  transition: transform 200ms var(--cortina-passa);
 }
 
-.cortina-navegacao[data-fase="abrindo"] .cortina-folha-direita {
-  transition-duration: 460ms;
-  transition-delay: 55ms;
+/* A mesma regra nas duas fases: a troca de fase não reinicia o nascimento. */
+.cortina-navegacao[data-fase="fechando"] .cortina-emblema,
+.cortina-navegacao[data-fase="coberta"] .cortina-emblema {
+  transform: translate(-50%, -50%) scale(1);
+  transition: transform 260ms var(--cortina-nasce) 110ms;
+}
+
+.cortina-navegacao[data-fase="abrindo"] {
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+    50% calc(50% - var(--cortina-b)),
+    calc(50% + var(--cortina-a)) 50%,
+    50% calc(50% + var(--cortina-b)),
+    calc(50% - var(--cortina-a)) 50%,
+    50% calc(50% - var(--cortina-b)));
+  transition: clip-path 460ms var(--cortina-abre) 40ms;
+}
+
+.cortina-navegacao[data-fase="abrindo"] .cortina-emblema {
+  transform: translate(-50%, -50%) scale(var(--cortina-k));
+  transition: transform 460ms var(--cortina-abre) 40ms;
+}
+
+/* A folha termina por último: o fim da transição dela encerra a cortina. */
+.cortina-navegacao[data-fase="abrindo"] .cortina-folha {
+  transform: translateX(101%);
+  transition: transform 460ms var(--cortina-abre) 70ms;
 }
 
 .cortina-abertura {
