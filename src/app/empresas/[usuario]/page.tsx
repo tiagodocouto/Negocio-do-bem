@@ -5,22 +5,37 @@ import { Suspense } from "react";
 import { denunciarDepoimento } from "@/acoes/depoimentos";
 import { AvisoDaUrl } from "@/components/Avisos";
 import { CausaBadge } from "@/components/CausaBadge";
+import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { Historia } from "@/components/Historia";
+import { JsonLd } from "@/components/JsonLd";
 import { FotoEmpresa } from "@/components/FotoEmpresa";
+import { InstagramIcone, WhatsAppIcone } from "@/components/Icones";
+import { LinkInstagram } from "@/components/LinkInstagram";
 import { SeloStatus } from "@/components/SeloStatus";
 import { usuarioAtual, type UsuarioSessao } from "@/lib/auth/sessao";
-import { filtrarCausas } from "@/lib/causas";
+import { buscarCausa, filtrarCausas } from "@/lib/causas";
 import { buscarPerfil, ehDono, podeVerPerfil } from "@/lib/consultas";
+import { hrefCausa, hrefTipo, temPaginaDeTipo } from "@/lib/diretorio";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
-import { linkPerfil, normalizarUsername } from "@/lib/instagram";
-import { formatarData, formatarWhatsapp, tempoDeLeitura } from "@/lib/texto";
+import { temInstagram } from "@/lib/endereco";
+import { linkPerfil, normalizarEndereco } from "@/lib/instagram";
+import { medirContato, type CanalDeContato } from "@/lib/medicao";
+import { FORA_DA_BUSCA, jsonLdDoNegocio, metadadosDaPagina, paginaDaCidade } from "@/lib/seo";
+import { formatarData, formatarTelefone, tempoDeLeitura } from "@/lib/texto";
 import { FormDepoimento } from "./FormDepoimento";
 
 export async function generateMetadata(props: PageProps<"/empresas/[usuario]">): Promise<Metadata> {
-  const username = normalizarUsername((await props.params).usuario);
+  const username = normalizarEndereco((await props.params).usuario);
   const empresa = username ? await buscarPerfil(username) : null;
-  if (!empresa || empresa.moderacao !== "aprovada" || empresa.oculta) return { title: "Perfil" };
-  return { title: empresa.nome, description: empresa.resumo };
+  if (!empresa || empresa.moderacao !== "aprovada" || empresa.oculta) return { title: "Perfil", robots: FORA_DA_BUSCA };
+  // "Café da Ana — Café e padaria em Salvador, BA": o que as pessoas buscam é o tipo e a cidade.
+  const onde = `${empresa.cidade}, ${empresa.uf}`;
+  return metadadosDaPagina({
+    titulo: empresa.categoria === "Outros" ? `${empresa.nome} em ${onde}` : `${empresa.nome} — ${empresa.categoria} em ${onde}`,
+    descricao: empresa.resumo,
+    caminho: `/empresas/${empresa.instagramUsername}`,
+    imagemPropria: true,
+  });
 }
 
 export default function PaginaEmpresa(props: PageProps<"/empresas/[usuario]">) {
@@ -34,7 +49,7 @@ export default function PaginaEmpresa(props: PageProps<"/empresas/[usuario]">) {
 type Perfil = NonNullable<Awaited<ReturnType<typeof buscarPerfil>>>;
 
 async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuario]">, "params" | "searchParams">) {
-  const username = normalizarUsername((await params).usuario);
+  const username = normalizarEndereco((await params).usuario);
   if (!username) notFound();
   const [empresa, usuario, { aviso }] = await Promise.all([buscarPerfil(username), usuarioAtual(), searchParams]);
   if (!empresa || !podeVerPerfil(empresa, usuario)) notFound();
@@ -42,9 +57,12 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
   const dono = ehDono(empresa, usuario);
   const causas = filtrarCausas(empresa.causas.map((c) => c.causa));
   const publico = empresa.moderacao === "aprovada" && !empresa.oculta;
+  // Os cliques nos contatos contam no Analytics só quando vêm do público, não do dono.
+  const contato = publico && !dono ? empresa : undefined;
 
   return (
     <article>
+      {publico && <JsonLd dados={jsonLdDoNegocio(empresa, causas.map((slug) => buscarCausa(slug)!.nome))} />}
       <header className="border-b border-linha bg-gradient-to-b from-superficie to-papel">
         <div className="mx-auto max-w-3xl px-4 pt-12 pb-10 sm:px-6">
           <div className="mb-6 space-y-3">
@@ -66,28 +84,44 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
                 {empresa.nome}
               </h1>
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-suave">
-                <a href={linkPerfil(empresa.instagramUsername)} target="_blank" rel="noopener noreferrer" className="link">
-                  @{empresa.instagramUsername}
-                </a>
+                <LinkInstagram endereco={empresa.instagramUsername} icone contato={contato} />
                 <span aria-hidden="true">·</span>
-                <span>{empresa.categoria}</span>
+                {publico && temPaginaDeTipo(empresa.categoria) ? (
+                  <Link href={hrefTipo(empresa.categoria)} className="hover:text-tinta hover:underline">
+                    {empresa.categoria}
+                  </Link>
+                ) : (
+                  <span>{empresa.categoria}</span>
+                )}
                 <span aria-hidden="true">·</span>
-                <span>
-                  {empresa.cidade}, {empresa.uf}
-                </span>
+                {publico ? (
+                  <Link href={paginaDaCidade(empresa.cidade, empresa.uf).caminho} className="hover:text-tinta hover:underline">
+                    {empresa.cidade}, {empresa.uf}
+                  </Link>
+                ) : (
+                  <span>
+                    {empresa.cidade}, {empresa.uf}
+                  </span>
+                )}
               </p>
             </div>
           </div>
 
-          <Contatos empresa={empresa} />
+          <Contatos empresa={empresa} medir={!!contato} />
 
           <p className="mt-8 font-serif text-2xl leading-snug text-tinta/80 italic text-pretty">{empresa.resumo}</p>
 
           {causas.length > 0 && (
             <div className="mt-6 flex flex-wrap gap-2">
-              {causas.map((slug) => (
-                <CausaBadge key={slug} slug={slug} grande />
-              ))}
+              {causas.map((slug) =>
+                publico ? (
+                  <Link key={slug} href={hrefCausa(slug)} className="transition hover:opacity-80">
+                    <CausaBadge slug={slug} grande />
+                  </Link>
+                ) : (
+                  <CausaBadge key={slug} slug={slug} grande />
+                ),
+              )}
             </div>
           )}
 
@@ -139,22 +173,53 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
   );
 }
 
-function Contatos({ empresa }: { empresa: Perfil }) {
-  if (!empresa.whatsapp && !empresa.site && !empresa.emailContato) return null;
+/**
+ * Os botões de contato. WhatsApp, Instagram e site abrem numa aba nova, para a pessoa não sair do site.
+ * Com `medir`, cada clique vira o evento `contato_negocio` no Analytics.
+ */
+function Contatos({ empresa, medir }: { empresa: Perfil; medir: boolean }) {
+  const instagram = temInstagram(empresa.instagramUsername);
+  if (!empresa.telefoneComercial && !empresa.whatsapp && !instagram && !empresa.site && !empresa.emailContato) return null;
+  const medida = (canal: CanalDeContato) => (medir ? medirContato(canal, empresa) : {});
   return (
     <div className="mt-6 flex flex-wrap gap-2">
+      {empresa.telefoneComercial && (
+        <a href={`tel:+${empresa.telefoneComercial}`} className="botao botao-pequeno" {...medida("telefone")}>
+          Ligar {formatarTelefone(empresa.telefoneComercial)}
+        </a>
+      )}
       {empresa.whatsapp && (
-        <a href={`https://wa.me/${empresa.whatsapp}`} target="_blank" rel="noopener noreferrer" className="botao botao-pequeno">
-          WhatsApp {formatarWhatsapp(empresa.whatsapp)}
+        <a
+          href={`https://wa.me/${empresa.whatsapp}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="botao botao-pequeno"
+          {...medida("whatsapp")}
+        >
+          <WhatsAppIcone />
+          WhatsApp {formatarTelefone(empresa.whatsapp)}
+        </a>
+      )}
+      {instagram && (
+        <a
+          href={linkPerfil(empresa.instagramUsername)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="botao-claro botao-pequeno"
+          {...medida("instagram")}
+        >
+          <InstagramIcone />
+          Instagram
         </a>
       )}
       {empresa.site && (
-        <a href={empresa.site} target="_blank" rel="noopener noreferrer nofollow" className="botao-claro botao-pequeno">
+        <a href={empresa.site} target="_blank" rel="noopener noreferrer nofollow" className="botao-claro botao-pequeno" {...medida("site")}>
           {new URL(empresa.site).hostname.replace(/^www\./, "")} ↗
         </a>
       )}
       {empresa.emailContato && (
-        <a href={`mailto:${empresa.emailContato}`} className="botao-claro botao-pequeno">
+        // break-all: um e-mail comprido quebra em vez de passar da largura do celular.
+        <a href={`mailto:${empresa.emailContato}`} className="botao-claro botao-pequeno max-w-full break-all" {...medida("email")}>
           {empresa.emailContato}
         </a>
       )}
@@ -225,8 +290,14 @@ function Depoimentos({
 
       {publico && !dono && !jaEscreveu && (
         <div className="mt-8">
-          {usuario ? (
+          {usuario?.emailConfirmado ? (
             <FormDepoimento empresaId={empresa.id} nomeEmpresa={empresa.nome} />
+          ) : usuario ? (
+            <ConfirmarEmail
+              email={usuario.email}
+              para="deixar seu depoimento"
+              voltar={`/empresas/${empresa.instagramUsername}#depoimentos`}
+            />
           ) : (
             <p className="cartao p-5 text-sm text-suave">
               <Link href={`/entrar?voltar=${encodeURIComponent(`/empresas/${empresa.instagramUsername}#depoimentos`)}`} className="link">
@@ -258,7 +329,7 @@ function Depoimentos({
                   </summary>
                   <form action={denunciarDepoimento} className="mt-2 flex gap-2">
                     <input type="hidden" name="depoimentoId" value={depoimento.id} />
-                    <input name="motivo" placeholder="O que há de errado?" className="campo py-1.5 text-xs" maxLength={300} />
+                    <input name="motivo" placeholder="O que há de errado?" className="campo py-1.5 sm:text-xs" maxLength={300} />
                     <button type="submit" className="botao-claro botao-pequeno">
                       Enviar
                     </button>

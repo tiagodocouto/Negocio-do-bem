@@ -1,0 +1,64 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "negocio-do-bem",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Sem keep_vars, o deploy apaga as variáveis de texto cadastradas no painel
+  // (APP_URL, NEXT_PUBLIC_R2_PUBLIC_URL...). As fixas ficam aqui; os secrets
+  // nunca são apagados pelo deploy.
+  "keep_vars": true,
+  // O www é domínio personalizado do Worker (#177): o Cloudflare cuida do DNS e
+  // do certificado. O domínio sem www não passa pelo Worker: uma regra de
+  // redirecionamento da zona manda para o www.
+  "routes": [{ "pattern": "www.negociodobem.com", "custom_domain": true }],
+  "vars": {
+    "DEPLOY_ENV": "production",
+    "CLOUDFLARE_DEPLOY": "1"
+  },
+  "r2_buckets": [
+    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-cache" },
+    { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-fotos" }
+  ],
+  // O Worker de produção fala com o banco pelo Hyperdrive (#177), com o cache de
+  // consultas desligado no painel. Os previews não herdam este binding e seguem
+  // na DATABASE_URL do banco de teste. O localConnectionString é o Postgres do
+  // docker-compose, usado só pelo npm run preview:cloudflare.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "9955bdb4b4fc4dfbace46f1d61728f3c",
+      "localConnectionString": "postgresql://postgres:postgres@localhost:5433/negocio_do_bem"
+    }
+  ],
+  "previews": {
+    "r2_buckets": [
+      { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-preview-cache" },
+      { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-preview-fotos" }
+    ],
+    "vars": {
+      "DEPLOY_ENV": "preview",
+      "CLOUDFLARE_DEPLOY": "1",
+      "NEXT_PUBLIC_R2_PUBLIC_URL": "https://pub-cc632c3026aa4be198825fef23f9a388.r2.dev"
+    }
+  },
+  // Só para o npm run cf:preview preencher o cache dos previews. O populateCache
+  // do OpenNext lê o bucket de cache daqui e não conhece o bloco previews; com
+  // --env previews-cache, ele grava no bucket dos previews. Repete os buckets e
+  // as variáveis fixas do bloco previews, porque um ambiente não herda essas
+  // chaves e o wrangler avisa quando faltam. Nada é publicado com este ambiente.
+  "env": {
+    "previews-cache": {
+      "vars": { "DEPLOY_ENV": "preview", "CLOUDFLARE_DEPLOY": "1" },
+      "r2_buckets": [
+        { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-preview-cache" },
+        { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-preview-fotos" }
+      ]
+    }
+  },
+  "observability": { "enabled": true }
+}

@@ -10,6 +10,7 @@ export default defineConfig({
     },
   },
   test: {
+    include: ["tests/{unit,db}/**/*.{test,spec}.?(c|m)[jt]s?(x)"],
     environment: "node",
     globalSetup: ["tests/global-setup.ts"],
     setupFiles: ["tests/setup.ts"],

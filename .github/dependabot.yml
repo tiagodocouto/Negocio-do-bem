@@ -1,0 +1,56 @@
+# Dependabot: abre PRs para a stage (a branch padrão) quando sai versão nova
+# de uma dependência do npm ou de uma Action dos workflows.
+#
+# - Toda segunda de manhã, no máximo um PR agrupado por ecossistema para minor e
+#   patch. Major vem em PR próprio, para as mudanças que quebram serem revisadas
+#   sozinhas.
+# - Quarentena (cooldown): uma versão só é proposta depois de alguns dias
+#   publicada. Um pacote comprometido costuma ser retirado do npm nesse prazo.
+# - Atualizações de segurança não esperam nem a segunda nem a quarentena, mas
+#   precisam estar ligadas em Settings > Advanced Security > Dependabot security
+#   updates.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    cooldown:
+      semver-patch-days: 3
+      semver-minor-days: 7
+      semver-major-days: 30
+    groups:
+      npm-minor-e-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      actions-minor-e-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore
+      include: scope

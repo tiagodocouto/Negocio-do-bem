@@ -1,0 +1,116 @@
+<!doctype html>
+<!--
+  Página que o service worker (public/sw.js) mostra quando uma página não abre
+  por falta de conexão. Não depende de nenhum arquivo do build: estilos e
+  script ficam aqui dentro, e o ícone vem do cache do service worker.
+-->
+<html lang="pt-BR" data-tema="claro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#f9f3eb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#17120e" media="(prefers-color-scheme: dark)" />
+    <title>Sem conexão · Negócio do Bem</title>
+    <script>
+      // A mesma regra de SCRIPT_TEMA (src/lib/tema.ts).
+      (function () {
+        var t;
+        try {
+          t = localStorage.getItem("tema");
+        } catch (e) {}
+        if (t !== "claro" && t !== "escuro") t = matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro";
+        document.documentElement.setAttribute("data-tema", t);
+      })();
+    </script>
+    <style>
+      :root {
+        --papel: #f9f3eb;
+        --superficie: #fffdf9;
+        --tinta: #2d251d;
+        --suave: #6e6357;
+        --linha: #eadfd0;
+      }
+      [data-tema="escuro"] {
+        color-scheme: dark;
+        --papel: #17120e;
+        --superficie: #221b15;
+        --tinta: #f9f3eb;
+        --suave: #a99c8e;
+        --linha: #3a3029;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+        background: var(--papel);
+        color: var(--tinta);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        width: 100%;
+        max-width: 420px;
+        padding: 32px 24px;
+        border: 1px solid var(--linha);
+        border-radius: 24px;
+        background: var(--superficie);
+        text-align: center;
+      }
+      img {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+      }
+      h1 {
+        margin: 20px 0 8px;
+        font-family: ui-serif, Georgia, serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        color: var(--suave);
+        line-height: 1.6;
+      }
+      button {
+        margin-top: 24px;
+        padding: 10px 20px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--tinta);
+        color: var(--papel);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      button:focus-visible {
+        outline: 2px solid #e45c32;
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icones/icone-192.png" alt="" />
+      <h1>Sem conexão</h1>
+      <p>Esta página não abriu porque o aparelho está sem internet. Assim que a conexão voltar, ela carrega sozinha.</p>
+      <button type="button" onclick="location.reload()">Tentar de novo</button>
+    </main>
+    <script>
+      window.addEventListener("online", function () {
+        location.reload();
+      });
+    </script>
+  </body>
+</html>

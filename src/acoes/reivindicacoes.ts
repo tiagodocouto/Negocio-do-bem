@@ -1,13 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { exigirUsuario } from "@/lib/auth/sessao";
+import { AVISOS } from "@/lib/avisos";
 import { cnpjValido, limparCnpj } from "@/lib/cnpj";
 import { db } from "@/lib/db";
 import { campoSite, errosPorCampo, texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
-import { perfilOficial } from "@/lib/instagram";
-import { cancelar, ErroReivindicacao, iniciarPorCodigoDm, solicitarPorDocumento } from "@/lib/reivindicacao";
+import { medir } from "@/lib/medicao-servidor";
+import { avisarNovaReivindicacao } from "@/lib/notificacoes";
+import { cancelar, ErroReivindicacao, solicitarPorDocumento } from "@/lib/reivindicacao";
 
 async function carregar(dados: FormData) {
   const empresa = await db.empresa.findUnique({ where: { id: texto(dados, "empresaId") } });
@@ -15,18 +18,6 @@ async function carregar(dados: FormData) {
   const caminho = `/empresas/${empresa.instagramUsername}/reivindicar`;
   const usuario = await exigirUsuario(caminho);
   return { empresa, usuario, caminho };
-}
-
-export async function gerarCodigoDm(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
-  const { empresa, usuario, caminho } = await carregar(dados);
-  if (!perfilOficial()) return { erro: "A verificação por DM está desligada. Envie os dados do negócio abaixo." };
-  try {
-    await iniciarPorCodigoDm(empresa.id, usuario.id);
-  } catch (erro) {
-    if (erro instanceof ErroReivindicacao) return { erro: erro.message };
-    throw erro;
-  }
-  redirect(`${caminho}?aviso=codigo_gerado#codigo`);
 }
 
 const esquemaDocumento = z.object({
@@ -49,6 +40,7 @@ const esquemaDocumento = z.object({
 
 export async function enviarDocumento(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
   const { empresa, usuario, caminho } = await carregar(dados);
+  if (!usuario.emailConfirmado) return { erro: AVISOS.confirmar_email.texto, valores: valoresDoFormulario(dados) };
   const resultado = esquemaDocumento.safeParse({
     cnpj: texto(dados, "cnpj"),
     site: texto(dados, "site"),
@@ -71,6 +63,8 @@ export async function enviarDocumento(_estado: EstadoFormulario, dados: FormData
     if (erro instanceof ErroReivindicacao) return { erro: erro.message, valores: valoresDoFormulario(dados) };
     throw erro;
   }
+  if (!aprovada) after(() => avisarNovaReivindicacao(empresa.id));
+  await medir({ nome: "perfil_reivindicado", params: { method: "documento", resultado: aprovada ? "verificada" : "em_analise" } });
   redirect(aprovada ? `/painel/${empresa.instagramUsername}?aviso=verificada` : `${caminho}?aviso=documento_enviado`);
 }
 

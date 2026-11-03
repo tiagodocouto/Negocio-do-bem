@@ -1,0 +1,38 @@
+# Procura vulnerabilidades altas e críticas nas dependências (npm audit).
+#
+# Roda em todo pull request e uma vez por dia sobre a stage. Fica fora da
+# checagem exigida "Lint, tipos e testes" de propósito: uma falha nova num pacote
+# que o PR nem tocou não deve travar a contribuição de ninguém. A rodada diária
+# pega o alerta que sai num dia sem PR aberto.
+#
+# Lê só o package-lock.json: não instala nada nem roda scripts de pacotes.
+name: Auditoria de dependências
+
+on:
+  pull_request:
+  schedule:
+    # 06:00 em São Paulo. Rodadas agendadas usam sempre a branch padrão (stage).
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auditoria-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auditar:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Vulnerabilidades altas ou críticas no package-lock.json
+        run: npm audit --package-lock-only --audit-level=high

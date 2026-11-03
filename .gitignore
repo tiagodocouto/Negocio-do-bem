@@ -38,8 +38,10 @@ yarn-error.log*
 # fotos escolhidas à mão para a rotina de fotos (npm run fotos:instagram)
 /fotos-manuais/
 
-# vercel
+# deployment artefacts
 .vercel
+/.open-next/
+/cloudflare-env.d.ts
 
 # typescript
 *.tsbuildinfo
@@ -48,5 +50,8 @@ next-env.d.ts
 # prisma client gerado (npm install roda prisma generate)
 /src/generated/
 
-# fotos enviadas em desenvolvimento (em produção vão para o Vercel Blob)
+# fotos enviadas em desenvolvimento (em produção vão para o Cloudflare R2)
 /public/enviados/
+
+# schema temporário do build Cloudflare (scripts/cloudflare-build.sh)
+/prisma/schema.cloudflare.prisma

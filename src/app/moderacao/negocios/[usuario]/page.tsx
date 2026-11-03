@@ -8,7 +8,8 @@ import { AvisoDaUrl } from "@/components/Avisos";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
-import { normalizarUsername } from "@/lib/instagram";
+import { rotuloDoInstagram } from "@/lib/endereco";
+import { normalizarEndereco } from "@/lib/instagram";
 
 export const metadata: Metadata = { title: "Editar perfil · Moderação", robots: { index: false } };
 
@@ -24,7 +25,7 @@ export default function EditarPelaModeracao(props: PageProps<"/moderacao/negocio
 
 async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/negocios/[usuario]">, "params" | "searchParams">) {
   await exigirModerador();
-  const username = normalizarUsername((await params).usuario);
+  const username = normalizarEndereco((await params).usuario);
   if (!username) notFound();
   const empresa = await db.empresa.findUnique({
     where: { instagramUsername: username },
@@ -45,7 +46,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/neg
             <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Edição pela moderação</p>
             <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
             <p className="text-suave">
-              @{empresa.instagramUsername} · {MODERACAO_EMPRESA[empresa.moderacao]} · {temDono ? "tem dono" : "sem dono"}
+              {rotuloDoInstagram(empresa.instagramUsername)} · {MODERACAO_EMPRESA[empresa.moderacao]} · {temDono ? "tem dono" : "sem dono"}
               {empresa.oculta && " · oculto pelo dono"}
             </p>
           </div>

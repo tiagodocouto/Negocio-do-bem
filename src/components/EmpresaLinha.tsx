@@ -14,12 +14,14 @@ export function EmpresaLinha({ empresa }: { empresa: EmpresaResumo }) {
         <span className="flex items-center gap-2">
           <span className="truncate font-serif text-lg leading-tight font-semibold group-hover:text-coral-700">{empresa.nome}</span>
           {empresa.status === "verificada" && (
-            <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-folha" role="img" aria-label="Verificado pelo dono">
-              <path
-                fill="currentColor"
-                d="M10 1.5 12.2 3l2.6-.2.9 2.5 2.3 1.3-.6 2.6.6 2.6-2.3 1.3-.9 2.5-2.6-.2L10 17l-2.2-1.5-2.6.2-.9-2.5L2 11.9l.6-2.6L2 6.6l2.3-1.3.9-2.5 2.6.2L10 1.5Zm3.5 6-1-1-3.6 3.6-1.6-1.6-1 1 2.6 2.6 4.6-4.6Z"
-              />
-            </svg>
+            <span
+              role="img"
+              aria-label="Perfil assumido"
+              title="Uma conta assumiu o perfil. Identidade e causas não certificadas."
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-linha bg-superficie text-sm text-suave"
+            >
+              •
+            </span>
           )}
         </span>
         <span className="mt-0.5 block truncate text-sm text-tinta/85">{empresa.resumo}</span>

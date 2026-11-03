@@ -23,6 +23,9 @@ type DadosEmpresa = {
   site: string;
   whatsapp: string;
   emailContato: string;
+  telefoneComercial: string;
+  emailDoDono: string;
+  telefoneDoDono: string;
   historia: string;
   causas: string[];
 };
@@ -53,7 +56,7 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
         <Campo id="resumo" rotulo="Em uma frase" erro={erros.resumo} ajuda="Aparece nos cards do diretório. Até 160 caracteres.">
           <input id="resumo" name="resumo" required maxLength={160} defaultValue={valor("resumo")} className="campo" />
         </Campo>
-        <div className="grid items-start gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <Campo id="categoria" rotulo="Categoria" erro={erros.categoria}>
             <select id="categoria" name="categoria" defaultValue={valor("categoria")} className="campo">
               {CATEGORIAS.map((c) => (
@@ -71,17 +74,35 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
       <section className="cartao space-y-5 p-6 sm:p-8">
         <div>
           <h2 className="font-serif text-2xl font-semibold">Contato</h2>
-          <p className="mt-1 text-sm text-suave">Tudo opcional. O que você preencher vira botão no perfil.</p>
+          <p className="mt-1 text-sm text-suave">O que você preencher vira botão no perfil.</p>
         </div>
+        <Campo id="telefoneComercial" rotulo="Telefone comercial" erro={erros.telefoneComercial}>
+          <input id="telefoneComercial" name="telefoneComercial" type="tel" maxLength={30} placeholder="(11) 3333-4444" defaultValue={valor("telefoneComercial")} className="campo" />
+        </Campo>
         <Campo id="site" rotulo="Site" erro={erros.site}>
           <input id="site" name="site" maxLength={200} placeholder="www.meunegocio.com.br" defaultValue={valor("site")} className="campo" />
         </Campo>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo id="whatsapp" rotulo="WhatsApp" erro={erros.whatsapp}>
             <input id="whatsapp" name="whatsapp" type="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={valor("whatsapp")} className="campo" />
           </Campo>
           <Campo id="emailContato" rotulo="E-mail de contato" erro={erros.emailContato}>
             <input id="emailContato" name="emailContato" type="email" maxLength={200} placeholder="contato@meunegocio.com.br" defaultValue={valor("emailContato")} className="campo" />
+          </Campo>
+        </div>
+      </section>
+
+      <section className="cartao space-y-5 p-6 sm:p-8">
+        <div>
+          <h2 className="font-serif text-2xl font-semibold">Contato do dono</h2>
+          <p className="mt-1 text-sm text-suave">Não aparece no perfil: só os donos e a moderação veem.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Campo id="emailDoDono" rotulo="E-mail" erro={erros.emailDoDono}>
+            <input id="emailDoDono" name="emailDoDono" type="email" maxLength={200} placeholder="voce@email.com" defaultValue={valor("emailDoDono")} className="campo" />
+          </Campo>
+          <Campo id="telefoneDoDono" rotulo="Telefone" erro={erros.telefoneDoDono}>
+            <input id="telefoneDoDono" name="telefoneDoDono" type="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={valor("telefoneDoDono")} className="campo" />
           </Campo>
         </div>
       </section>

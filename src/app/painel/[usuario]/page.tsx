@@ -9,11 +9,13 @@ import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { exigirUsuario } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
-import { normalizarUsername } from "@/lib/instagram";
+import { rotuloDoInstagram } from "@/lib/endereco";
+import { normalizarEndereco } from "@/lib/instagram";
 import { formatarData } from "@/lib/texto";
 import { EdicaoEmpresa } from "./EdicaoEmpresa";
+import { FORA_DA_BUSCA } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Editar perfil" };
+export const metadata: Metadata = { title: "Editar perfil", robots: FORA_DA_BUSCA };
 
 export default function EditarEmpresa(props: PageProps<"/painel/[usuario]">) {
   return (
@@ -26,7 +28,7 @@ export default function EditarEmpresa(props: PageProps<"/painel/[usuario]">) {
 }
 
 async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuario]">, "params" | "searchParams">) {
-  const username = normalizarUsername((await params).usuario);
+  const username = normalizarEndereco((await params).usuario);
   if (!username) notFound();
   const usuario = await exigirUsuario(`/painel/${username}`);
   const empresa = await db.empresa.findUnique({
@@ -54,7 +56,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
           <div>
             <h1 className="font-serif text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
             <p className="text-suave">
-              @{empresa.instagramUsername} · {empresa.oculta ? "Oculto do diretório" : MODERACAO_EMPRESA[empresa.moderacao]}
+              {rotuloDoInstagram(empresa.instagramUsername)} · {empresa.oculta ? "Oculto do diretório" : MODERACAO_EMPRESA[empresa.moderacao]}
             </p>
           </div>
           <Link href={`/empresas/${empresa.instagramUsername}`} className="botao-claro botao-pequeno">
@@ -92,7 +94,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
                   maxLength={1000}
                   defaultValue={d.resposta ?? ""}
                   placeholder="Escreva uma resposta (opcional)…"
-                  className="campo text-sm"
+                  className="campo sm:text-sm"
                 />
                 <BotaoEnviar className="botao-claro botao-pequeno" enviando="Salvando…">
                   {d.resposta ? "Atualizar resposta" : "Responder"}

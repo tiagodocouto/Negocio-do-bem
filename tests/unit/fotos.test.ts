@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { conferirFoto } from "@/lib/armazenamento";
 import { ehFotoDoSite } from "@/lib/fotos";
 
@@ -32,22 +32,31 @@ describe("conferirFoto", () => {
 });
 
 describe("ehFotoDoSite", () => {
-  it("aceita o Vercel Blob e a pasta local de desenvolvimento", () => {
-    expect(ehFotoDoSite("https://abc123.public.blob.vercel-storage.com/perfis/x.jpg")).toBe(true);
+  it("aceita a pasta local de desenvolvimento", () => {
     expect(ehFotoDoSite("/enviados/historias/x.jpg")).toBe(true);
   });
 
-  it("aceita qualquer store do Vercel Blob, como o de produção e o dos previews", () => {
-    expect(ehFotoDoSite("https://producao1.public.blob.vercel-storage.com/perfis/x.jpg")).toBe(true);
-    expect(ehFotoDoSite("https://previews2.public.blob.vercel-storage.com/historias/x.jpg")).toBe(true);
+  it("recusa o Vercel Blob, cujas fotos foram copiadas para o R2", () => {
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "https://fotos.exemplo.com");
+    expect(ehFotoDoSite("https://producao1.public.blob.vercel-storage.com/perfis/x.jpg")).toBe(false);
+    expect(ehFotoDoSite("https://previews2.public.blob.vercel-storage.com/historias/x.jpg")).toBe(false);
+    vi.unstubAllEnvs();
+  });
+
+  it("aceita o domínio R2 configurado para o ambiente", () => {
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "https://fotos.exemplo.com");
+    expect(ehFotoDoSite("https://fotos.exemplo.com/perfis/x.jpg")).toBe(true);
+    vi.unstubAllEnvs();
   });
 
   it("recusa imagens de outros endereços e caminhos suspeitos", () => {
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "https://fotos.exemplo.com");
     expect(ehFotoDoSite("https://exemplo.com/foto.jpg")).toBe(false);
-    expect(ehFotoDoSite("http://abc123.public.blob.vercel-storage.com/x.jpg")).toBe(false);
-    expect(ehFotoDoSite("https://public.blob.vercel-storage.com.exemplo.com/x.jpg")).toBe(false);
+    expect(ehFotoDoSite("http://fotos.exemplo.com/x.jpg")).toBe(false);
+    expect(ehFotoDoSite("https://fotos.exemplo.com.outro.exemplo/x.jpg")).toBe(false);
     expect(ehFotoDoSite("/enviados/../.env")).toBe(false);
     expect(ehFotoDoSite("javascript:alert(1)")).toBe(false);
     expect(ehFotoDoSite(null)).toBe(false);
+    vi.unstubAllEnvs();
   });
 });
