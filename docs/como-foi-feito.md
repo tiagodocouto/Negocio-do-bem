@@ -21,7 +21,7 @@ As regras em si, uma por uma, estão em [Regras de negócio](regras-de-negocio.m
 
 ## 1. Por que o projeto existe
 
-O Negócio do Bem nasceu para dar visibilidade a quem cuida das pessoas, da comunidade e do planeta. A página [Como funciona](https://negociodobem.vercel.app/sobre) resume a ideia: quando negócios são atacados por defenderem o respeito e a dignidade, a melhor resposta é coletiva. A comunidade encontra, indica e fortalece quem faz o bem.
+O Negócio do Bem nasceu para dar visibilidade a quem cuida das pessoas, da comunidade e do planeta. A página [Como funciona](https://www.negociodobem.com/sobre) resume a ideia: quando negócios são atacados por defenderem o respeito e a dignidade, a melhor resposta é coletiva. A comunidade encontra, indica e fortalece quem faz o bem.
 
 Daí saem as três peças do produto:
 
@@ -33,17 +33,17 @@ Daí saem as três peças do produto:
 
 Quase toda regra do sistema sai de um destes princípios. Diante de uma decisão nova, comece por eles.
 
-### A comunidade indica, o dono confirma, a moderação garante
+### A comunidade indica, o dono assume, a moderação corrige depois
 
 O diretório cresce sem precisar que os donos se cadastrem primeiro: qualquer pessoa indica. Isso traz um risco, que é alguém se passar pelo dono ou cadastrar um perfil falso. A resposta tem três partes:
 
-- **A moderação corrige depois.** Indicações entram no ar na hora, e a moderação tira do ar o que for spam ou perfil falso. Até a [issue #20](https://github.com/fabsreis/Negocio-do-bem/issues/20), cada indicação esperava a revisão, mas a fila cresceu mais rápido do que dava para revisar.
-- **O selo diz quem falou.** "Indicado pela comunidade" e "Verificado pelo dono" são selos diferentes, então quem visita sabe se o perfil foi confirmado.
+- **A moderação corrige depois.** Indicações entram no ar na hora, e a moderação tira do ar o que for spam ou perfil falso. Até a [issue #20](https://github.com/fabs-reis/Negocio-do-bem/issues/20), cada indicação esperava a revisão, mas a fila cresceu mais rápido do que dava para revisar.
+- **O selo informa se o perfil foi assumido.** "Indicado pela comunidade" e "Perfil assumido" são selos diferentes. Uma aprovação automática também recebe "Perfil assumido", sem afirmar que a moderação conferiu os dados. O selo não certifica identidade nem causas.
 - **Quem chega primeiro num negócio sem dono vira dono.** O pedido pelos dados do negócio é aprovado na hora quando ninguém assumiu o perfil. Disputas, quando o negócio já tem dono, continuam com a moderação.
 
 ### O @ do Instagram é a identidade do negócio
 
-Cada negócio é o seu @: ele é único, é o endereço da página (`/empresas/<@>`) e é o que a moderação abre para comparar com os dados enviados.
+Cada negócio é o seu @: ele é único, é o endereço da página (`/empresas/<@>`) e é o que a moderação abre para comparar com os dados enviados. O negócio sem Instagram ganha um endereço feito do nome e da cidade, com hífen, que o Instagram não aceita no @: assim os dois cabem na mesma coluna sem se confundir.
 
 - **Por que o @:** é público, fácil de achar e de digitar, e quem indica normalmente já sabe qual é.
 - **Por que só o @ não basta:** um @ pode ser abandonado e registrado por outra pessoa. Por isso, nos caminhos de verificação pelo Instagram, o perfil fica ligado ao **ID fixo da conta**, e uma conta diferente da registrada nunca é aprovada sozinha.
@@ -74,7 +74,7 @@ Assim, um depoimento negativo e honesto não some só porque incomodou o dono, e
 
 ### Sem ranking e sem anúncio pago
 
-A ordem do diretório é simples e transparente: verificados primeiro, depois os atualizados mais recentemente. Não existe nota, destaque pago nem algoritmo de relevância.
+A ordem do diretório é simples e transparente: perfis assumidos primeiro, depois os atualizados mais recentemente. Não existe nota, destaque pago nem algoritmo de relevância.
 
 ### Funcionar sem depender de terceiros
 
@@ -85,7 +85,9 @@ O site precisa funcionar mesmo quando um serviço de fora falha ou ainda não fo
 | Integração com o Instagram | Funciona: a reivindicação pelos dados do negócio continua disponível. |
 | Consulta de CNPJ (BrasilAPI) | Funciona: a consulta é só um apoio para a moderação, nunca bloqueia a análise. |
 | Google Analytics | Funciona: sem o ID, ele simplesmente não carrega. |
-| Vercel Blob | Funciona. No computador de quem desenvolve, as fotos ficam numa pasta local. Em produção, só o envio de fotos mostra um erro. |
+| Login com o Google | Funciona: sem a configuração, o botão não aparece. Se o Google falhar, quem entra por ele usa o link por e-mail. |
+| Cloudflare R2 | Funciona. No computador de quem desenvolve, as fotos ficam numa pasta local. Em produção, o binding R2 e o domínio público precisam estar configurados para aceitar uploads. |
+| Envio de e-mails (Resend) | Funciona, com uma exceção: ninguém recebe os avisos nem os links. Quem tem senha continua entrando. Com a confirmação de e-mail ligada, uma conta nova não consegue confirmar o e-mail e, até o envio voltar, não indica, não escreve depoimentos e não reivindica. |
 
 ### Tudo em português
 
@@ -118,7 +120,7 @@ A reivindicação nasceu com **três caminhos**:
 
 Logo depois, o Postgres do Docker passou para a porta **5433**, para não brigar com um Postgres já instalado no computador.
 
-### 28 de outubro: a reivindicação fica simples ([#2](https://github.com/fabsreis/Negocio-do-bem/pull/2))
+### 28 de outubro: a reivindicação fica simples ([#2](https://github.com/fabs-reis/Negocio-do-bem/pull/2))
 
 Os dois caminhos pelo Instagram dependem da Meta:
 
@@ -131,9 +133,9 @@ Para colocar o projeto no ar sem esperar tudo isso, a reivindicação passou a t
 
 **Nada foi apagado.** O código, as rotas e os testes dos caminhos pelo Instagram continuam no projeto e ligam sozinhos quando as variáveis de ambiente são preenchidas.
 
-No mesmo dia, o README ganhou os prints das telas ([#1](https://github.com/fabsreis/Negocio-do-bem/pull/1)).
+No mesmo dia, o README ganhou os prints das telas ([#1](https://github.com/fabs-reis/Negocio-do-bem/pull/1)).
 
-### 29 de outubro: código aberto e no ar ([#3](https://github.com/fabsreis/Negocio-do-bem/pull/3))
+### 29 de outubro: código aberto e no ar ([#3](https://github.com/fabs-reis/Negocio-do-bem/pull/3))
 
 O repositório virou código aberto:
 
@@ -146,7 +148,7 @@ O site passou a dizer, no rodapé e em "Como funciona", que o código é aberto,
 
 No mesmo PR, o site foi publicado no Vercel. O banco é um Postgres no Neon, e as migrações rodam a cada deploy de produção (`scripts/vercel-build.sh`). As funções ficam em São Paulo (`gru1`), perto do banco e do público.
 
-### 29 de outubro: foto, contatos e história com fotos ([#4](https://github.com/fabsreis/Negocio-do-bem/pull/4))
+### 29 de outubro: foto, contatos e história com fotos ([#4](https://github.com/fabs-reis/Negocio-do-bem/pull/4))
 
 Primeiro pedido depois do lançamento: o perfil precisava de mais vida e de mais formas de contato.
 
@@ -159,11 +161,11 @@ Primeiro pedido depois do lançamento: o perfil precisava de mais vida e de mais
 
 A ideia de puxar a foto direto do Instagram ficou para depois, porque só funciona pela API oficial e com contas comerciais.
 
-### 29 de outubro: issues e pull requests ([#6](https://github.com/fabsreis/Negocio-do-bem/pull/6))
+### 29 de outubro: issues e pull requests ([#6](https://github.com/fabs-reis/Negocio-do-bem/pull/6))
 
 O projeto adotou o fluxo descrito em [Como trabalhamos](#10-como-trabalhamos): issue antes do código, branch por issue, PR com revisão e deploy só pelo merge. A `main` ficou protegida.
 
-### 29 de outubro: a moderação edita qualquer perfil ([#9](https://github.com/fabsreis/Negocio-do-bem/pull/9))
+### 29 de outubro: a moderação edita qualquer perfil ([#9](https://github.com/fabs-reis/Negocio-do-bem/pull/9))
 
 A moderação precisava corrigir um telefone ou trocar a foto de qualquer negócio, sem depender do dono.
 
@@ -171,7 +173,7 @@ A moderação precisava corrigir um telefone ou trocar a foto de qualquer negóc
 - **Rastro na auditoria.** Cada edição da moderação ganha o sufixo `_pela_moderacao`.
 - **Ocultar continua só do dono.**
 
-### 29 de outubro: a história no estilo Substack ([#10](https://github.com/fabsreis/Negocio-do-bem/pull/10))
+### 29 de outubro: a história no estilo Substack ([#10](https://github.com/fabs-reis/Negocio-do-bem/pull/10))
 
 O campo de Markdown virou um editor visual (Tiptap), com títulos, citações, listas, separadores e fotos com legenda.
 
@@ -181,7 +183,7 @@ A decisão importante: **a história continua guardada em Markdown.** Por isso:
 - o perfil continua usando o mesmo componente seguro de exibição;
 - em troca, o editor só oferece o que o Markdown guarda (nada de sublinhado ou cores).
 
-### 29 de outubro: modo escuro ([#12](https://github.com/fabsreis/Negocio-do-bem/pull/12))
+### 29 de outubro: modo escuro ([#12](https://github.com/fabs-reis/Negocio-do-bem/pull/12))
 
 O switch no cabeçalho alterna entre claro e escuro.
 
@@ -189,24 +191,24 @@ O switch no cabeçalho alterna entre claro e escuro.
 - **Sem piscar:** um script no `<head>` aplica o tema antes da primeira pintura.
 - **As cores são variáveis do tema.** As classes não mudam: o que muda é o valor de cada cor.
 
-### 29 de outubro: Google Analytics ([#14](https://github.com/fabsreis/Negocio-do-bem/pull/14))
+### 29 de outubro: Google Analytics ([#14](https://github.com/fabs-reis/Negocio-do-bem/pull/14))
 
 O objetivo era medir o tráfego do site.
 
 - **Só em produção:** o Analytics carrega apenas quando `NEXT_PUBLIC_GA_ID` existe, e ela só está configurada em Production. Cópias do projeto e previews não mandam dados.
 - **Sem aviso de cookies:** foi uma decisão do projeto. A seção de privacidade de "Como funciona" explica a medição.
 
-### 29 de outubro: aprovação automática ([#20](https://github.com/fabsreis/Negocio-do-bem/issues/20))
+### 29 de outubro: aprovação automática ([#20](https://github.com/fabs-reis/Negocio-do-bem/issues/20))
 
 No primeiro dia no ar, a fila da moderação chegou a 16 reivindicações e 20 indicações, e aprovar uma por uma virou gargalo. A decisão foi trocar "aprovar antes" por "corrigir depois":
 
 - **Indicações** entram no ar na hora. A aba Negócios da moderação ganhou "Tirar do ar" e "Publicar de novo", que não existiam.
 - **Reivindicações pelos dados do negócio** são aprovadas na hora quando o negócio não tem dono e está no ar. Disputas continuam com a moderação.
 - **A fila antiga** se esvazia com dois botões: "Publicar todas" e "Aprovar os N pedidos sem dono".
-- **A consulta à Receita** voltou a funcionar ([#21](https://github.com/fabsreis/Negocio-do-bem/issues/21)). A BrasilAPI recusava o User-Agent padrão do `fetch` do Node e respondia 403.
+- **A consulta à Receita** voltou a funcionar ([#21](https://github.com/fabs-reis/Negocio-do-bem/issues/21)). A BrasilAPI recusava o User-Agent padrão do `fetch` do Node e respondia 403.
 - **O risco aceito:** qualquer conta assume um perfil que ainda não tem dono. Uma verificação de verdade fica como próximo passo. Por exemplo, comparar o nome de quem pede com os sócios que a Receita devolve para o CNPJ.
 
-### 29 de outubro: homologação na `stage` ([#23](https://github.com/fabsreis/Negocio-do-bem/issues/23))
+### 29 de outubro: homologação na `stage` ([#23](https://github.com/fabs-reis/Negocio-do-bem/issues/23))
 
 Até aqui, o merge de um PR já publicava em produção. Para ter uma etapa de homologação entre o código revisado e o site no ar:
 
@@ -214,7 +216,7 @@ Até aqui, o merge de um PR já publicava em produção. Para ter uma etapa de h
 - **Publicar é um PR da `stage` para a `main`.**
 - **Um ruleset protege `main`, `stage` e `releases/**`:** PR com 1 aprovação, a checagem "Lint, tipos e testes", só squash e histórico linear, sem force push e sem apagar a branch. Quem administra o repositório pode fazer o merge do próprio PR sem esperar aprovação, mas não pode dar push direto.
 
-### 29 de outubro: fotos de perfil pelo Instagram ([#31](https://github.com/fabsreis/Negocio-do-bem/issues/31))
+### 29 de outubro: fotos de perfil pelo Instagram ([#31](https://github.com/fabs-reis/Negocio-do-bem/issues/31))
 
 Muitos negócios ficavam sem foto até o dono entrar. A ideia era buscar a foto de perfil no Instagram, sem pesar no Vercel.
 
@@ -224,26 +226,26 @@ Muitos negócios ficavam sem foto até o dono entrar. A ideia era buscar a foto 
 - **A foto do dono vence sempre.** A rotina só preenche negócio sem foto, e a gravação confere isso de novo no último instante.
 - **Pasta manual de reforço:** uma foto em `fotos-manuais/<@>.jpg` tem prioridade, para as contas que a API não alcança.
 
-### 29 de outubro: o Blob pelo OIDC, sem token ([#30](https://github.com/fabsreis/Negocio-do-bem/issues/30))
+### 29 de outubro: o Blob pelo OIDC, sem token ([#30](https://github.com/fabs-reis/Negocio-do-bem/issues/30))
 
 O painel do Vercel recomendou revogar o token de leitura e escrita do Blob de produção, porque o projeto já se autentica pelo OIDC do deploy. O `@vercel/blob` já preferia o OIDC com o `BLOB_STORE_ID`, mas o site só usava o Blob quando a `BLOB_READ_WRITE_TOKEN` existia.
 
 - **O site usa o Blob com `BLOB_STORE_ID` ou `BLOB_READ_WRITE_TOKEN`** (`src/lib/armazenamento.ts`). Sem nenhuma das duas, continua a pasta local em desenvolvimento e o erro em produção.
 - **Com a mudança em produção, o token do Blob de produção é revogado** no painel (página **Projects** do Blob). Ele também estava guardado nos deploys de preview antigos, de antes do Blob dos previews. Revogar tira esse acesso de vez.
 
-### 29 de outubro: a publicação entra por merge commit ([#50](https://github.com/fabsreis/Negocio-do-bem/issues/50))
+### 29 de outubro: a publicação entra por merge commit ([#50](https://github.com/fabs-reis/Negocio-do-bem/issues/50))
 
-O PR de publicação [#46](https://github.com/fabsreis/Negocio-do-bem/pull/46) conflitou, mesmo com a `main` contida na `stage`. Com squash nas duas branches, a base comum da `stage` e da `main` não avançava: cada publicação criava na `main` um commit novo, que a `stage` não tinha. Quando a `stage` mudava linhas perto do que já tinha sido publicado, o Git via duas mudanças diferentes no mesmo trecho.
+O PR de publicação [#46](https://github.com/fabs-reis/Negocio-do-bem/pull/46) conflitou, mesmo com a `main` contida na `stage`. Com squash nas duas branches, a base comum da `stage` e da `main` não avançava: cada publicação criava na `main` um commit novo, que a `stage` não tinha. Quando a `stage` mudava linhas perto do que já tinha sido publicado, o Git via duas mudanças diferentes no mesmo trecho.
 
 - **A `main` aceita só merge commit.** O ruleset único virou dois. O da `stage` (e de `releases/**`) continua só com squash e histórico linear. O da `main` aceita só merge commit e não exige histórico linear. Depois de cada publicação, a ponta da `stage` passa a fazer parte da história da `main`, e o próximo PR mostra só o que ainda falta publicar.
 - **Por que não as outras saídas.**
   - Um PR da `main` de volta para a `stage` depois de cada publicação não resolve: o squash na `stage` não registra a `main` como pai, e a base comum continua parada.
-  - A saída usada no [#48](https://github.com/fabsreis/Negocio-do-bem/pull/48), um branch com a `stage` mais um merge da `main`, funciona. Só que precisaria se repetir a cada conflito, e os conflitos ficariam mais frequentes, porque a distância entre a base comum e a `main` só cresce.
+  - A saída usada no [#48](https://github.com/fabs-reis/Negocio-do-bem/pull/48), um branch com a `stage` mais um merge da `main`, funciona. Só que precisaria se repetir a cada conflito, e os conflitos ficariam mais frequentes, porque a distância entre a base comum e a `main` só cresce.
 - **A aprovação ficou só na `main`.** O projeto tem uma pessoa com acesso de escrita, e o GitHub não deixa aprovar o próprio PR. Com 1 aprovação exigida nas duas branches, todo merge dependia do bypass, e o auto-merge nunca disparava. Agora a `stage` não exige aprovação, e os PRs do dia a dia entram com o botão normal, depois da checagem. A `main` continua exigindo 1 aprovação, para publicar em produção ser um passo consciente. Quando o projeto tiver outra pessoa mantenedora, a aprovação volta para a `stage`.
-- **A primeira vez:** a base comum ainda era `12f1e87`, de antes da `stage`. Um PR sem nenhuma mudança de arquivo ([#52](https://github.com/fabsreis/Negocio-do-bem/pull/52)), com a `stage` mais um merge da `main`, entrou na `main` por merge commit e fez a base comum avançar até a `stage`.
+- **A primeira vez:** a base comum ainda era `12f1e87`, de antes da `stage`. Um PR sem nenhuma mudança de arquivo ([#52](https://github.com/fabs-reis/Negocio-do-bem/pull/52)), com a `stage` mais um merge da `main`, entrou na `main` por merge commit e fez a base comum avançar até a `stage`.
 - **O custo:** a `main` deixa de ter histórico linear. `git log --first-parent main` mostra uma linha por publicação.
 
-### 29 de outubro: cidades da lista do IBGE ([#35](https://github.com/fabsreis/Negocio-do-bem/issues/35))
+### 29 de outubro: cidades da lista do IBGE ([#35](https://github.com/fabs-reis/Negocio-do-bem/issues/35))
 
 A cidade era digitada à mão, com o estado num seletor à parte. A mesma cidade aparecia escrita de jeitos diferentes ("Sao Paulo", "são paulo"), o que atrapalha a busca e a contagem por cidade.
 
@@ -252,17 +254,17 @@ A cidade era digitada à mão, com o estado num seletor à parte. A mesma cidade
 - **A lista só é baixada quando alguém mexe no campo.** O `CampoMunicipio` carrega `src/lib/municipios.ts` com `import()`, e os cerca de 110 KB não pesam nas outras páginas.
 - **O servidor confere na mesma lista** e grava o nome oficial, com acentos. O campo funciona sem JavaScript: "Recife, PE" digitado à mão também vale.
 
-### 29 de outubro: página inicial nova e diretório com filtros ([#39](https://github.com/fabsreis/Negocio-do-bem/issues/39))
+### 29 de outubro: página inicial nova e diretório com filtros ([#39](https://github.com/fabs-reis/Negocio-do-bem/issues/39))
 
 A página inicial juntava apresentação, busca, filtros de causas e a lista de negócios, e achar um negócio era confuso. Três variações foram desenhadas num protótipo. A escolhida juntou a página inicial de uma com o diretório de outra.
 
 - **A página inicial ficou para começar:** o número de negócios cadastrados em destaque, a busca "O que você procura?" + "Onde?", atalhos e os tipos de negócio com seus totais.
-- **O diretório ganhou endereço próprio, `/explorar`.** Ele abre ao buscar ou ao escolher um tipo, com os filtros ao lado (tipo, causas, só verificados), grade ou lista e paginação numerada.
+- **O diretório ganhou endereço próprio, `/explorar`.** Ele abre ao buscar ou ao escolher um tipo, com os filtros ao lado (tipo, causas, só perfis assumidos), grade ou lista e paginação numerada.
 - **Os filtros são links, não um formulário.** Cada opção é um link para a URL com aquele filtro trocado (`mudarFiltro`, em `src/lib/diretorio.ts`). Assim funciona sem JavaScript e toda busca pode ser compartilhada. Só a ordenação usa um `<select>` com JavaScript.
 - **Cada opção mostra quantos negócios aparecem ao marcá-la.** São poucas consultas por página: um `groupBy` por categoria ignorando os tipos marcados, e um `groupBy` das causas entre os resultados.
 - **O "Onde?" sugere só lugares com negócios** (`listarCidades`). A lista é pequena e vai pronta para o navegador. O texto escolhido ("Recife, PE") vai na URL e o servidor o interpreta, então digitar à mão também funciona.
 
-### 29 de outubro: banco separado para os previews ([#18](https://github.com/fabsreis/Negocio-do-bem/issues/18))
+### 29 de outubro: banco separado para os previews ([#18](https://github.com/fabs-reis/Negocio-do-bem/issues/18))
 
 Os previews do Vercel, inclusive o da `stage`, usavam o banco de produção. Testar a homologação mexia em dados reais, e um bug num PR podia apagá-los.
 
@@ -270,14 +272,375 @@ Os previews do Vercel, inclusive o da `stage`, usavam o banco de produção. Tes
 - **O build dos previews passou a aplicar as migrações** no banco deles. Um PR que muda o banco já funciona no preview.
 - **O seed roda no build dos previews**, para a homologação ter dados de exemplo, e só preenche um banco vazio.
 
-### 29 de outubro: um Blob só para os previews ([#27](https://github.com/fabsreis/Negocio-do-bem/issues/27))
+### 29 de outubro: um Blob só para os previews ([#27](https://github.com/fabs-reis/Negocio-do-bem/issues/27))
 
 Os previews também usavam o Vercel Blob de produção, onde ficam as fotos. Então o código de um PR podia gravar e apagar as fotos reais.
 
 - **O Preview ganhou um Blob público próprio,** e o de produção ficou só em Production. As credenciais de cada ambiente, o token e o OIDC do deploy, só alcançam o Blob dele.
 - **O código não precisou mudar.** O site aceita fotos de qualquer store do Vercel Blob (`ehFotoDoSite`), então as fotos enviadas num preview aparecem no próprio preview. Um teste garante isso.
 
+### 29 de outubro: nova identidade visual e SEO ([#62](https://github.com/fabs-reis/Negocio-do-bem/issues/62), [#63](https://github.com/fabs-reis/Negocio-do-bem/issues/63))
+
+O site ganhou o logo novo, com três pessoas formando um coração, e passou a se apresentar direito para o Google, o Bing e os assistentes que buscam na web.
+
+- **Um desenho só para tudo.** `src/lib/marca.ts` guarda o ícone e o texto do logo. Dele saem o `Logo` do cabeçalho e do rodapé, os ícones (`npm run marca:icones`) e as imagens de compartilhamento.
+- **O texto do logo foi vetorizado do PNG.** O SVG exportado do manual trazia o texto como fonte (Casko Luxury), sem curvas, e o "em" de "Bem" saía vazio. Quando chegar um SVG com o texto em curvas, basta trocar `TEXTO_DO_LOGO`.
+- **Cores da marca fixas.** `marca-laranja`, `marca-verde`, `marca-marrom` e `marca-creme` não mudam no modo escuro. No escuro, o logo troca o marrom pelo creme, como na versão do manual para fundo escuro. As cores do tema passaram a partir delas: o creme é o papel, e o marrom é a tinta.
+- **Prévia de link com a marca.** `opengraph-image.tsx` gera a imagem geral no build, e cada perfil tem a sua, com foto, nome, cidade e causas. As fontes ficam em `assets/fontes`, porque o gerador não lê woff2 nem fonte variável. O `npm run marca:fontes` as embute em `src/lib/fontes-compartilhamento.ts`, porque o Worker não lê arquivos do projeto.
+- **SEO:**
+  - `metadataBase`, canônico e Open Graph em cada página pública;
+  - sitemap com os negócios do diretório e `robots.txt`;
+  - dados estruturados: `Organization` e `WebSite` na página inicial, `LocalBusiness` e `BreadcrumbList` no perfil;
+  - `noindex` nas páginas de conta;
+  - um `llms.txt` para assistentes de IA.
+
+  O título do perfil traz o tipo e a cidade, que é o que as pessoas buscam.
+- **Um endereço só.** Os links absolutos usam o domínio de produção (`VERCEL_PROJECT_PRODUCTION_URL`) até nos previews, e os previews bloqueiam os robôs.
+
+### 29 de outubro: páginas de cidade, causa e tipo ([#71](https://github.com/fabs-reis/Negocio-do-bem/issues/71))
+
+O diretório filtra pela URL, e o canônico de `/explorar` ignora os filtros, para as combinações não virarem milhares de páginas parecidas na busca. Faltavam páginas para responder às buscas mais comuns: "negócios do bem em Salvador", "negócios liderados por mulheres", "café e padaria".
+
+- **Três páginas fixas:** `/cidades/salvador-ba` (e o índice `/cidades`), `/causas/opcoes-veganas` e `/tipos/cafe-e-padaria`. Cada uma tem título, descrição, canônico e JSON-LD próprios (`CollectionPage`, `ItemList` e `BreadcrumbList`).
+- **Reaproveitam o diretório.** A lista vem de `buscarDiretorio` com um filtro só, então a página da cidade segue as mesmas regras do "Onde?", inclusive a junção das grafias. O componente `Vitrine` monta as três.
+- **Porta de entrada, não substituto.** Os filtros continuam no `/explorar`: as páginas mostram os 18 primeiros e levam ao diretório com o filtro marcado.
+- **Ligadas por dentro.** O perfil liga tipo, cidade e causas às suas páginas, e o caminho dele no JSON-LD passa pela cidade. A página inicial, "Como funciona", o rodapé, o sitemap e o `llms.txt` também apontam para elas.
+- **Sem página vazia na busca.** Cidade sem negócios mostra a página de não encontrado, e causa ou tipo sem negócios leva `noindex` e fica fora do sitemap.
+
+### 29 de outubro: a mesma cidade com grafias diferentes ([#56](https://github.com/fabs-reis/Negocio-do-bem/issues/56))
+
+O "Onde?" mostrava "São Paulo · 43 negócios", mas escolher a cidade trazia 1 só. E Florianópolis aparecia duas vezes, com e sem acento. Os cadastros de antes da lista do IBGE gravaram a cidade como foi digitada, e o diretório tratava cada grafia como uma cidade. Ao escolher "São Paulo, SP", o servidor pegava a primeira grafia que batia sem acento ("Sao Paulo") e filtrava só por ela.
+
+- **`listarCidades` junta as grafias** de cada cidade e UF e mostra o nome oficial (`nomeOficial`, em `src/lib/municipios.ts`). Acentos, maiúsculas, hífen e apóstrofo não importam, e a UF grudada no nome ("Tubarão-SC") sai. A lista do IBGE não tem duas cidades no mesmo estado que só mudem nesses detalhes.
+- **O filtro procura todas as grafias** que estão no banco (`condicaoDoLocal`, em `src/lib/consultas.ts`). Assim a contagem do "Onde?" bate com os resultados, mesmo que um nome fora do padrão volte a entrar.
+- **`npm run cidades:corrigir` arruma o banco,** para o perfil e os cartões também mostrarem o nome oficial. Ele grava direto no SQL, para não mudar o `atualizadoEm`, que ordena o diretório, e refaz o campo `busca`.
+- **As páginas de cidade usam o mesmo nome oficial.** O endereço (`/cidades/sao-paulo-sp`), as cidades de uma causa ou de um tipo (`cidadesCom`) e os links do perfil e do sitemap juntam as grafias. Assim, um negócio gravado como "Tubarão-SC" leva à página de Tubarão, SC.
+
+### 29 de outubro: painel da moderação ([#75](https://github.com/fabs-reis/Negocio-do-bem/issues/75))
+
+A moderação via as filas, os 50 negócios atualizados por último e os 100 últimos registros da auditoria. Não dava para ver as contas, os números do projeto nem tudo o que uma pessoa fez no site.
+
+- **Um painel, não um sistema novo.** O `/moderacao` ganhou um menu lateral com a visão geral, as filas que já existiam, os cadastros (negócios, contas e depoimentos) e os registros (auditoria e sistema). Os endereços antigos (`?aba=reivindicacoes` e os outros) continuam valendo.
+- **Só consulta.** As ações continuam as mesmas. Dar moderação, suspender ou apagar uma conta mudam regras de permissão e de privacidade e ficaram para issues próprias.
+- **Números do banco, não de um serviço de métricas.** A visão geral conta direto no Postgres, a cada abertura, sem `use cache`. Os agrupamentos (`groupBy`) somam várias situações numa consulta só.
+- **Semanas de 7 dias corridos até agora.** A atividade não usa a semana do calendário: assim nenhuma semana fica pela metade e o fuso horário não muda a conta. O agrupamento (`agruparPorSemana`) é uma função pura, com teste.
+- **A ficha não lê a senha.** As consultas de contas usam sempre `select`, e um teste confere que o hash não vem junto.
+- **O que a URL traz é conferido.** Aba, situação, página, ação, pessoa e alvo passam por `lerFiltros`, como os filtros do diretório. O "Tirar do ar" volta para a lista filtrada de onde saiu, mas só aceita um endereço da própria moderação.
+
+### 29 de outubro: avisos por e-mail ([#83](https://github.com/fabs-reis/Negocio-do-bem/issues/83))
+
+Ninguém recebia e-mail do site. Quem pedia um perfil que já tinha dono só descobria a decisão abrindo o painel, e a moderação só via pedidos e denúncias novos abrindo as filas.
+
+- **Resend, pela API.** O plano gratuito (100 e-mails por dia, 3.000 por mês) dá conta dos avisos. A chamada é um `fetch` em `src/lib/email.ts`, sem pacote novo. O Zoho Mail, que guarda a caixa `ola@negociodobem.com`, desaconselha a conta gratuita para e-mails automáticos, e SMTP é lento numa função do Vercel.
+- **Dois serviços no mesmo domínio.** O Resend envia com registros próprios (`resend._domainkey` e o subdomínio `send`), e o MX e o SPF da raiz continuam com o Zoho. As respostas aos avisos vão para `ola@negociodobem.com` (`EMAIL_RESPOSTA`).
+- **Poucos avisos, para quem precisa agir.** A decisão da moderação vai para quem pediu, pedidos e denúncias novos vão para a moderação, e depoimentos novos vão para os donos. A aprovação na hora não manda e-mail: a pessoa já está vendo o resultado.
+- **Depois da resposta.** As ações chamam os avisos dentro de `after()`. A pessoa não espera o Resend, e uma falha no envio só fica no log.
+- **Privacidade.** Cada pessoa recebe o próprio e-mail, e o aviso para a moderação leva só o negócio e o link da fila.
+- **Só a produção envia.** Nos previews o envio fica desligado mesmo com as variáveis. O banco deles só tem contas de teste, e mandar e-mail para elas só traria devoluções.
+
+### 29 de outubro: e-mail confirmado e entrar por link ([#124](https://github.com/fabs-reis/Negocio-do-bem/issues/124))
+
+O cadastro aceitava qualquer e-mail. Uma conta com o e-mail de outra pessoa, ou com um endereço inventado, indicava negócios, escrevia e denunciava depoimentos e reivindicava perfis.
+
+- **Uma estrutura só para os links.** A tabela `LinkEmail` guarda o sha256 do token, a finalidade (`confirmar` ou `entrar`), o e-mail, o destino, o prazo e o uso. A confirmação e o "Entrar por link" usam a mesma tabela, e a recuperação de senha ([#65](https://github.com/fabs-reis/Negocio-do-bem/issues/65)) pode usar também.
+- **Entrar primeiro, confirmar depois.** A conta entra no site logo no cadastro e só precisa do e-mail confirmado para o que fala em nome dela para a comunidade: indicar, escrever e denunciar depoimentos e reivindicar. Bloquear o login até a confirmação faria perder quem só queria olhar o painel.
+- **Um clique, não só abrir.** Antivírus e filtros como o do Outlook abrem os links dos e-mails sozinhos. Se abrir o link bastasse, esses filtros gastariam o link de entrar e confirmariam o e-mail de uma conta que outra pessoa criou com aquele endereço. Por isso `/api/link` só guarda o token num cookie e `/link` pede o clique.
+- **O token fora do endereço da página.** O Google Analytics registra o endereço de cada página. Com o token no cookie, `/link` não tem nada de secreto no endereço.
+- **A senha continua.** O link por e-mail não é mais seguro que a senha: quem abre a caixa de e-mail entra na conta, o que a recuperação de senha também vai permitir. Ele tira a senha repetida e a força bruta do caminho de quem prefere não usar senha. O segundo fator para a moderação fica para a [#103](https://github.com/fabs-reis/Negocio-do-bem/issues/103).
+- **Limite por conta, não por IP.** Cinco links por conta a cada hora impedem lotar a caixa de alguém e gastar a cota de 100 e-mails por dia do Resend com uma conta só. O limite por IP do login fica com a [#36](https://github.com/fabs-reis/Negocio-do-bem/issues/36).
+
+### 30 de outubro: robôs fora dos filtros do /explorar ([#141](https://github.com/fabs-reis/Negocio-do-bem/issues/141))
+
+Na manhã de 30 de outubro, a página inicial, o `/explorar`, o `/cidades` e o sitemap pararam de abrir em produção. O Neon tinha pausado o banco por estourar o plano grátis: 6,85 GB de transferência em um dia e meio, para um limite de 5 GB por mês.
+
+- **A causa foi um robô.** Em 24 horas o site recebeu 626 mil requisições, 162 mil delas do GPTBot, quase todas no `/explorar`. Cada filtro é um link, os filtros se combinam (tipo, causa, verificados, ordem, vista e página) e o robô abria cada combinação. Cada abertura faz seis consultas ao banco.
+- **O banco voltou com o plano Launch do Neon**, pago por uso. O compute de produção ficou fixo em 0,25 CU: no pior caso, ligado o mês inteiro, custa cerca de US$ 19. Ele continua desligando depois de 5 minutos sem uso.
+- **O `robots.txt` bloqueia `/explorar?...`, e os links dos filtros levam `nofollow`.** O `/explorar` sem filtros, as páginas de cidade, causa e tipo e o sitemap continuam abertos, e o diretório segue chegando à busca e aos assistentes. As combinações já tinham o `/explorar` como canônico e não entravam na busca.
+
+### 30 de outubro: confirmação de e-mail desligada por enquanto ([#148](https://github.com/fabs-reis/Negocio-do-bem/issues/148))
+
+No mesmo dia, o site passou dos 100 e-mails por dia do plano grátis do Resend. Daí em diante o link de confirmação não chegava, e quem se cadastrava ficava sem poder indicar, escrever depoimentos ou reivindicar.
+
+- **Uma constante, não uma variável de ambiente.** `CONFIRMACAO_DE_EMAIL_LIGADA`, em `src/lib/auth/links.ts`, desliga a exigência. Trocar uma variável no Vercel pediria um redeploy fora do fluxo de merge, e a volta da confirmação deve vir no mesmo PR que trocar o envio de e-mails.
+- **Desligar num lugar só.** `usuarioAtual` devolve `emailConfirmado: true` para toda conta, e as travas, o "Confirme seu e-mail" e a rota do Instagram continuam olhando o mesmo campo. Nada delas saiu do código.
+- **O cadastro não manda o link.** Assim a cota fica para o "Entrar por link" e para os avisos. Quem já recebeu um link ainda pode usá-lo, e `emailConfirmadoEm` continua sendo gravado, então a ficha da moderação mostra quem de fato confirmou.
+
+### 30 de outubro: o cache das páginas nos previews do Cloudflare ([#172](https://github.com/fabs-reis/Negocio-do-bem/issues/172))
+
+Depois da migração para o Cloudflare, o build do preview da `stage` passava, mas as páginas não abriam: `/`, `/sobre`, `/entrar` e `/explorar` respondiam erro 1101, e o log do Worker dizia que o código tinha travado. O banco funcionava: o `/sitemap.xml`, que é dinâmico, listava os negócios do seed.
+
+- **A causa era o cache vazio.** Com o Cache Components, cada página tem uma casca estática gerada no build (Partial Prerender), guardada no cache incremental do OpenNext, um bucket R2. O Worker lê a casca e completa só as partes dinâmicas. Sem a casca, ele tenta gerá-la na hora, e isso trava no Workers.
+- **Em produção, o `opennextjs-cloudflare deploy` preenche o cache; nos previews, ninguém preenchia.** O preview command era o `npx wrangler preview`, que só sobe o Worker. Agora é o `npm run cf:preview` (`scripts/cloudflare-preview.sh`), que roda o `opennextjs-cloudflare populateCache remote` antes.
+- **Um ambiente só para o cache.** O `populateCache` lê o bucket de cache do `wrangler.jsonc` e não conhece o bloco `previews`. O ambiente `previews-cache` aponta para os buckets dos previews, e o script passa `--env previews-cache`. Nada é publicado com ele.
+- **A Preview base config é copiada na criação do preview.** As variáveis cadastradas nela depois não chegaram ao preview da `stage`, que já existia, e foi preciso cadastrá-las também na página dele. O mesmo vale para o preview command. A seta do botão Salvar tem a opção "Aplicar a pré-visualizações existentes", que leva a mudança a todos.
+
+### 30 de outubro: o banco e as fotos antigas saem do Vercel ([#177](https://github.com/fabs-reis/Negocio-do-bem/issues/177))
+
+Com o site no Cloudflare, ainda sobravam no Vercel o banco (um Neon criado pela integração do Vercel, cobrado por ele e que não se transfere para uma conta própria) e as fotos enviadas antes da migração, no Vercel Blob.
+
+- **PlanetScale Postgres criado pelo painel do Cloudflare, e não D1.** O banco aparece na fatura do Cloudflare e continua sendo Postgres: o esquema, as migrações e os testes ficam iguais. O D1 é SQLite, e o adaptador do Prisma para ele não tem transações interativas. O código depende delas, com `FOR NO KEY UPDATE` e `FOR KEY SHARE`, para as cotas de indicação e de reivindicação aguentarem pedidos simultâneos, e usa `mode: "insensitive"`, que o SQLite não tem.
+- **O Worker fala com o banco pelo Hyperdrive.** Ele mantém as conexões com o banco abertas, e cada requisição só abre uma conexão rápida até ele. O `src/lib/db.ts` usa o `env.HYPERDRIVE.connectionString` quando o binding existe e a `DATABASE_URL` quando não existe (previews, desenvolvimento e testes). Os previews não herdam os bindings da produção, então nunca chegam ao banco de produção por ele. O cache de consultas do Hyperdrive fica desligado: os dados do banco precisam estar sempre atualizados.
+- **A troca sem perder dados.** O `npm run banco:copiar` copia o Neon para o destino com `pg_dump` e `pg_restore`, numa transação só, e confere a contagem de linhas de cada tabela. Na troca, ele deixa o Neon só para leitura antes da cópia final, para nada ser gravado lá depois dela. O Neon fica assim, como reserva, até o banco novo estar conferido.
+- **As fotos do Blob vão para o R2 pelo `npm run fotos:para-r2`.** Ele procura os endereços do Blob no `fotoUrl` e no Markdown da `historia`, copia cada foto para o bucket com o mesmo nome e só troca o endereço no banco depois de abrir a foto no domínio público. Roda depois que o `www` passa para o Cloudflare: o deploy antigo do Vercel não aceita fotos de `fotos.negociodobem.com`.
+
+A troca foi feita na noite de 30 para 31 de outubro, nesta ordem:
+
+1. **Hyperdrive apontando para o Neon** e publicado na produção. O site passou a usar o Hyperdrive sem mudar nenhum dado, e o login e uma gravação com transação foram testados assim.
+2. **`www` no Worker.** O CNAME para o Vercel saiu, e o `www.negociodobem.com` virou domínio personalizado do Worker (agora também no `wrangler.jsonc`). Para voltar atrás, bastava recriar o CNAME.
+3. **Fotos.** O `fotos:para-r2` copiou 503 fotos e trocou o endereço em 479 negócios.
+4. **Banco**, numa janela de 17 segundos: Neon só para leitura, cópia final, contagens iguais, e a origem do Hyperdrive trocada para o PlanetScale pelo `wrangler hyperdrive update`, sem deploy.
+5. **Domínio sem `www`.** O registro A passou a usar o proxy do Cloudflare, e uma regra de redirecionamento da zona manda `http*://negociodobem.com/*` para o `www`, com o caminho e a consulta.
+
+O que deu errado e ficou de lição:
+
+- **O PS-5 tem 25 conexões, e 3 são reservadas a superusuário.** O Hyperdrive veio com limite de 60 e, com 15, ainda lotou o banco: as páginas davam erro, e nem o `psql` entrava ("remaining connection slots are reserved"). O limite ficou em 8, o que sobra para as migrações do build e os scripts.
+- **Trocar a origem ou reiniciar o pool do Hyperdrive não fecha as conexões antigas.** Elas ficam paradas no banco, ocupando vagas. Depois de mexer no Hyperdrive, confira na página Connections do PlanetScale e encerre as paradas da mesma role: `select pg_terminate_backend(pid) from pg_stat_activity where application_name = 'Cloudflare Hyperdrive' and state = 'idle' and state_change < now() - interval '2 minutes' and usename = current_user`.
+- **O `node-postgres` não entende `sslrootcert=system`**, que vem na conexão do PlanetScale: ele tenta abrir um arquivo chamado `system`. Para o app e o build, use só `?sslmode=verify-full`. O `psql` e o Prisma Migrate aceitam as duas.
+- **Quem ainda tinha o DNS antigo em cache caiu no Vercel** por um tempo, inclusive o Chrome de quem fazia a troca. Lá, as fotos novas aparecem como iniciais e nada grava, porque o Neon está só para leitura. Para testar o Cloudflare sem depender do DNS, use o `workers.dev` ou `curl --resolve`.
+
+Em 1º de novembro, nenhuma das 913 páginas de negócio da produção tinha endereço do Blob, nem na foto do perfil nem na história. Então o Blob saiu do `ehFotoDoSite` e da CSP: o site só mostra fotos do R2 (ou da pasta local, no desenvolvimento). Um endereço do Blob que ainda estiver no banco não aparece mais, e o perfil mostra as iniciais no lugar da foto. O Blob continua na equipe da Vercel como reserva, e o `fotos:para-r2` ainda copia para o R2 uma foto que tenha ficado para trás.
+
+### 31 de outubro: entrar com o Google ([#188](https://github.com/fabs-reis/Negocio-do-bem/issues/188))
+
+Com a confirmação de e-mail desligada ([#148](https://github.com/fabs-reis/Negocio-do-bem/issues/148)), qualquer endereço vira conta. O "Continuar com o Google" cria a conta com o e-mail já verificado pelo Google, sem mandar e-mail nenhum, e poupa a senha de quem não quer mais uma.
+
+- **Sem biblioteca e sem serviço no meio.** O Auth.js e o Better Auth trariam o próprio modelo de conta e de sessão, e o projeto já tem os dele. O fluxo é o mesmo do "Entrar com Instagram" (o `state` num cookie), com PKCE. O Cloudflare Access, que também tem login com o Google, não serve: ele protege áreas internas e não cria conta para quem visita o site.
+- **O `id_token` sem conferir a assinatura.** Ele chega na resposta da troca do código, que o servidor pede direto ao Google por HTTPS, e não passa pelo navegador. O OpenID Connect aceita isso (Core, 3.1.3.7), e assim não precisamos baixar as chaves do Google. Conferimos o emissor, o destinatário (`aud`) e a validade.
+- **O `sub`, e não o e-mail, identifica a conta do Google.** O e-mail de uma conta do Google pode mudar, mas o `sub` não. O e-mail só serve para achar a conta na primeira vez.
+- **Ligar pelo e-mail sem abrir uma porta.** Como o cadastro não confirma o e-mail, alguém poderia criar a conta com o e-mail de outra pessoa e esperar ela entrar pelo Google. Ao ligar o Google a uma conta de e-mail não confirmado, a senha é apagada e as sessões são encerradas. Quem tinha criado a conta de boa-fé entra pelo Google ou por link no e-mail.
+- **A senha ficou opcional** (`senhaHash` pode ser nulo). O login com senha confere a conta sem senha contra o hash falso, como um e-mail sem conta.
+
+### 31 de outubro: telefone no cadastro ([#191](https://github.com/fabs-reis/Negocio-do-bem/issues/191))
+
+O cadastro passou a pedir o telefone, para os avisos sobre a conta e o negócio da pessoa.
+
+- **Obrigatório só para contas novas.** As antigas continuam sem telefone e funcionam igual. Pedir o telefone a todas, a cada login, travaria quem só queria olhar o painel.
+- **A mesma regra do WhatsApp do negócio.** `campoTelefone` e `campoWhatsapp` usam a mesma conferência (Brasil, com DDD, celular ou fixo) e guardam só os dígitos com o 55. `formatarWhatsapp` virou `formatarTelefone`, que serve aos dois.
+- **Pelo Google, a conta só nasce com o telefone.** O Google não dá o telefone, e o código que ele manda vale uma vez só. Por isso o retorno guarda quem é a pessoa na tabela `CadastroGoogle`, por 30 minutos, com o token num cookie (só o hash no banco, como na sessão), e `/cadastrar/google` pede o telefone. Criar a conta antes e pedir o telefone depois deixaria contas sem telefone de quem fechasse a página no meio.
+- **Só para avisos, e o texto diz isso.** Usar o telefone para divulgação pediria um consentimento separado (LGPD), com uma caixa desmarcada. Fica para quando houver essa necessidade.
+
+### 31 de outubro: o código por DM sai ([#193](https://github.com/fabs-reis/Negocio-do-bem/issues/193))
+
+Dos dois caminhos pelo Instagram guardados em [#2](https://github.com/fabs-reis/Negocio-do-bem/pull/2), o dono do projeto decidiu não usar mais o código por DM. Pela mesma decisão, os PRs [#136](https://github.com/fabs-reis/Negocio-do-bem/pull/136) e [#137](https://github.com/fabs-reis/Negocio-do-bem/pull/137), que tentaram inverter o fluxo da DM, foram abandonados. Ficam o envio dos dados do negócio e o "Entrar com Instagram".
+
+- **Saiu:** a seção da DM na página de reivindicação, a geração do código, o webhook `/api/webhooks/instagram`, a busca por código na fila da moderação, `src/lib/codigo.ts` e as variáveis `INSTAGRAM_ACCESS_TOKEN` e `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`.
+- **O banco não mudou.** As colunas `codigo` e `instagramIgsid` ficam, sem migração. Os pedidos antigos aparecem como "Código por DM", e a moderação ainda decide os que estiverem pendentes.
+- **`INSTAGRAM_PERFIL_OFICIAL` continua,** agora só como o @ do projeto no Instagram, que vai nos dados estruturados da página inicial.
+
+### 31 de outubro: cadastro por etapas, sem Instagram e com o contato do dono ([#190](https://github.com/fabs-reis/Negocio-do-bem/issues/190))
+
+A tela de cadastro por etapas veio do [#145](https://github.com/fabs-reis/Negocio-do-bem/pull/145), mas sem a verificação pela DM do [#136](https://github.com/fabs-reis/Negocio-do-bem/pull/136) e do [#137](https://github.com/fabs-reis/Negocio-do-bem/pull/137), que saiu no [#193](https://github.com/fabs-reis/Negocio-do-bem/issues/193).
+
+- **Uma pergunta por vez, num formulário só.** As etapas ficam montadas e só a atual aparece: voltar não perde nada, e o envio continua sendo o `indicarEmpresa`, que valida tudo de novo. A validação de cada etapa no navegador só serve para a pessoa não chegar ao fim com um erro lá atrás.
+- **A prévia do Instagram roda no servidor**, com a mesma API e o mesmo token da rotina de fotos. A foto vai como data URL para a política de conteúdo continuar fechada, e a mesma foto é gravada no perfil logo depois do cadastro, num `after()`, para não atrasar a resposta.
+- **Sem Instagram, o endereço é feito do nome e da cidade**, na mesma coluna do @. Uma coluna nova para o endereço mudaria uns 200 lugares que usam o `instagramUsername`. Com o hífen separando os dois tipos, só os lugares que mostram o @ ou levam ao Instagram precisaram saber a diferença (`temInstagram`, `rotuloDoInstagram` e o componente `LinkInstagram`).
+- **O contato do dono fica no negócio, e não na conta.** É o contato de quem cuida daquele negócio, e o dono pode corrigir no painel. Ele não aparece no perfil.
+- **O rascunho do cadastro fica só no navegador.** O #145 também guardava na conta, para quem ainda não tinha confirmado o e-mail. Com a confirmação desligada ([#148](https://github.com/fabs-reis/Negocio-do-bem/issues/148)), ficou só o do navegador, que cobre o login e o cadastro no meio do caminho.
+
+### 31 de outubro: esqueci minha senha e troca de senha no painel ([#65](https://github.com/fabs-reis/Negocio-do-bem/issues/65), [#165](https://github.com/fabs-reis/Negocio-do-bem/issues/165))
+
+Quem esquecia a senha só voltava pelo "Entrar por link" e continuava sem senha, e quem estava logado não tinha como trocar a sua. As duas mudanças vieram de PRs de contribuição ([#128](https://github.com/fabs-reis/Negocio-do-bem/pull/128) e [#166](https://github.com/fabs-reis/Negocio-do-bem/pull/166)), abertos antes do login com o Google e refeitos juntos em cima dele, porque mexem nos mesmos arquivos.
+
+- **A recuperação não tem sistema próprio.** É a finalidade `redefinir` dos links por e-mail (`src/lib/auth/links.ts`), com o token só em hash, o cookie de `/api/link` e o clique em `/link`. Um primeiro desenho do #128 tinha tabela, cookie e rotas separados, e foi desfeito na revisão: dois sistemas de token seriam duas superfícies para manter.
+- **Gastar o link e trocar a senha no mesmo passo.** `redefinirSenhaComLink` é uma transação que gasta o link, gasta os outros links abertos da conta (senão um link de entrar já mandado devolveria o acesso a quem invadiu), troca a senha, encerra as sessões e grava a auditoria. O link de senha nova não serve no botão "Entrar" de `/link`: `usarLinkDoEmail` recusa essa finalidade.
+- **Depois do link, a pessoa já entra.** Abrir o link prova que ela lê o e-mail da conta, o mesmo que o link de entrar prova. Mandá-la para o `/entrar` só pediria a senha que ela acabou de digitar.
+- **A troca zera as tentativas de todas as origens.** Quem esqueceu a senha erra algumas vezes antes de pedir o link, e a chave do contador por e-mail mistura o e-mail e o IP. Por isso a migração `tentativas_por_email` guarda também o hash só do e-mail em `TentativaAcesso.email`, e `zerarTentativasDeTodasAsOrigens` apaga as linhas por ele.
+- **A troca no painel confere a senha atual com os limites do login,** para uma sessão roubada não virar força bruta da senha. Ela grava só se a senha não mudou desde a conferência (`updateMany` com a senha antiga no filtro), mantém a sessão deste aparelho (`idDaSessaoAtual`) e encerra as outras.
+- **A conta sem senha cria a primeira pelo link.** A conta criada pelo Google não tem senha atual para digitar, e criar uma só com a sessão aberta daria a senha a quem roubou o cookie. O painel manda o mesmo link de "Esqueci minha senha" para o e-mail da conta, que serve também para quem esqueceu a senha atual.
+- **Um e-mail avisa de toda troca** (`avisarSenhaTrocada`), porque é o que permite notar uma invasão. Gasta a cota do Resend, mas trocas de senha são raras.
+
+### 31 de outubro: cadastros, indicações e contatos no Analytics ([#203](https://github.com/fabs-reis/Negocio-do-bem/issues/203))
+
+O Analytics contava visitas, mas não dizia quantas pessoas criavam conta, quantos negócios eram indicados nem de onde vinham as pessoas que faziam isso. A lista dos eventos está na [seção de medição das regras de negócio](regras-de-negocio.md#medição-de-visitas).
+
+- **O servidor decide, o navegador manda.** As ações terminam num `redirect`, e só o servidor sabe que salvaram. `medir` (`src/lib/medicao-servidor.ts`) deixa o evento no cookie `ndb_eventos`, e `EventosAnalytics` (no layout) o manda pelo `gtag` na página seguinte. O evento entra na mesma visita, com a origem dela. O Measurement Protocol, que manda direto do servidor, foi descartado: precisa de mais um segredo e, sem a sessão do navegador, o evento perde a origem da visita.
+- **O cookie é conferido a cada segundo,** e não a cada mudança de URL. O depoimento e o pedido por documento voltam para a mesma página, só com `?aviso=`, e seguir a URL pedia `usePathname` e `useSearchParams` num Suspense, que nunca se resolvia nas páginas com parâmetro dinâmico (o perfil do negócio): o componente nem montava ali. A conferência também espera o script do Analytics, que carrega depois da página, e apaga o cookie antes de mandar, para não repetir.
+- **Cliques medidos por atributo.** Os contatos do perfil levam `data-medir` (`medirContato`), e um único ouvinte de cliques no `EventosAnalytics` manda o evento. Assim o perfil continua um Server Component.
+- **Sem dado que identifique alguém.** Os eventos levam o método, o tipo, a categoria e o lugar do negócio, nunca nome, e-mail, telefone, @ ou `user_id`. A adequação do Analytics à LGPD continua em aberto na [#109](https://github.com/fabs-reis/Negocio-do-bem/issues/109).
+- **O GA4 foi configurado junto.** A retenção dos eventos passou de 2 para 14 meses, o máximo da versão gratuita, para as explorações compararem o ano inteiro. `sign_up`, `negocio_cadastrado`, `contato_negocio`, `perfil_reivindicado` e `depoimento_publicado` são eventos principais, sem valor em dinheiro. Como ainda não tinham chegado, foram criados em Administrador > Eventos > Criar evento > "Criar com código". Cada parâmetro virou uma dimensão personalizada de evento, e a "Cidade do negócio" (`cidade`) não se confunde com a cidade de quem visita, que o GA4 já mede.
+
+### 31 de outubro: foto das cidades e prévia em todas as páginas ([#220](https://github.com/fabs-reis/Negocio-do-bem/issues/220))
+
+A ideia era ter páginas de cidade para o Google, com uma foto de cartão-postal de cada uma. As 243 cidades com negócios já tinham página desde a [#71](https://github.com/fabs-reis/Negocio-do-bem/issues/71), mas sem foto e sem prévia do link: no WhatsApp, a página de Salvador aparecia só com o texto.
+
+- **A prévia tinha sumido de quase todas as páginas.** O `openGraph` de uma página substitui o do layout inteiro, e a imagem do `opengraph-image.tsx` da raiz ia junto. Só a página inicial e o perfil, que têm o arquivo na própria pasta, mostravam imagem. Agora o `metadadosDaPagina` põe a imagem geral do site, e a página com o próprio arquivo passa `imagemPropria: true`, porque o Next só usa a imagem do arquivo quando o `openGraph` não traz nenhuma.
+- **Nada de página para cidade sem negócios.** Cem páginas vazias, feitas para pegar a busca de cada cidade, são o que o Google chama de *doorway pages*. Elas tendem a ficar fora do índice, e a avaliação de qualidade vale para o site inteiro. A lista das cidades mais populosas serviu para as fotos: quando entrar o primeiro negócio de uma delas, a página já nasce com foto.
+- **Fotos do Wikimedia Commons,** com o crédito na página. Quase toda cidade brasileira tem boas fotos lá, e o autor e a licença vêm junto no Commons, então o crédito sai sem trabalho manual. As fotos foram escolhidas uma a uma e aprovadas antes de entrar. Recusamos montagens, mapas, fotos com pessoas em destaque e licenças que pedem mais do que o crédito.
+- **102 das 114 cidades ficaram com foto.** As outras 12, como Diadema, Suzano, Araraquara e Lorena, não têm no Commons uma vista boa da cidade. A de Contagem ficou de fora porque a única foto boa vinha do perfil oficial de um político, que apareceria no crédito.
+- **Guardadas no site, não buscadas no Commons.** Ligar a foto direto ao Commons avisaria a Wikimedia a cada visita, como diz a regra de `ehFotoDoSite`. O `npm run cidades:fotos` baixa cada foto em 1280 e 800 px, e a página manda a pequena para o celular. O nome do arquivo leva um pedaço do hash do arquivo do Commons, então a foto pode ficar em cache por um ano (`public/_headers`) e uma troca de foto nunca mostra a antiga.
+- **A prévia da cidade lia a foto pelo binding `ASSETS`,** porque no Worker os arquivos de `public/` não estão no disco. A prévia passou de 1 MB e foi trocada por um JPEG pronto na [#224](https://github.com/fabs-reis/Negocio-do-bem/issues/224).
+
+### 1º de novembro: prévia leve das cidades com foto ([#224](https://github.com/fabs-reis/Negocio-do-bem/issues/224))
+
+No ar, a prévia de Salvador tinha 958 KB e a de São Paulo, 1 MB. O `ImageResponse` só gera PNG, e um PNG com foto pesa muito. O WhatsApp não mostra imagem de prévia acima de 600 KB.
+
+- **Prévia pronta de antemão, em JPEG.** O `npm run cidades:fotos` põe o desenho de `src/lib/previa-da-cidade.tsx` por cima da foto de 1280 px, cortada em 1200×630, e grava em qualidade 65. As 102 prévias ficaram entre 30 e 119 KB, 71 KB em média, 7 MB ao todo. A página passa a prévia ao `metadadosDaPagina` (`previa`), e o Next deixa de lado o `opengraph-image.tsx` da pasta.
+- **Sem o número de negócios.** A imagem pronta não acompanha o diretório, e o número continua na descrição do link. A cidade sem foto segue com a prévia gerada na hora, com o número.
+- **Refeita a cada execução do script.** Ela leva uns 20 ms por cidade, e o nome do arquivo leva o hash da imagem: uma mudança no desenho gera arquivos novos, e o cache de um ano nunca mostra a prévia antiga.
+- **O Worker deixou de ler a foto** pelo binding `ASSETS` e de montar um PNG de 1 MB a cada prévia de cidade.
+
+### 1º de novembro: o site vira app ([#230](https://github.com/fabs-reis/Negocio-do-bem/issues/230))
+
+O manifest e os ícones vinham da nova identidade visual, e o Chrome do Android já deixava instalar. Faltava o que faz o site funcionar como app: não cair na tela de erro do navegador sem internet, convidar para instalar e saber quantas pessoas instalaram. As regras estão em [O site como app](regras-de-negocio.md#17-o-site-como-app).
+
+- **Service worker escrito à mão, sem Serwist.** O guia de PWA do Next sugere o Serwist para funcionar offline, mas ele guarda as páginas de antemão. Com o Cache Components e o `partialPrefetching`, isso arriscava mostrar dados velhos, e seria mais uma peça no build Turbopack + OpenNext. Um diretório vale pelos dados atuais, então o `public/sw.js` (menos de 90 linhas) guarda só os arquivos com hash de `/_next/static` e a página "Sem conexão".
+- **A página "Sem conexão" é um HTML solto** (`public/offline.html`), com estilos e script dentro. Uma página do Next guardada levaria o menu da conta de quem estava logado na hora e dependeria de CSS e JS do build que podiam não estar no cache.
+- **Sem `navigationPreload`.** Ele adianta a página enquanto o service worker acorda, mas as navegações que o service worker deixa passar (`/api`) iriam duas vezes ao servidor, e o login do Google começaria duas vezes.
+- **`experimental.useOffline` do Next 16.** O projeto já usava `cacheComponents` e `partialPrefetching`, o cenário do guia "Offline support" (`node_modules/next/dist/docs/01-app/02-guides/offline-support.md`). Com ele, a queda de conexão no meio de uma navegação ou de um envio vira espera, e não erro, e o `AvisoSemConexao` avisa no pé da tela. Um formulário que chegou ao servidor sem a resposta voltar é mandado de novo, como se a pessoa tivesse clicado de novo depois do erro.
+- **O convite não insiste.** O guia do Next desaconselha um botão próprio de instalação, porque o `beforeinstallprompt` só existe no Chrome e no Edge. Por isso o convite fica no rodapé e num cartão do painel que some com "Agora não", e só aparece quando o navegador oferece a instalação ou no iPhone, com o caminho pelo Compartilhar. O evento é ouvido fora do componente, porque o Chrome pode mandá-lo antes de a página hidratar.
+- **O login por link no iPhone.** O app instalado no iPhone guarda cookies separados do Safari, e o link do e-mail sempre abre no Safari. Um código digitado no próprio app resolveria, mas mexe no login inteiro; por ora, as telas de link avisam e sugerem o Google ou a senha.
+- **Notificações push ficaram para depois.** Pedem uma tabela de inscrições, chaves VAPID nos secrets do Worker e um envio que rode no Worker. No iPhone, só chegam com o app instalado.
+
+### 1º de novembro: a página de instalação ([#236](https://github.com/fabs-reis/Negocio-do-bem/issues/236))
+
+O convite do rodapé só aparecia em alguns navegadores, e o manual em PDF não tinha um endereço para divulgar. `/instalacao` passou a ser a porta de entrada: pergunta qual é o celular e leva ao passo a passo de cada um. As regras estão em [O site como app](regras-de-negocio.md#17-o-site-como-app).
+
+- **A escolha vem primeiro.** Quem nunca instalou um app pelo navegador não sabe se o caminho é o do Chrome ou o do Safari. Os ícones da Apple e do Android resolvem isso de relance. A página sugere o aparelho ("Este celular"), mas não redireciona sozinha: quem divulga o link pelo computador também precisa ver as duas opções.
+- **Os ícones vêm do Simple Icons** (licença CC0), desenhados em `src/components/IconesDosAparelhos.tsx`. Apple e Android são marcas das suas empresas e aparecem só para indicar o aparelho.
+- **Sem prints das telas do sistema.** Os botões do Chrome e do Safari aparecem desenhados no meio do texto. Prints do iOS e do Android mudam a cada versão e envelheceriam a página.
+- **O rodapé leva sempre a `/instalacao`,** em qualquer navegador, e o link sai no HTML do servidor, para os buscadores acharem a página. Ele virou um botão laranja com ícone de download, logo abaixo da descrição do site: no celular, é a primeira coisa do rodapé. O botão que abre direto a janela do Chrome ficou no passo a passo do Android e no cartão do painel.
+
+### 1º de novembro: o Analytics volta à produção ([#243](https://github.com/fabs-reis/Negocio-do-bem/issues/243))
+
+Desde a mudança para o Cloudflare, em 31/10, o site não carregava o Google Analytics. As visitas registradas caíram de quase 5 mil por dia para algumas dezenas, e os eventos da #203 nunca chegaram.
+
+- **A variável era lida no build.** O `NEXT_PUBLIC_GA_ID` estava só na Vercel. O Next põe as variáveis `NEXT_PUBLIC_` no código durante o build, e a casca estática do layout também é gerada ali. No Cloudflare, ela precisa estar nas variáveis de build da produção (Workers Builds), e não nas de runtime do Worker.
+- **Os previews continuam sem Analytics.** As variáveis de build dos previews ficam em outra aba do painel, sem o ID.
+
+### 1º de novembro: favoritos ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248))
+
+É a primeira parte do Clube do Bem, em que negócios vão oferecer cupons por pouco tempo a quem chega pelo site. Favoritar o negócio vai ser a condição para gerar o cupom, então veio primeiro. As regras estão em [Favoritos](regras-de-negocio.md#favoritos).
+
+- **Dentro do site, não no Instagram.** O site não lê o Instagram, então não teria como saber quem segue quem lá. Dentro do site, a condição do cupom pode ser conferida.
+- **Coração, e não "Seguir".** O PR começou com um botão "Seguir" e trocou pelo coração antes do merge: ele combina com o tom do projeto ("gosto deste negócio e quero apoiar") e cabe no canto dos cards, então dá para favoritar direto do diretório. No perfil, o coração vem com o texto "Favoritar", para não ser lido como "curtir", que faria esperar um número de curtidas. Os avisos de ofertas, quando vierem, ficam num sininho à parte e desligado por padrão: quem favorita só pelo desconto não passa a receber notificação sem pedir.
+- **Sem sair da página.** O coração é um formulário com `useActionState`: o toque não recarrega a página nem a leva para o topo, o que importa no meio do diretório. Como a ação é uma Server Action, o React envia o formulário mesmo antes de o JavaScript da página carregar.
+- **O número aparece no perfil, mas não vira ranking.** O perfil mostra quantas pessoas favoritaram, como prova de que a comunidade gosta do negócio, e nada aparece com zero, para um negócio novo não ficar exposto. O número fica fora dos cards e não muda a ordem do diretório: aí um negócio ganharia destaque só por ter mais favoritos. Ninguém vê quem favoritou, nem o dono: o clube não entrega lista de clientes.
+- **Negócio sem dono também pode ser favoritado.** Quando o dono assumir o perfil, já encontra pessoas que gostam do negócio, e isso é um bom motivo para ele reivindicar.
+- **Sem e-mail confirmado.** Favoritar não publica nada, então só precisa de login.
+- **A página é `/favoritos`, e não `/painel/favoritos`.** Dentro de `/painel`, um caminho fixo esconderia o painel de um negócio cujo @ fosse `favoritos`, porque `/painel/<@>` é o painel de cada negócio.
+- **Duas migrações.** A tabela nasceu como `EmpresaSeguidor` e já tinha chegado ao banco dos previews quando virou `EmpresaFavorita`. Por isso a segunda migração só renomeia a tabela, em vez de editar a primeira.
+
+### 2 de novembro: embaixadores do bem ([#250](https://github.com/fabs-reis/Negocio-do-bem/issues/250))
+
+Influenciadores que levam o projeto para a cidade ou o estado deles ganharam uma faixa na página inicial, a página `/embaixadores` e um bloco na página da cidade. O visual foi combinado num canvas antes do código. As regras estão em [Embaixadores do bem](regras-de-negocio.md#19-embaixadores-do-bem).
+
+- **A faixa passa sozinha.** A primeira versão rolava para o lado com o dedo ou o mouse, mas a barra de rolagem escondia quem estava fora da tela. O loop tem o botão "Pausar" e para com o mouse e o foco do teclado, porque um conteúdo que se mexe por mais de 5 segundos precisa de um jeito de parar. Para quem pede menos movimento, fica parada.
+- **Os seguidores vêm do próprio site, e não da rotina de fotos do Mac.** A prévia do cadastro já consulta a API da Meta pelo Worker. Os seguidores vêm na mesma consulta, uma vez por dia, depois de uma visita à página inicial ou a `/embaixadores`. Assim o número não depende de um computador ligado, e o limite da Meta fica longe.
+- **Arredondado para baixo.** "48,2 mil" nunca é mais do que a pessoa tem.
+- **Os seguidores aparecem, mas não ordenam.** A ordem é a que a moderação escolhe, e o número é o do Instagram, não uma nota do site: o princípio de [sem ranking](#sem-ranking-e-sem-anúncio-pago) continua valendo para os negócios.
+- **Embaixador não é conta do site.** Só a moderação cadastra, e quem cobre o estado inteiro aparece em todas as cidades dele. Ligar o embaixador a uma conta, para mostrar quantos negócios ele indicou, ficou para depois.
+
+### 3 de novembro: a página de cada embaixador ([#259](https://github.com/fabs-reis/Negocio-do-bem/issues/259))
+
+Faltava um link de cada embaixador para divulgar no Instagram, na bio e nos stories. O nome e o @ levavam direto ao Instagram, e o site não tinha uma página que fosse da pessoa. Agora `/embaixadores/<@>` mostra quem é, o "Sobre" e os negócios da região, e a faixa, os cartões e a página da cidade levam para lá.
+
+- **O endereço é o @.** Quem divulga já conhece o próprio @, e o link fica igual ao do Instagram: `negociodobem.com/embaixadores/alodiario_literario`.
+- **A página reaproveita a da cidade.** O `Vitrine` já tinha a introdução, a capa ao lado e a lista de negócios com os atalhos. A capa virou o perfil do Instagram, e o `Vitrine` ganhou só o título da lista ("Negócios do bem em Curitiba, PR").
+- **O "Sobre" começa com a bio, mas é da moderação.** A bio vem na mesma consulta à Meta dos seguidores (`biography`) e só entra num "Sobre" vazio, quando a moderação cadastra ou clica em "Atualizar pelo Instagram agora". A consulta do dia nunca mexe nele: o texto ajustado pela moderação não volta a ser a bio.
+- **O Instagram ficou num botão só,** "Seguir no Instagram", na página do embaixador. Os outros links ficam dentro do site, onde estão os negócios.
+- **A prévia do link é própria,** com a foto e o nome, porque é ela que aparece quando o link é colado no Instagram ou no WhatsApp.
+
+### 3 de novembro: o perfil do negócio ganha capa e duas colunas ([#260](https://github.com/fabs-reis/Negocio-do-bem/issues/260))
+
+O perfil só contava quem é o negócio, em texto simples e com os botões todos iguais. A página passou a ajudar a pessoa a decidir ir ao local e a voltar, **sem migração**: usa só dados que já existem.
+
+- **Capa:** o negócio só tem a foto de perfil, então a capa é a foto da cidade (com o crédito do Commons) ou, sem ela, um banner da marca. Um mosaico de fotos do negócio exigiria uma tabela e um envio novos, e ficou para depois.
+- **Topo com ação:** o botão principal é o WhatsApp (ou o Instagram, sem WhatsApp) e há "Compartilhar", que copia o link.
+- **Duas colunas no computador:** história e depoimentos à esquerda; o cartão de contato fica fixo à direita.
+- **Causas por grupo,** os mesmos do filtro do diretório, em vez de uma fila de selos iguais.
+- **Depoimentos antes do formulário,** com um botão para o dono copiar o link e pedir depoimentos.
+- **Negócios parecidos** da mesma cidade no fim da página (`negociosParecidos`).
+- **O que está vazio some:** nenhum bloco em branco para o visitante.
+
+### 6 de novembro: liberação para o Clube do Bem ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248))
+
+Para criar ofertas com cupom, ser dono não basta: qualquer conta assume um perfil sem dono na hora, e um cupom num negócio assumido por outra pessoa vira golpe ("pague pelo Pix para garantir o desconto"). As regras estão em [Clube do Bem](regras-de-negocio.md#20-clube-do-bem).
+
+- **Só CNPJ, por enquanto.** O CNPJ dá uma ficha pública na Receita, com a situação e o quadro de sócios. A moderação vê se o negócio existe, se está ativo e se o nome da conta bate com um sócio. Autônomos sem CNPJ e profissões regulamentadas precisam de outro caminho (vídeo, indicação de embaixador, registro no conselho) e ficaram para depois.
+- **A moderação libera, o dono não pede.** O lançamento é com donos convidados, e a moderação conversa com cada um. O pedido feito pelo próprio dono, com um código na bio do Instagram, fica para quando o clube abrir.
+- **A ficha não é guardada.** É consultada na hora, a cada vez. A razão social do MEI traz o CPF da pessoa, então nem a auditoria leva a razão social: só o @, o nome da conta e o CNPJ.
+- **Por dono, e só enquanto for dono.** A liberação não passa para outro dono do mesmo negócio, e quem perde o perfil numa transferência perde a liberação sem precisar de outra ação.
+
+
+### 6 de novembro: ofertas e cupons do Clube do Bem ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248))
+
+Com a liberação pronta, o dono liberado cria uma oferta curta, quem visita gera o cupom e o dono valida no balcão. As regras estão em [Clube do Bem](regras-de-negocio.md#20-clube-do-bem).
+
+- **Prazo curto e sem edição.** Até 15 dias, terminando às 23h59 de Brasília. Uma oferta publicada obriga o negócio a cumprir (CDC, art. 30), então ela não muda depois de criada: o dono encerra e cria outra. Quem já gerou o cupom usa até o fim previsto.
+- **Desconto livre.** O plano previa revisar na moderação as ofertas acima de 50%; sem a fila de revisão, a primeira versão travou o desconto em 50%. Em 06/11 ficou decidido deixar o valor livre (até 100%, ou qualquer valor em reais): quem conhece o negócio é o dono, e as proteções contra golpe estão no texto da oferta, no aviso contra Pix e na suspensão quando o contato muda.
+- **O texto não leva contato nem pagamento.** Link, telefone, e-mail, documento e "Pix" são recusados no título e nas condições, e todo cupom repete que o site nunca pede Pix. O golpe mais provável no clube é pedir pagamento antecipado "para garantir o desconto".
+- **Trocar o contato suspende o clube.** É o outro lado do golpe: assumir um perfil, trocar o WhatsApp e lançar um cupom. A suspensão automática usa a mesma liberação da moderação, que confere de novo antes de liberar.
+- **Concorrência pelo banco.** O último cupom e a validação dupla se resolvem com UPDATE condicional (`cuponsGerados < limite`, `usadoEm IS NULL`), e a oferta única por negócio com `SELECT ... FOR UPDATE` na linha do negócio. Os testes disparam os pedidos ao mesmo tempo.
+- **Gerar o cupom favorita.** É a condição combinada na issue, num toque só, e o botão avisa antes.
+- **O dono vê só o primeiro nome** de quem gerou o cupom, para conferir no balcão. O clube não entrega lista de clientes.
+- **O coração acompanha o servidor.** Gerar o cupom favorita o negócio e volta ao mesmo perfil, só com o `?aviso=`. O coração guardava o próprio estado (`useActionState`) e continuava vazio; agora ele recomeça quando o valor que vem do servidor muda (uma `key` com o estado).
+- **Ficou para depois:** o filtro "Com cupom" no diretório (o selo nos cards já mostra), o QR code, o e-mail com "Repetir oferta" e a denúncia de oferta.
+
+### 6 de novembro: a página do Clube do Bem ([#284](https://github.com/fabs-reis/Negocio-do-bem/issues/284))
+
+Sem uma explicação, o dono não sabia como criar a oferta nem conferir o cupom, e quem compra não sabia que precisava de conta nem que o negócio vê o primeiro nome. `/clube-do-bem` é um passo a passo com prints, no formato do `/instalacao`.
+
+- **Dois caminhos na mesma página.** "Quero usar um cupom" e "Tenho um negócio" levam às duas seções. Numa página só, quem compra também vê como o dono confere o cupom, e o dono vê o que o cliente vê.
+- **Prints de verdade, ao contrário do `/instalacao`.** As telas são as do próprio site, que a gente controla, então não envelhecem com uma versão do sistema. Foram tiradas no tamanho de celular (390 px, densidade 2) com o Chrome sem janela, com os dados de exemplo do seed, e ficam em `public/prints/clube-do-bem/` em WebP (cerca de 350 KB ao todo). Largura e altura de cada uma estão na página, para nada pular enquanto carrega. A pasta não se chama `clube-do-bem` para não disputar o endereço com a página.
+- **`Passo` e `Passos` foram para `src/components/Passos.tsx`,** para servir aos dois tutoriais. Na página do clube, o título do passo é `h3`, porque as seções já usam `h2`.
+- **Mudou a tela, troque o print.** O texto cita os botões pelo nome ("Favoritar e gerar cupom", "Marcar como usado"), e as regras citadas (15 dias, primeiro nome, contato trocado) são as da [seção 20](regras-de-negocio.md#20-clube-do-bem).
+
+
+### 6 de novembro: o dono pede a verificação do Clube do Bem ([#286](https://github.com/fabs-reis/Negocio-do-bem/issues/286))
+
+Antes, a moderação precisava conseguir o CNPJ com cada dono e digitar na ficha do negócio. Agora o dono informa o CNPJ no painel, e o pedido cai numa fila da moderação, que já abre com a ficha da Receita. As regras estão em [Liberação para o clube](regras-de-negocio.md#liberação-para-o-clube).
+
+- **Sem migração.** O pedido usa a mesma linha da liberação (`LiberacaoClube`), com dois status novos, "pendente" e "recusada". O `status` já era texto, e o `decididoEm` passou a ser a data da última mudança. Assim, cada dono continua com uma linha por negócio, e liberar um pedido é o mesmo `upsert` de antes.
+- **A Receita barra cedo, mas não trava.** Um CNPJ que a Receita diz não estar ativo nem entra na fila. Se a BrasilAPI não responde, o pedido entra assim mesmo: a moderação consulta de novo antes de liberar, e a liberação continua exigindo a Receita.
+- **O motivo de antes fica.** Quem foi recusado ou suspenso pede de novo, e o motivo da última decisão continua na linha, para a moderação ver ("Da última vez: …"). Um golpista suspenso que pede de novo aparece com o motivo da suspensão.
+- **A ficha da Receita virou um componente** (`src/app/moderacao/FichaDaReceita.tsx`), usado na fila e na ficha do negócio. Na fila, "Liberar" e "Recusar" voltam para a fila (`voltar=fila`).
+- **O dono não vê a ficha.** Ele só fica sabendo se o CNPJ está ativo. O quadro de sócios e a comparação do nome continuam só com a moderação.
+- **CNPJ inexistente é recusado na hora.** `buscarNaReceita` separa o 404 da BrasilAPI ("Não achamos este CNPJ na Receita") da consulta que falhou, que deixa o pedido entrar. O `consultarCnpj` continua devolvendo `null` nos dois casos, para quem já o usava.
+- **A página `/clube-do-bem` mudou junto:** o passo 1 do dono troca o aviso de "fase de convite" por três prints, com a caixa do painel, o formulário do CNPJ e o pedido em análise. O CNPJ dos prints (12.345.678/9999-66) tem os dígitos certos e não existe na Receita.
+
+### 7 de novembro: verificação do negócio com nome e CPF ([#293](https://github.com/fabs-reis/Negocio-do-bem/issues/293))
+
+A ideia: assumir o perfil continua imediato, e a **verificação** vem em seguida, no painel, com o CNPJ, o nome completo e o CPF. Aprovada, ela dá o selo "Perfil verificado" e libera o clube num passo só. As regras estão em [Liberação para o clube](regras-de-negocio.md#liberação-para-o-clube). Esta é a parte 1; o documento (RG ou CNH, num bucket R2 privado) é a parte 2.
+
+- **Migração pequena:** duas colunas em `LiberacaoClube`, `nomeCompleto` e `cpfMascarado`. O pedido do clube já era a linha certa para a verificação.
+- **O CPF inteiro nunca é guardado.** A Receita mostra do sócio só os 6 dígitos do meio (`***325350**`, conferido numa consulta real), então é só isso que dá para comparar, e é só isso que o banco guarda. A moderação vê "os dígitos do meio batem com um sócio", sem o número. O servidor nunca devolve o CPF num formulário com erro (`valores` leva só o CNPJ e o nome); ele só continua no campo porque o navegador mantém o que foi digitado.
+- **O selo "Perfil verificado" é derivado, sem campo novo:** é o perfil que tem um dono liberado (o mesmo critério do "Parceiro do Clube do Bem"). Assim a suspensão e a remoção do dono tiram o selo sozinhas, e não há dois estados para manter em sincronia. Nas listas do diretório, o selo continua "Perfil assumido"; fica para outra issue, porque pede a consulta da liberação em cada card.
+- **O formulário de assumir encolheu:** saíram CNPJ, site e contato (a moderação usa o e-mail da conta). Pedidos antigos mantêm o que enviaram.
+
+### 7 de novembro: o documento da verificação ([#293](https://github.com/fabs-reis/Negocio-do-bem/issues/293), parte 2)
+
+A foto do RG ou da CNH entra no pedido de verificação. As regras estão em [Liberação para o clube](regras-de-negocio.md#liberação-para-o-clube).
+
+- **Bucket novo e privado, não o das fotos.** O `negocio-do-bem-documentos` (e o `negocio-do-bem-preview-documentos`, para os previews) não tem domínio público. As fotos do site são públicas por desenho; um documento de identidade nunca pode ser. O binding `DOCUMENTOS` fica no `wrangler.jsonc`, na produção e nos previews.
+- **O banco guarda só a chave.** Um nome aleatório (`<32 hex>.jpg`) que não leva a lugar nenhum sozinho. Só a rota `/moderacao/documentos/<pedido>/<n>` lê o arquivo, depois de conferir a moderação a cada acesso, e responde 404 para o resto.
+- **Apagar é parte do desenho, não uma limpeza futura.** O documento some quando a moderação decide. Como o projeto não tem rotina agendada, o prazo de 30 dias roda quando a fila abre. Foi o que deu para garantir sem criar uma rotina nova.
+- **O arquivo sobe antes do pedido.** Se o pedido não entra, a ação apaga o que já tinha subido, para um CNPJ inativo não deixar documento órfão.
+- **O limite das Server Actions subiu de 4 MB para 11 MB** (dois arquivos de 5 MB). Cada ação continua conferindo o tamanho dos seus arquivos, e o das fotos segue 3 MB.
+- **Em desenvolvimento,** os arquivos ficam em `.documentos-privados/` (fora de `public/` e no `.gitignore`).
+
+### 7 de novembro: a moderação tira um dono ([#292](https://github.com/fabs-reis/Negocio-do-bem/issues/292))
+
+Nos primeiros testes do clube em produção, a conta que assumiu um perfil não batia com a única sócia na Receita, e a moderação não tinha como tirar o acesso: só aprovando outra pessoa no modo "transferir". Agora cada dono tem o botão "Remover dos donos". As regras estão em [Tirar um dono](regras-de-negocio.md#tirar-um-dono).
+
+- **Sem migração.** O pedido aprovado da pessoa ganha o status `revogada`, e o motivo vai no `motivoRecusa`, que o painel e a ficha da conta já mostravam. O `status` já era texto.
+- **O pedido revogado é a memória da remoção.** Ele impede a aprovação na hora de um pedido novo da mesma pessoa para o mesmo negócio, nos três caminhos (dados do negócio, "Aprovar os N pedidos sem dono" e Entrar com Instagram). Sem isso, quem foi tirado de um negócio sem outros donos assumiria de novo no minuto seguinte. Os donos de hoje vieram todos de um pedido aprovado.
+- **O perfil volta a `indicada` quando fica sem dono.** Antes o selo "Perfil assumido" nunca voltava atrás, mas um perfil sem dono com o selo escondia o botão "Sou o dono" de quem é dono de verdade.
+- **Só as ofertas da pessoa saem do ar.** A suspensão da liberação pela moderação tira todas as ofertas do negócio, mas aqui o problema é a pessoa: a oferta de outro dono liberado continua.
+- **A remoção trava a linha do negócio** (`FOR NO KEY UPDATE`) antes de contar os donos que sobraram. Assim, duas remoções ao mesmo tempo, ou uma remoção e uma aprovação, não deixam um perfil sem dono marcado como assumido.
+- **Confirmação no servidor também.** A caixa "Confirmo" é `required` no HTML, e a ação confere `confirmo=sim` de novo, porque uma Server Action pode ser chamada sem o formulário.
+- **A transferência continua como era.** Quem sai dos donos numa transferência não recebe e-mail, e as ofertas que criou não são suspensas. Fica para outra issue, se a moderação precisar.
 ---
+
+### 7 de novembro: menu do celular e aba de cupons ([#308](https://github.com/fabs-reis/Negocio-do-bem/issues/308))
+
+Quem instalou o app não tem a barra do navegador, e o menu ficava atrás de um ícone no topo: os cupons ficavam escondidos e o dono não achava onde validar. As regras estão em [A navegação no celular](regras-de-negocio.md#17-o-site-como-app).
+
+- **Barra no rodapé, não menu no topo.** É o padrão dos apps e fica ao alcance do polegar. O desenho foi aprovado antes de codar, em telas feitas à parte. A barra é um componente de cliente (`BarraInferior`) só para marcar a aba ativa com `usePathname`; quem decide o perfil (comprador ou dono) é o servidor (`NavegacaoMobile`), dentro de um `<Suspense>`, porque lê a sessão e o banco.
+- **Dois perfis de barra.** O botão Validar só aparece para o dono liberado no clube: para os demais seria um botão que leva a uma explicação. A liberação e o fato de ainda ser dono vêm de `negociosDoClube`.
+- **`/cupons` virou a lista de ofertas.** Antes era "Meus cupons", que foi para `/cupons/meus`. As ofertas valendo usam `condicaoDeOfertaPublica`, a mesma regra do perfil (aprovado e não oculto), para a lista nunca mostrar o que o perfil esconde.
+- **"Pegar cupom" na lista** usa a mesma ação do perfil (`gerarCupomAcao`), com um campo `origem` para voltar a Meus cupons em vez de ao perfil. Uma regra só para gerar cupom.
+- **Validar tem tela própria,** mas o painel do clube continua validando. O cartão do cupom conferido (`CupomConferido`) virou um componente dos dois lugares, e a ação `usarCupomAcao` volta para a tela de onde o dono veio.
+- **`viewportFit: "cover"`** no layout: sem ele o iPhone não informa a área do botão home, e a barra ficaria por cima dele.
 
 ## 4. Arquitetura
 
@@ -292,12 +655,34 @@ Os previews também usavam o Vercel Blob de produção, onde ficam as fotos. Ent
 | **Tailwind CSS** | 4 | Estilo com variáveis de tema (`@theme`), o que permite o modo escuro sem trocar classes. |
 | **Tiptap** | 3.31 | Editor visual da história, com leitura e gravação em Markdown. |
 | **react-markdown + remark-gfm** | 10 | Exibição da história sem executar HTML. |
-| **Vercel Blob** | 2.8 | Armazenamento das fotos em produção. |
+| **Cloudflare R2** | Cloudflare Workers binding | Armazenamento das fotos; OpenNext usa outro bucket R2 para o cache incremental. |
 | **Vitest** | 5 | Testes de unidade e de banco. |
 
-A autenticação é feita no próprio projeto (`src/lib/auth/`), com e-mail, senha (scrypt) e sessão em cookie. Isso evita depender de um serviço externo para algo simples.
+A autenticação é feita no próprio projeto (`src/lib/auth/`), com e-mail, senha (scrypt), link por e-mail e sessão em cookie. Isso evita depender de um serviço externo para algo simples.
 
-Como o e-mail do cadastro não é confirmado, ele nunca dá permissão. A moderação vem só do `papel` gravado no banco, conferido no servidor a cada requisição, e quem cuida do projeto dá esse papel com `npm run moderacao`. Até outubro de 2026 a variável `ADMIN_EMAILS` também dava moderação, e qualquer pessoa que se cadastrasse com um daqueles e-mails antes do dono levava o acesso.
+O scrypt que protege as senhas custa ~32 MB de memória por conferência, então login e cadastro têm limite de tentativas por IP e por e-mail, conferido antes dele (`src/lib/auth/tentativas.ts`). A contagem fica numa tabela do Postgres (`TentativaAcesso`), e não na memória, porque no Vercel o site roda em várias instâncias. Cada tentativa é somada num `INSERT ... ON CONFLICT DO UPDATE` só, que também abre a janela nova quando a anterior venceu: assim, tentativas simultâneas não zeram a contagem umas das outras. Um serviço próprio para contadores (Upstash, Vercel KV) traria mais uma dependência e mais uma variável.
+
+O limite por IP só vale com um IP confiável. No Cloudflare, `ipDoCabecalho` usa apenas `cf-connecting-ip` quando `CLOUDFLARE_DEPLOY=1`. No Vercel, usa apenas `x-vercel-forwarded-for`. Em outra hospedagem, usa o último `x-forwarded-for` apenas com `AUTENTICACAO_PROXY_CONFIAVEL=1`. Quando não há IP confiável, em produção as ações de login, cadastro e senha são recusadas antes do scrypt e o log orienta a configuração. Em desenvolvimento e nos testes não há limite por IP, mas o limite por e-mail continua. Não há contador de IP compartilhado.
+
+O IP passa por `normalizarIp` antes de virar chave do contador. O IPv4 escrito como IPv6 (`::ffff:203.0.113.5`) volta a ser IPv4. Os endereços IPv6 viram o prefixo /64, porque quem recebe uma rede IPv6 escolhe qualquer endereço dela a cada requisição: sem isso, cada endereço abriria um contador novo, e o limite por IP não valeria contra quem tem IPv6. A contrapartida é que uma rede /64 inteira, como a de uma casa, divide uma cota só. Um prefixo maior que /64 (como um /56) ainda tem um contador para cada /64, e o cadastro só tem o limite por IP.
+
+O limite por e-mail também é conferido antes do scrypt. A tentativa é reservada por `reservarTentativaDoEmail`, no mesmo `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`, que soma e devolve a contagem num comando só. Primeiro conferir e depois contar deixaria passar todas as tentativas que chegam juntas, cada uma de um IP, e o limite por IP não impede isso. Também não há transação aberta durante o scrypt: ela prenderia uma conexão e a linha do contador por ~100 ms a cada login. Quando o login dá certo, a contagem do e-mail é apagada.
+
+O contador do e-mail é separado por origem (a chave é o e-mail junto com o IP, ou o /64 no IPv6). Com um contador só por e-mail, quem soubesse o e-mail de alguém poderia errar a senha 5 vezes e deixar a dona da conta 15 minutos sem entrar, e repetir a cada janela. Separando por origem, o bloqueio vale só para quem está errando. O preço é que um ataque espalhado por muitos IPs ganha 5 palpites por IP para o mesmo e-mail, em vez de 5 no total. Cada IP continua limitado a 10 tentativas por janela, somando todos os e-mails. Um passo além, se for preciso, é o "cookie de dispositivo" que a OWASP recomenda: o navegador onde a pessoa já entrou ganha uma marca assinada e não cai no bloqueio que outros causaram, e aí dá para voltar a ter um limite por e-mail para todo o resto.
+
+O e-mail nunca dá permissão, nem depois de confirmado: as contas antigas não confirmaram, e quem se cadastra primeiro com um endereço escolhe o que confirmar. A moderação vem só do `papel` gravado no banco, conferido no servidor a cada requisição, e quem cuida do projeto dá esse papel com `npm run moderacao`. Até outubro de 2026 a variável `ADMIN_EMAILS` também dava moderação, e qualquer pessoa que se cadastrasse com um daqueles e-mails antes do dono levava o acesso.
+
+Toda resposta leva cabeçalhos de segurança (`headers()` no `next.config.ts`):
+
+- **`Content-Security-Policy`:** scripts, estilos, imagens e conexões só do próprio site, do Google Analytics e do Cloudflare Web Analytics.
+  - **Google Analytics:** o `connect-src` libera também `*.google.com`, porque o GA4 manda parte dos envios para `www.google.com/g/collect`. O [guia de CSP do Google](https://developers.google.com/tag-platform/security/guides/csp) pede isso mesmo sem os recursos de anúncios.
+  - **Cloudflare Web Analytics:** o script `static.cloudflareinsights.com` e os envios para `cloudflareinsights.com`. O Cloudflare injeta esse script na resposta, e sem a liberação o navegador o barrava em todas as páginas (issue #289).
+  - **Fotos e previews:** as imagens podem vir também do domínio das fotos no R2 (`NEXT_PUBLIC_R2_PUBLIC_URL`). Nos previews, também do `vercel.live`, a barra de comentários do Vercel.
+  - **Embutir e enviar para fora:** `frame-ancestors 'none'` impede que outro site embuta as páginas num iframe (clickjacking), e `form-action 'self'` impede formulários de enviar dados para fora.
+- **Sem nonce:** a CSP aceita scripts inline (`'unsafe-inline'`), como o script do tema no `layout.tsx` e os do próprio Next. Uma CSP com nonce obriga toda página a ser renderizada a cada acesso e é incompatível com o Partial Prerendering, que o projeto usa com o Cache Components. Ficaríamos sem pré-render e sem cache na CDN.
+- **`Strict-Transport-Security`** (2 anos), **`X-Frame-Options: DENY`** (para navegadores antigos), **`X-Content-Type-Options: nosniff`**, **`Referrer-Policy: strict-origin-when-cross-origin`** (sites abertos a partir do perfil não recebem o endereço completo) e **`Permissions-Policy`** (sem câmera, microfone, localização, pagamento, USB nem `browsing-topics`).
+
+Se uma página nova precisar de um script, imagem ou iframe de outro endereço, o endereço entra na política, senão o navegador bloqueia e avisa no console.
 
 ### Como uma requisição anda
 
@@ -305,14 +690,15 @@ Como o e-mail do cadastro não é confirmado, ele nunca dá permissão. A modera
 flowchart LR
     N[Navegador] -->|abre páginas| P[Páginas<br>src/app]
     N -->|envia formulários| A[Server Actions<br>src/acoes]
-    N -->|login e webhook do Instagram| R[Rotas de API<br>src/app/api]
+    N -->|login do Instagram e do Google| R[Rotas de API<br>src/app/api]
     P --> L[Regras e consultas<br>src/lib]
     A --> L
     R --> L
     L --> DB[(PostgreSQL<br>via Prisma)]
-    L --> B[(Vercel Blob<br>fotos)]
+    L --> B[(Cloudflare R2<br>fotos)]
     L -.-> BR[BrasilAPI<br>CNPJ]
     L -.-> IG[API do Instagram]
+    L -.-> RS[Resend<br>e-mails]
     N -.-> GA[Google Analytics]
 ```
 
@@ -325,10 +711,12 @@ As linhas tracejadas são serviços opcionais. O site funciona sem eles.
 | `prisma/` | Esquema do banco (`schema.prisma`), migrações e dados de exemplo (`seed.ts`). |
 | `src/app/` | Páginas e rotas. Cada pasta é um endereço: `explorar/` é o diretório, `empresas/[usuario]` é o perfil, `painel/` é o painel do dono, `moderacao/` é a moderação, `api/` tem as rotas do Instagram. |
 | `src/acoes/` | Server Actions, uma por formulário ou botão. Conferem a permissão e validam os dados. |
-| `src/lib/` | Regras de negócio e utilitários, sem interface: `reivindicacao.ts`, `consultas.ts`, `instagram.ts`, `causas.ts`, `cnpj.ts`, `formulario.ts`, `armazenamento.ts`, `auth/`… |
+| `src/lib/` | Regras de negócio e utilitários, sem interface: `reivindicacao.ts`, `consultas.ts`, `instagram.ts`, `causas.ts`, `cnpj.ts`, `formulario.ts`, `armazenamento.ts`, `auth/`, `moderacao/` (filtros, indicadores e consultas do painel da moderação)… |
 | `src/components/` | Componentes de interface reutilizados entre páginas. |
+| `public/` | Arquivos servidos como estão: ícones, fotos e prévias das cidades, o service worker (`sw.js`), a página "Sem conexão" (`offline.html`) e os cabeçalhos de cache do Cloudflare (`_headers`). |
 | `tests/` | `unit/` (sem banco) e `db/` (com banco). |
 | `docs/` | Esta documentação e os prints do README. |
+| `assets/fontes/` | Fontes das imagens de compartilhamento, com a licença OFL de cada uma. |
 
 ### O banco
 
@@ -337,6 +725,8 @@ erDiagram
     Usuario ||--o{ Sessao : "tem"
     Usuario ||--o{ EmpresaMembro : "é dono via"
     Empresa ||--o{ EmpresaMembro : "tem donos"
+    Usuario ||--o{ EmpresaFavorita : "favorita"
+    Empresa ||--o{ EmpresaFavorita : "é favorita de"
     Empresa ||--o{ EmpresaCausa : "abraça"
     Empresa ||--o{ Depoimento : "recebe"
     Empresa ||--o{ Reivindicacao : "é pedida em"
@@ -353,12 +743,15 @@ Decisões do esquema:
 - **As causas ficam no código** (`src/lib/causas.ts`), e o banco guarda só o slug. Criar uma causa é mudar uma linha, sem migração.
 - **Unicidade garantida pelo banco:**
   - um @ por negócio;
+  - um @ por embaixador;
+  - uma conta do Google por conta do site (`googleId`);
   - um ID de conta do Instagram por negócio;
   - um depoimento por pessoa por negócio;
-  - um código de DM único.
+  - um favorito por pessoa por negócio;
+  - um código de DM único (só nos pedidos antigos).
 - **O que acontece ao apagar** (não há tela para isso hoje, só direto no banco):
-  - **uma conta:** apaga as sessões, os vínculos de dono, os pedidos de reivindicação e os depoimentos dela. Os negócios que ela indicou, as decisões que tomou e os registros de auditoria ficam, sem o autor;
-  - **um negócio:** apaga as causas, os donos, os depoimentos e os pedidos ligados a ele.
+  - **uma conta:** apaga as sessões, os vínculos de dono, os favoritos dela, os pedidos de reivindicação e os depoimentos dela. Os negócios que ela indicou, as decisões que tomou e os registros de auditoria ficam, sem o autor;
+  - **um negócio:** apaga as causas, os donos, os favoritos, os depoimentos e os pedidos ligados a ele.
 
 ---
 
@@ -379,7 +772,7 @@ Cada formulário chama uma função em `src/acoes/`, sempre na mesma ordem:
    Nunca confie em um botão escondido: a conferência é sempre no servidor.
 2. **Valida os dados com Zod.** Os campos reaproveitáveis (`campoSite`, `campoWhatsapp`, `campoEmail`) estão em `src/lib/formulario.ts`.
 3. **Faz a mudança no banco.** Use uma transação quando mais de uma tabela muda junto.
-4. **Registra na auditoria** se for uma decisão ou edição importante.
+4. **Registra na auditoria** se for uma decisão ou edição importante, dentro da mesma transação da alteração no banco. Use `registrarAuditoria(tx, ...)`, para uma falha no registro também desfazer a alteração.
 5. **Redireciona com um aviso:** `?aviso=codigo`, com o texto em `src/lib/avisos.ts`.
 
 Quando há erro de validação, a ação devolve um `EstadoFormulario` com os erros por campo e os valores enviados. Assim o formulário mostra o erro sem perder o que a pessoa digitou.
@@ -402,6 +795,12 @@ No cliente, os formulários com `useActionState` usam `enviarSemLimpar` (`src/co
 
 - **Os dados do banco não usam `use cache`,** para estarem sempre atualizados.
 - `usuarioAtual()` usa o `cache` do React: a sessão é lida uma vez por requisição, mesmo que vários componentes perguntem.
+- **Quando algo falha no servidor**, como o banco fora do ar ([#141](https://github.com/fabs-reis/Negocio-do-bem/issues/141)), três peças evitam a tela padrão do Next, em inglês:
+  - `src/app/error.tsx` fica no lugar da página, com "Tentar de novo" (o `retry()` do Next), um link para o início e o código do erro (o `digest`, que acha a mensagem nos logs do Vercel). O cabeçalho e o rodapé continuam na tela;
+  - o `error.tsx` não cobre o layout do mesmo nível, e o menu da conta, que lê a sessão no banco, fica no layout. Por isso o `MenuUsuario` vai dentro do `ProtecaoDoMenu` (`catchError` do Next), que mostra o "Entrar" se a leitura falhar;
+  - `src/app/global-error.tsx` é o último recurso, para uma falha no próprio layout. Ele substitui a página inteira e por isso traz o `<html>`, as fontes, o CSS e o script do tema.
+
+  Nenhuma das três consulta o banco. A página com erro continua respondendo com status 200: o erro aparece quando o navegador processa a página.
 
 ### Regras de negócio fora da interface
 
@@ -416,6 +815,7 @@ Erros que podem ser mostrados para a pessoa usam uma classe própria (`ErroReivi
 - **Componentes de formulário:** `Campo` (rótulo, ajuda e erro), `BotaoEnviar` (mostra "Enviando…"), `Aviso`.
 - **Classes de `globals.css`:** `.botao`, `.botao-coral`, `.botao-claro`, `.cartao`, `.campo`, `.link` e `.historia`. Prefira essas classes a repetir utilitários do Tailwind.
 - **Cores do tema:** `papel`, `superficie`, `tinta`, `suave`, `linha`, `coral` e `folha`. Para algo que só muda no escuro, use a variante `escuro:`.
+- **Cores da marca:** `marca-laranja`, `marca-verde`, `marca-marrom` e `marca-creme` são as do manual e não mudam no escuro. Use para a marca, não para a interface. O logo é o componente `Logo`, e a altura vem do `className`.
 - **Cor fixa nunca:** `bg-white` e afins não mudam no modo escuro. Use `superficie`.
 - **Tipografia:** textos longos usam a fonte serifada (Newsreader), e a interface usa a Inter.
 
@@ -429,18 +829,35 @@ npm run lint
 npm run typecheck
 ```
 
-- **`tests/unit/`:** funções sem banco. Cobrem CNPJ, senha, normalização de texto, causas, campos de formulário, tempo de leitura, fotos (inclusive quando elas vão para o Vercel Blob) e Instagram.
-- **`tests/db/`:** as regras de reivindicação contra um Postgres de verdade:
-  - código por DM;
+- **`tests/unit/`:** funções sem banco. Cobrem CNPJ, senha, normalização de texto, causas, campos de formulário, tempo de leitura, fotos (de quais endereços o site aceita mostrar) e Instagram.
+- **`tests/unit/email.test.ts`:** a chamada ao Resend, quando o envio liga e que uma falha não lança erro.
+- **`tests/db/`:** as consultas do diretório e do painel da moderação, quem recebe cada aviso por e-mail, os links por e-mail (prazo, uso único, limite e cliques ao mesmo tempo) e as regras de reivindicação contra um Postgres de verdade:
   - Entrar com Instagram;
+  - pedidos antigos por código de DM;
   - conflitos;
   - transferência;
   - dados do negócio;
-  - limite diário.
+  - limite diário;
+  - limite de tentativas de login e cadastro: `tests/db/tentativas.test.ts` testa os contadores, e `tests/db/acoes-conta.test.ts` passa pelas ações `entrar`, `cadastrar` e `trocarSenha` de verdade, com espiões no scrypt. Só o Next (cabeçalhos, redirect e cookie) é de mentira. Esses testes falham se alguém tirar o limite do cadastro, mover o limite para depois do scrypt, ou confiar num cabeçalho de IP que o visitante escreve;
+  - esqueci minha senha: `tests/db/redefinicao-de-senha.test.ts` passa pelo pedido, pela troca com o link e pelo link pedido no painel (uso único, envios ao mesmo tempo, links gastos, sessões encerradas, tentativas zeradas e o e-mail de aviso).
 - **O banco de teste é separado** (`negocio_do_bem_teste`, ou o de `TEST_DATABASE_URL`).
   - Ele é criado na primeira execução e as tabelas são limpas entre os testes.
   - A suíte se recusa a rodar se o nome do banco não tiver "test", para nunca apagar dados de desenvolvimento.
-- **No GitHub,** o CI roda lint, tipos e testes num Postgres temporário em todo PR e a cada push na `stage` e na `main`.
+- **No GitHub,** o CI roda lint, tipos, testes, build de produção e integração num Postgres temporário em todo PR e a cada push na `stage` e na `main`.
+- **`npm run test:integracao`:** depois de `npm run build`, inicia o Next real em uma porta local. Usa contas e sessões fictícias no banco de teste para verificar a moderação compilada. Cada Server Action de `src/acoes/moderacao.ts` é enviada como visitante e como membro e precisa terminar em `/404` sem gravar nada. As três páginas exclusivas da moderação (a fila e as duas de detalhe) são abertas pelos mesmos papéis e pela moderação, que serve de controle. Uma ação nova em `src/acoes/moderacao.ts` faz a prova falhar até ser incluída na lista do teste. O servidor encerra ao terminar, e apenas os dados criados pela prova são removidos. Qualquer erro escrito pelo servidor faz a prova falhar, com o caminho do log completo, que fica na pasta temporária do sistema.
+- A configuração comum descobre apenas `tests/unit/` e `tests/db/`. A integração tem configuração própria, não depende de variável de ativação e falha se não encontrar testes. Ela não cria rota de teste no produto nem depende de um navegador ou de um serviço externo.
+- The test setup removes inherited Blob selectors and the public R2 URL. Unit tests enable external storage only with a replacement SDK. The HTTP proof does not upload photos. In CI, Next uses the disposable PostgreSQL database that the database tests prepare.
+- **`npm run test:cloudflare`:** runs a separate Cloudflare proof. Set `TEST_DATABASE_URL` to a disposable PostgreSQL server at `127.0.0.1`. Include an explicit port, user, password, and database name that contains `test`. Do not include query parameters or a fragment. The account must have permission to create databases.
+- The command creates a separate database with a random name. It runs preview migrations and seed through `scripts/cloudflare-build.sh`, then builds the Worker with OpenNext. It prepares the local R2 cache with `opennextjs-cloudflare populateCache local`. The cache state stays in the temporary directory. It starts `wrangler dev --local` on a free loopback port.
+- A prova define `CLOUDFLARE_CF_FETCH_ENABLED=false` nos subprocessos. O Miniflare usa metadados `cf` locais, sem consultar `workers.cloudflare.com`. Erros do Worker continuam fazendo a prova falhar.
+- The public route must render the seeded business and its structured data. Anonymous access to `/moderacao` must return the Next 404 refusal without action forms. Worker errors fail the command. The Next HTTP tests still check authorized writes and denied writes against the database.
+- The command creates a temporary Wrangler configuration without production routes or the upload binding. The R2 cache is local only. `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and Hyperdrive use the same separate database. Child processes receive only explicit test settings. Local `.env*` and `.dev.vars*` files stop execution before migration, except `.example` templates. The command does not read these files.
+- On success or failure, the command stops its Worker and removes its database, temporary configuration, and local cache. It does not publish resources.
+  - Dois workflows avisam sem bloquear o merge: a **auditoria de dependências** (`npm audit`, em todo PR e todo dia sobre a `stage`) e o **CodeQL** (análise estática do código, em todo PR, a cada push e toda segunda). Os alertas do CodeQL ficam na aba Security.
+  - A auditoria só falha com vulnerabilidade alta ou crítica (`--audit-level=high`).
+    - Os `overrides` do `package.json` levam ao `glob` 14 o `@opennextjs/cloudflare` (que pede o 13) e o `@node-minify/core`, que entra pelo `@opennextjs/aws` e fixa o 10.3.3. Os dois tinham avisos de segurança que o OpenNext ainda não corrigiu, e só chamam `glob()` e `globSync()`, que não mudaram no 14. Quando o OpenNext pedir um `glob` corrigido, tire os overrides.
+    - Fica uma exceção conhecida: o `minimatch` do ESLint e dos plugins dele ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), moderada). A correção só existe no `minimatch` 11, que não pode mais ser chamado como função, e os plugins do ESLint chamam o 3 assim. Ele só roda no lint, com padrões do próprio repositório. Some quando o ESLint e os plugins subirem o `minimatch`.
+  - O **Dependabot** abre PRs para a `stage` toda segunda com as versões novas do npm e das Actions, só depois de alguns dias publicadas (`.github/dependabot.yml`). As Actions ficam presas pelo SHA do commit.
 
 **A regra do projeto:** mudou uma regra em `src/lib/reivindicacao.ts`, atualize ou crie o teste em `tests/db/`. Para outras regras de `src/lib/`, um teste em `tests/unit/` é muito bem-vindo.
 
@@ -450,55 +867,53 @@ npm run typecheck
 
 | Peça | Onde | Observação |
 | --- | --- | --- |
-| Site | Vercel, funções em São Paulo (`gru1`) | Produção em https://negociodobem.vercel.app |
-| Banco de produção | Neon (PostgreSQL), São Paulo | Conectado ao Vercel só em Production. O Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. |
-| Banco dos previews | Outro projeto Neon (`negocio-do-bem-preview`), São Paulo | Conectado só em Preview: serve à `stage` e aos PRs. Tem senha e cota de compute próprias e só guarda dados de teste. |
-| Fotos de produção | Vercel Blob, público, São Paulo | Conectado ao Vercel só em Production, que cria `BLOB_STORE_ID`. O site se autentica pelo OIDC do deploy, sem token. |
-| Fotos dos previews | Outro Vercel Blob, público, São Paulo | Conectado só em Preview, do mesmo jeito. As credenciais dele não alcançam o Blob de produção, e ele não guarda fotos reais. |
-| Medição | Google Analytics 4 | `NEXT_PUBLIC_GA_ID` só em Production. |
-| Fotos do Instagram | Script local (launchd) + app "Negócio do Bem" na Meta | `FOTOS_TOKEN` no Vercel; o resto fica no `.env.fotos` do computador que roda a rotina. |
+| Site | Cloudflare Workers, adaptador OpenNext | Produção na branch `main`; previews para `stage` e PRs. |
+| Banco de produção | PlanetScale Postgres (PS-5, nó único), São Paulo, criado e cobrado pelo Cloudflare | O Worker conecta pelo Hyperdrive `negocio-do-bem` (cache desligado, até 8 conexões; o PS-5 tem 25). O build usa a `DATABASE_URL`, direta e com `?sslmode=verify-full`. O Neon antigo ficou só para leitura, como reserva. |
+| Banco dos previews | Projeto Neon separado (da integração do Vercel) | Não compartilha credenciais de produção. Configure em Worker Previews. |
+| Domínio | `www.negociodobem.com` como domínio personalizado do Worker | O domínio sem `www` passa pelo proxy do Cloudflare e uma regra de redirecionamento da zona manda para o `www` (301, com caminho e consulta). |
+| Fotos | Cloudflare R2 | Bucket privado para cache; bucket de uploads servido por domínio próprio em produção. Em POC, pode usar a Public Development URL (`r2.dev`), que expõe os objetos publicamente e tem limite de requisições. Configure buckets separados para produção e previews. |
+| Medição | Google Analytics 4 | `NEXT_PUBLIC_GA_ID` só nas variáveis de build da produção. |
+| Fotos do Instagram | Script local (launchd) + app "Negócio do Bem" na Meta | `FOTOS_TOKEN` no Worker de produção; o resto fica no `.env.fotos` do computador que roda a rotina. |
+| Avisos por e-mail | Resend, com o domínio `negociodobem.com` | `RESEND_API_KEY` e `EMAIL_REMETENTE` só em Production. O DNS do domínio fica na Hostinger, e a caixa `ola@negociodobem.com`, que recebe as respostas, no Zoho Mail. |
 
 **Como um deploy acontece:**
 
-1. Cada PR para a `stage` ganha um **preview** do Vercel. O merge na `stage` atualiza o preview dela, que serve de homologação.
-   - **Os previews guardam as fotos num Blob próprio.** Uma foto enviada num preview, ou na `stage`, fica no Blob dos previews e aparece no próprio preview. O código de um PR, mesmo com bug, não grava nem apaga as fotos de produção.
-2. Um PR da `stage` para a `main` leva o que foi homologado para produção. O merge na `main` dispara o deploy de produção no Vercel. O passo a passo está na receita [Publicar em produção](#publicar-em-produção).
-   - O merge é sempre com **"Create a merge commit"**, a única opção que o ruleset da `main` aceita. Com ele, a ponta da `stage` passa a fazer parte da história da `main`. Por isso o PR de publicação mostra só os commits que ainda não estão em produção e não conflita com o que já foi publicado.
-3. O `scripts/vercel-build.sh` aplica as migrações pendentes (`prisma migrate deploy`) no banco daquele ambiente, usando a conexão direta do Neon. Nos previews, roda também o seed. Depois, roda o build.
+1. Workers Builds conectado ao repositório executa builds de produção na `main` e previews em branches não produtivas. Configure preview bindings e secrets com o banco e buckets de teste; eles não devem apontar para recursos de produção.
+2. O PR da `stage` para `main` leva o que foi homologado para produção. O merge na `main` publica a produção. O merge é sempre com **"Create a merge commit"**, a única opção que o ruleset da `main` aceita.
+3. `scripts/cloudflare-build.sh` aplica `prisma migrate deploy` antes do bundle, usando `DATABASE_URL_UNPOOLED` quando existe. Em preview, roda também o seed, que só preenche banco vazio.
+   - **O ambiente vem da branch, e não de uma variável.** As variáveis de build da produção e as dos previews ficam em abas diferentes do painel, e um engano ali não pode levar a migração de um PR ao banco de produção. O script lê a `WORKERS_CI_BRANCH`: só a `main` é produção. As outras branches usam as variáveis `PREVIEW_*` e falham se faltar alguma. Assim, a migração de um PR ainda não aprovado nunca chega ao banco de produção.
+4. Na `main`, o `opennextjs-cloudflare deploy` preenche o cache das páginas no bucket de produção e publica. Nas outras branches, o `npm run cf:preview` (`scripts/cloudflare-preview.sh`) preenche o cache no bucket dos previews e roda o `wrangler preview`.
 
-**O banco dos previews:**
+**Segurança dos previews:**
 
-- **Um preview nunca toca no banco de produção.** O ambiente Preview do Vercel só tem as credenciais do banco dos previews. Um PR, mesmo com bug, não lê nem altera os dados reais.
-- **Um PR que muda o banco já funciona no preview.** O build do preview aplica as migrações do PR no banco dos previews.
-- **A `stage` e todos os PRs dividem o mesmo banco.** A migração de um PR entra nele no primeiro deploy do PR, antes do merge. Se ela apaga ou renomeia uma coluna, a `stage` pode falhar até o PR entrar.
-- **Um PR fechado sem merge deixa a migração no banco.** O build não falha, porque o `prisma migrate deploy` ignora migrações que não estão no código, mas o banco fica diferente da `stage`. Para limpar, apague as tabelas pelo console do Neon (confira antes que é o projeto `negocio-do-bem-preview`) e faça um novo deploy da `stage`. O build recria as tabelas e o seed preenche de novo.
-- **O seed só preenche um banco vazio.** No Vercel, se o banco já tem algum usuário, ele não faz nada. Assim, um preview ligado por engano ao banco de produção não cria as contas de senha conhecida. Elas são as do [README](../README.md#rodando-localmente), e os previews exigem login no Vercel.
-
-**Por que um projeto Neon separado, e não um branch do Neon por preview:**
-
-- **Um branch copia os dados de produção**, com e-mails e senhas (em hash), para cada PR. Isso contraria a [privacidade por padrão](#privacidade-por-padrão).
-- **Os branches de um projeto dividem a cota de compute.** No plano Free, são 100 CU-horas por mês por projeto. Se os previews gastarem a cota, o compute é suspenso e a produção para. O branch também herda a senha do banco de produção.
-- **O plano Free tem 10 branches por projeto**, e a integração do Vercel só apaga o branch de um preview quando o deploy expira (6 meses, por padrão). Com a cota cheia, os builds falham.
-- **Um segundo projeto não custa nada.** O plano Free permite até 100 projetos, cada um com armazenamento e cota de compute próprios.
+- Configure o Worker Previews com `DATABASE_URL` e `DATABASE_URL_UNPOOLED` do projeto Neon de teste, e bindings R2 separados. Nunca deixe preview ler ou alterar dados e fotos de produção.
+- **Deploy manual, só em emergência.** Se o Workers Builds não disparar para um merge na `main`, o deploy manual é `npm run cf:build` seguido de `npx opennextjs-cloudflare deploy`, mas o build precisa das variáveis `NEXT_PUBLIC_*` da produção na linha de comando (`NEXT_PUBLIC_R2_PUBLIC_URL=https://fotos.negociodobem.com` e `NEXT_PUBLIC_GA_ID`). Elas são embutidas no build: a `Content-Security-Policy` do `next.config.ts` só libera o domínio das fotos se a primeira existir na hora do build, e sem ela todas as fotos somem (aconteceu em 3 de novembro). As variáveis em tempo de execução do Worker não bastam. Confira depois com `curl -sI https://www.negociodobem.com | grep -i content-security` e veja `img-src`.
+- Os previews precisam de `DEPLOY_ENV=preview`, `CLOUDFLARE_DEPLOY=1` e `NEXT_PUBLIC_R2_PUBLIC_URL` do bucket de teste. Para POC sem domínio próprio, habilite Public Development URL no bucket de uploads de teste e use a URL `r2.dev`; os objetos ficam acessíveis publicamente, então não use arquivos privados. E-mail fica desligado fora de produção, e páginas de preview ficam fora dos buscadores.
+- A `stage` e PRs podem compartilhar os recursos de teste. Uma migração de PR que apaga ou renomeia coluna pode quebrar a homologação até o PR entrar. Um PR fechado sem merge pode deixar migração aplicada no banco de preview; recrie o banco de teste e publique `stage` para reconstruir os dados.
+- O seed só preenche banco vazio. Nunca o execute com credenciais de produção: cria contas de demonstração com senha conhecida.
 
 **Variáveis de ambiente:**
 
 | Variável | Obrigatória | Para quê |
 | --- | --- | --- |
-| `DATABASE_URL` | Sim | Conexão com o Postgres. No Vercel, Production e Preview apontam para bancos diferentes. |
-| `DATABASE_URL_UNPOOLED` | No Neon | Conexão direta, usada pelas migrações. |
-| `APP_URL` | Sim | Endereço público do site, sem barra no final. |
-| `BLOB_STORE_ID` | Em produção, no Vercel | Fotos no Vercel Blob. Criada com a conexão do Blob. O `@vercel/blob` se autentica pelo OIDC do deploy com este id. Production e Preview apontam para Blobs diferentes. |
-| `BLOB_READ_WRITE_TOKEN` | Em produção, fora do Vercel | Fotos no Vercel Blob onde não há OIDC. No Vercel, o site não precisa dela. |
-| `NEXT_PUBLIC_GA_ID` | Não | Google Analytics. Configure só em Production. |
+| `DATABASE_URL` | Sim | Conexão com o Postgres. Configure valores separados para Production e Preview. |
+| `DATABASE_URL_UNPOOLED` | Não | Conexão direta para as migrações, quando a `DATABASE_URL` passa por um pooler (como no Neon). No PlanetScale, a `DATABASE_URL` já é direta. |
+| `APP_URL` | Sim, no build e no runtime | Endereço público canônico, sem barra no final. Entra no HTML pré-renderizado, então precisa estar no build. |
+| `DEPLOY_ENV` | No `wrangler.jsonc` | `production` ou `preview`; controla indexação, seed e envio de e-mails. No build do Workers Builds, o script define pela branch. Lida por `ambienteDeDeploy()` (`src/lib/ambiente.ts`). |
+| `PREVIEW_DATABASE_URL`, `PREVIEW_DATABASE_URL_UNPOOLED`, `PREVIEW_APP_URL`, `PREVIEW_R2_PUBLIC_URL` | No build dos previews | Variáveis de build que o `cloudflare-build.sh` usa nas branches que não são a `main`, no lugar das de produção. |
+| `NEXT_PUBLIC_R2_PUBLIC_URL` | Sim em deploy | Origem HTTPS pública do bucket de uploads R2 (domínio próprio em produção; `r2.dev` pode ser usado em POC/previews). Configure também durante o build. |
+| `CLOUDFLARE_DEPLOY` | No `wrangler.jsonc` | Com `1`, permite usar o cabeçalho `cf-connecting-ip`, inserido pelo Cloudflare, para limitar tentativas por IP. |
+| `NEXT_PUBLIC_GA_ID` | Não | Google Analytics. Configure só nas variáveis de build da produção, no Workers Builds: o Next põe o valor no código durante o build. Só como variável de runtime, o script do Analytics não entra nas páginas. |
+| `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | Não | Meta tags de verificação do Google Search Console e do Bing Webmaster Tools. Configure só em Production. |
 | `FOTOS_TOKEN` | Não | Liga a rota da rotina de fotos do Instagram. No mínimo 32 caracteres. |
-| `INSTAGRAM_PERFIL_OFICIAL` | Não | Liga o código por DM. |
+| `INSTAGRAM_PERFIL_OFICIAL` | Não | O @ do projeto no Instagram, que vai nos dados estruturados da página inicial. |
 | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_GRAPH_VERSION` | Não | Ligam o "Entrar com Instagram". |
-| `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` | Não | Ligam a confirmação automática da DM. |
+| `RESEND_API_KEY`, `EMAIL_REMETENTE` | Não | Ligam os avisos por e-mail. Configure só em Production. |
+| `EMAIL_RESPOSTA` | Não | Para onde vão as respostas aos avisos. Vazia, elas vão para o remetente. |
 
-O `.env.example` explica cada uma, e o [README](../README.md#publicando) tem o passo a passo de publicação.
+O `.env.example` explica cada variável, e o [README](../README.md#publicando-no-cloudflare) traz o passo a passo de criação do Worker e dos buckets.
 
-**Nunca rode o seed em produção.** Ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production` ou, no Vercel, quando `VERCEL_ENV=production`.
+**Nunca rode o seed em produção.** Ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production`, `DEPLOY_ENV=production` ou `VERCEL_ENV=production`.
 
 ---
 
@@ -506,10 +921,25 @@ O `.env.example` explica cada uma, e o [README](../README.md#publicando) tem o p
 
 ### Criar uma causa
 
-1. Acrescente a causa em `CAUSAS`, em `src/lib/causas.ts`, com slug, nome, emoji, descrição e grupo.
-2. Pronto: ela aparece nos filtros, nos formulários e em "Como funciona".
+1. Acrescente a causa em `CAUSAS`, em `src/lib/causas.ts`, com slug, nome, título da página, emoji, descrição e grupo.
+2. Pronto: ela aparece nos filtros, nos formulários, em "Como funciona" e ganha a página `/causas/slug`, que entra no sitemap quando tiver negócios.
 
 Para trocar o slug de uma causa existente, crie uma migração que atualize `EmpresaCausa`.
+
+### Trocar o logo ou o ícone
+
+1. Atualize `src/lib/marca.ts`: `ICONE` para o ícone, `TEXTO_DO_LOGO` para o texto e `CORES_DA_MARCA` para as cores. Se as cores mudarem, mude também as `--color-marca-*` de `globals.css`.
+2. Rode `npm run marca:icones`. Ele gera de novo o favicon, o ícone do iPhone e os ícones do manifest.
+3. Confira a imagem geral (`/opengraph-image`) e a de um perfil (`/empresas/<@>/opengraph-image`) com `next build && next start`. Em `next dev`, um erro na imagem só aparece no terminal.
+4. Troque a `VERSAO` de `public/sw.js`, para a página "Sem conexão" guardar o ícone novo.
+5. Faça commit dos arquivos gerados.
+
+### Cadastrar o site no Google e no Bing
+
+1. No [Google Search Console](https://search.google.com/search-console), adicione uma propriedade do tipo "Prefixo do URL" com o endereço de produção e escolha a verificação por **tag HTML**.
+2. Copie só o valor do `content` para a variável `GOOGLE_SITE_VERIFICATION`, só em Production no Cloudflare. Ela é lida no build, então entra no próximo deploy de produção.
+3. Depois de verificar, envie o sitemap: `https://<domínio>/sitemap.xml`.
+4. No [Bing Webmaster Tools](https://www.bing.com/webmasters), importe a propriedade do Search Console ou use a meta tag, com o código em `BING_SITE_VERIFICATION`. O índice do Bing também alimenta a busca do ChatGPT e de outros assistentes.
 
 ### Acrescentar um campo ao negócio
 
@@ -519,7 +949,7 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 4. Acrescente o campo nos formulários:
    - `src/app/painel/[usuario]/FormEmpresa.tsx`;
    - `EdicaoEmpresa.tsx`, que passa os dados ao formulário;
-   - `src/app/indicar/FormIndicar.tsx`, se quem indica também puder preencher.
+   - `src/app/participar/CadastroPorEtapas.tsx`, na etapa certa, com a validação da etapa em `validar()`, a etapa em `ETAPA_DO_CAMPO` e o tamanho em `src/lib/rascunho-do-cadastro.ts`. Se quem indica não deve preencher, inclua o campo em `semContatosDeTerceiros` (`src/lib/indicacao.ts`).
 5. Se o campo deve entrar na busca, inclua em `textoDeBusca` (`src/lib/texto.ts`). Os negócios que já existem só são atualizados quando forem editados.
 6. Mostre o campo no perfil (`src/app/empresas/[usuario]/page.tsx`) e, se fizer sentido, na fila de indicações da moderação.
 7. Atualize os dados de exemplo em `prisma/seed.ts`.
@@ -529,7 +959,37 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 
 1. Rode `npm run municipios:atualizar`. O script `scripts/municipios-ibge.ts` baixa a lista do IBGE e regrava `src/lib/municipios.json`.
 2. Confira no diff os municípios novos ou renomeados e rode `npm test`.
-3. Negócios de uma cidade renomeada continuam com o nome antigo até serem editados.
+3. Negócios de uma cidade renomeada continuam com o nome antigo até serem editados. O `npm run cidades:corrigir` lista esses negócios em "Fora da lista do IBGE".
+
+### Corrigir cidades escritas fora do padrão
+
+1. Rode `npm run cidades:corrigir`. Ele lista as cidades gravadas com outra grafia ("Sao Paulo" → São Paulo) e as que não estão na lista do IBGE, sem gravar nada.
+2. Confira a lista e rode de novo com `-- --aplicar` para gravar o nome oficial. Para a produção, passe a conexão do banco de produção na frente: `DATABASE_URL="postgresql://..." npm run cidades:corrigir -- --aplicar`.
+3. As cidades fora da lista do IBGE se corrigem uma a uma, editando o negócio pelo painel da moderação.
+
+### Limpar sessões vencidas
+
+A manutenção manual da #111 não muda o prazo de 30 dias da autenticação. O núcleo está em `src/lib/limpeza-sessoes.ts`, sem depender do Next. A CLI `scripts/limpar-sessoes.ts` abre seu próprio cliente Prisma e usa o banco configurado em `DATABASE_URL`.
+
+1. Confira qual banco está configurado e rode `npm run sessoes:limpar`. O diagnóstico informa o host e o nome do banco sem credenciais, a referência UTC, o limite e a contagem de sessões vencidas. Não altera tabelas.
+2. Confira o diagnóstico. Para remover um único lote, rode `npm run sessoes:limpar -- --aplicar`. O limite padrão é 100. Use `--lote 1` até `--lote 1000` para escolher o tamanho.
+3. Confira as quantidades selecionada e efetivamente removida. Faça outro diagnóstico antes de decidir sobre uma nova aplicação. O diagnóstico anterior não reserva as linhas e cada execução tem sua própria referência.
+
+A referência é o menor instante entre o início local e a leitura do relógio do PostgreSQL. Ela permanece fixa durante a execução. Relógios atrasados podem adiar a limpeza, mas o computador de manutenção adiantado não faz apagar sessões que o banco ainda considera futuras. As máquinas da aplicação e do banco precisam manter seus relógios sincronizados, como na autenticação existente.
+
+A seleção lê somente IDs, filtra `expiraEm <= referência`, ordena por vencimento e ID e aplica o limite. O DELETE inclui os IDs selecionados e confere novamente o vencimento. Uma renovação ou saída concorrente pode reduzir o total removido. Uma seleção vazia não dispara DELETE. Não há repetição automática, mudança de esquema, índice novo, rota pública ou agendamento.
+
+O comando não imprime IDs, hashes, e-mails ou a conexão completa, nem repassa mensagens brutas do driver. Opções inválidas falham antes de abrir conexão. Uma falha de leitura não solicita exclusão. Se a confirmação do DELETE falhar, o resultado é indeterminado. Faça novo diagnóstico antes de repetir. A conexão é encerrada em `finally`, inclusive em falha, antes de anunciar sucesso.
+
+A remoção confirmada não é desfeita ao retirar o código. Não recrie sessões apagadas. Contas, links por e-mail, tentativas, pedidos, conteúdo, mídia, auditoria e backups ficam fora desta operação. Este recorte não encerra a política de retenção da #111. As provas usam somente PostgreSQL descartável e dados sintéticos em `tests/db/limpeza-sessoes.test.ts` e `tests/unit/limpeza-sessoes.test.ts`.
+
+### Pôr ou trocar a foto de uma cidade
+
+1. Ache a foto no [Wikimedia Commons](https://commons.wikimedia.org): horizontal, com pelo menos 1280 px de largura, sem pessoa em destaque e com licença de domínio público, CC0, CC BY ou CC BY-SA.
+2. Em `src/lib/fotos-das-cidades.json`, escreva ou mude a entrada da cidade, pelo endereço da página dela: `"salvador-ba": { "cidade": "Salvador", "uf": "BA", "arquivo": "File:Nome no Commons.jpg", "descricao": "O que a foto mostra" }`. A descrição vira o texto alternativo.
+3. Rode `npm run cidades:fotos`. Ele baixa a foto para `public/fotos/cidades`, preenche o autor, a licença e o tamanho, faz a prévia do link e apaga a foto e a prévia antigas. Se algo estiver errado (nome fora do IBGE, licença recusada, foto vertical), ele avisa e não grava aquela cidade.
+4. Abra a prévia nova (`public/fotos/cidades/<endereço>-previa-*.jpg`) e veja se o texto aparece bem em cima da foto.
+5. Rode `npm test` e faça commit do JSON, das fotos e da prévia.
 
 ### Mudar uma regra da reivindicação
 
@@ -541,17 +1001,48 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 ### Criar uma ação de moderação
 
 1. Crie a Server Action em `src/acoes/moderacao.ts`, começando por `exigirModerador()`.
-2. Registre na auditoria com `registrarAuditoria`, com uma ação no formato `alvo.verbo` (por exemplo, `empresa.despublicada`).
-3. Volte para a aba certa com um aviso: `redirect("/moderacao?aba=…&aviso=feito")`.
+2. Registre na auditoria com `registrarAuditoria(tx, ...)`, dentro da mesma transação da decisão (nunca com `db`, para uma falha no registro também desfazer a decisão), com uma ação no formato `alvo.verbo` (por exemplo, `empresa.despublicada`), e acrescente a descrição dela em `ACOES_AUDITORIA` (`src/lib/dominio.ts`).
+3. Volte para a aba certa com um aviso: `redirect("/moderacao?aba=…&aviso=feito")`. Se o botão fica numa lista com busca, filtro ou página, mande a lista num campo `voltar` e redirecione com `destinoNaModeracao` e `comAviso`, como em `moderarEmpresa`.
 4. Atualize a [tabela da auditoria](regras-de-negocio.md#13-auditoria).
+
+### Acrescentar um número ou uma lista ao painel da moderação
+
+1. Conte no banco em `src/lib/moderacao/indicadores.ts` (números da visão geral) ou consulte em `src/lib/moderacao/consultas.ts` (listas). Contas sempre com `select`, nunca com o hash da senha.
+2. Um filtro novo na URL entra em `src/lib/moderacao/filtros.ts`, numa lista de opções conhecidas, para `lerFiltros` recusar o resto.
+3. Mostre na tela com as peças de `src/app/moderacao/Blocos.tsx` (`Numero`, `Detalhes`, `Colunas`, `Barras`, `Etiqueta`).
+4. Cubra a consulta em `tests/db/moderacao.test.ts` e descreva o número na [seção 2 das regras de negócio](regras-de-negocio.md#o-painel-da-moderação).
 
 ### Dar ou tirar a moderação
 
 1. A pessoa se cadastra no site com o e-mail dela.
-2. Com a conexão do banco certo, rode `npm run moderacao -- dar <e-mail>` (ou `tirar <e-mail>`). Para a produção, passe a conexão do Neon na frente: `DATABASE_URL="postgresql://..." npm run moderacao -- dar <e-mail>`.
+2. Com a conexão do banco certo, rode `npm run moderacao -- dar <e-mail>` (ou `tirar <e-mail>`). Para a produção, passe a conexão do banco de produção na frente: `DATABASE_URL="postgresql://..." npm run moderacao -- dar <e-mail>`.
 3. Confira com `npm run moderacao -- listar`, que mostra quem é moderação e quem já fez ações de moderação, marcando quem não é mais.
 
 Nunca crie uma regra que dê permissão pelo e-mail ou por outro dado que a própria pessoa digita no cadastro.
+
+### Mandar um aviso novo por e-mail
+
+1. Escreva a função em `src/lib/notificacoes.ts`. Ela recebe um id, busca no banco quem recebe e chama `enviarEmail` uma vez por pessoa.
+2. Na Server Action, chame a função dentro de `after()`, antes do `redirect`.
+3. Não ponha os dados de uma pessoa no e-mail de outra. Para a moderação, mande o negócio e o link da fila.
+4. Acrescente o caso em `tests/db/notificacoes.test.ts` e na [seção 14 das regras de negócio](regras-de-negocio.md#14-avisos-por-e-mail).
+
+### Pedir o e-mail confirmado numa ação nova
+
+1. Na Server Action, depois de `exigirUsuario`, confira `usuario.emailConfirmado` e devolva `AVISOS.confirmar_email.texto` (ou redirecione com `?aviso=confirmar_email`).
+2. Na página, mostre `<ConfirmarEmail>` (`src/components/ConfirmarEmail.tsx`) no lugar do formulário para quem ainda não confirmou.
+3. Acrescente a ação na lista da [seção 2 das regras de negócio](regras-de-negocio.md#e-mail-confirmado-e-links-por-e-mail).
+
+### Ligar os avisos por e-mail
+
+Siga a seção "Ativando os avisos por e-mail" do [README](../README.md#ativando-os-avisos-por-e-mail-opcional). As regras estão na [seção 14 das regras de negócio](regras-de-negocio.md#14-avisos-por-e-mail).
+
+### Medir uma ação nova no Analytics
+
+1. Acrescente o evento ao tipo `Evento`, em `src/lib/medicao.ts`, só com parâmetros que não identifiquem ninguém.
+2. Na Server Action ou no Route Handler, chame `await medir({ nome, params })` depois de salvar e antes do `redirect`.
+3. Para um clique, use atributos `data-medir` e `data-<parametro>` no elemento, como `medirContato`.
+4. Acrescente o evento à tabela da [seção de medição das regras de negócio](regras-de-negocio.md#medição-de-visitas) e registre os parâmetros novos como dimensões personalizadas no GA4 (Administrador > Definições personalizadas). Se a ação for uma conversão, marque o evento como principal: pela estrela, em Administrador > Eventos, ou, antes de ele chegar, em Criar evento > "Criar com código".
 
 ### Mostrar uma mensagem depois de uma ação
 
@@ -559,13 +1050,37 @@ Nunca crie uma regra que dê permissão pelo e-mail ou por outro dado que a pró
 2. Redirecione com `?aviso=<codigo>`.
 3. Confira se a página destino tem `<AvisoDaUrl codigo={aviso} />`.
 
+### Mudar ou desligar o service worker
+
+1. Edite `public/sw.js` e troque a `VERSAO`. O navegador confere o arquivo a cada abertura do site (`updateViaCache: "none"` e o `no-cache` de `public/_headers`), e a versão nova apaga os caches da antiga.
+2. Teste com `next build && next start`, porque em `next dev` o service worker não é registrado. No DevTools, em Application > Service workers, marque "Offline" e recarregue para ver a página "Sem conexão".
+3. Para desligar de vez, tire o `RegistrarServiceWorker` do layout e troque o `public/sw.js` por um que apaga os caches e se desregistra:
+
+   ```js
+   self.addEventListener("install", () => self.skipWaiting());
+   self.addEventListener("activate", (evento) => {
+     evento.waitUntil(
+       caches
+         .keys()
+         .then((nomes) => Promise.all(nomes.map((nome) => caches.delete(nome))))
+         .then(() => self.registration.unregister()),
+     );
+   });
+   ```
+
+   Deixe esse arquivo no ar por alguns meses: quem já instalou só se livra do service worker antigo quando o navegador baixa este.
+
+### Ligar o login com o Google
+
+Siga a seção "Ativando o login com o Google" do [README](../README.md#ativando-o-login-com-o-google-opcional). As regras estão na [seção 2 das regras de negócio](regras-de-negocio.md#cadastro-e-login).
+
 ### Ligar a rotina de fotos do Instagram
 
 Siga a seção "Ativando a rotina de fotos do Instagram" do [README](../README.md#ativando-a-rotina-de-fotos-do-instagram-opcional). As regras estão na [seção 9 das regras de negócio](regras-de-negocio.md#rotina-de-fotos-do-instagram).
 
 ### Ligar a verificação pelo Instagram
 
-Siga as seções "Ativando…" do [README](../README.md#ativando-o-código-por-dm-opcional). Depois de ligar, atualize "Como funciona" (`src/app/sobre/page.tsx`), que hoje só descreve o envio de dados do negócio.
+Siga a seção "Ativando o 'Entrar com Instagram'" do [README](../README.md#ativando-o-entrar-com-instagram-opcional). Depois de ligar, atualize "Como funciona" (`src/app/sobre/page.tsx`), que hoje só descreve o envio de dados do negócio.
 
 ### Publicar em produção
 
@@ -574,7 +1089,7 @@ Siga as seções "Ativando…" do [README](../README.md#ativando-o-código-por-d
 3. Espere a checagem "Lint, tipos e testes" e faça o merge com **"Create a merge commit"**.
    - A `main` exige 1 aprovação, e o GitHub não deixa aprovar o próprio PR. Quem administra marca **"Merge without waiting for requirements to be met (bypass rules)"** antes do merge.
    - Não use o auto-merge: ele espera a aprovação, que não vai chegar, e esconde a opção de bypass. Se ele estiver ligado, clique em **Disable auto-merge**.
-4. Acompanhe o deploy de produção no Vercel.
+4. Acompanhe o deploy de produção no Cloudflare Workers.
 
 O PR só conflita se a `main` recebeu algo que não passou pela `stage`. Nesse caso:
 
@@ -596,10 +1111,27 @@ O PR só conflita se a `main` recebeu algo que não passou pela `stage`. Nesse c
   - Quando uma Server Action devolve erro de validação, o modo de desenvolvimento às vezes mostra esse erro interno do Next.
   - Ele não acontece no build de produção (`next build && next start`).
 - **CSS desatualizado em `next dev`.** Se uma mudança de estilo não aparece, pare o servidor, apague `.next/dev` e rode de novo.
+- **Service worker esquecido no `localhost`.** Depois de testar com `next start`, o service worker continua registrado naquela porta. Com o servidor parado, ele mostra "Sem conexão", e um `next dev` na mesma porta recebe os arquivos que ele guardou. Em DevTools > Application > Service workers, use "Unregister".
+- **O Cloudflare tira o `.html` do endereço.** `/offline.html` responde 307 para `/offline`, o que o `next start` não faz. Uma resposta redirecionada guardada pelo service worker não serve no lugar de uma página: o navegador mostra erro de rede. Por isso o `public/sw.js` guarda uma cópia sem o redirecionamento ([#233](https://github.com/fabs-reis/Negocio-do-bem/issues/233)). Para ver os arquivos de `public/` como o Cloudflare serve, rode `npx wrangler dev` com um `wrangler.jsonc` que só tenha `name`, `compatibility_date` e `assets.directory` apontando para `public/`.
+- **No `localhost`, o aviso "Sem conexão" não sai quando a conexão volta.** A checagem do `useOffline` recebe um 307 para `/?_rsc`, e o `upgrade-insecure-requests` da CSP manda esse redirecionamento para `https://localhost`, que falha. Em HTTPS, nos previews e em produção, funciona. Para testar no seu computador, tire o `upgrade-insecure-requests` de `.next/routes-manifest.json` depois do `next build`.
 - **"User was denied access on the database"** quase sempre é o `DATABASE_URL` apontando para outro Postgres na porta 5432. O do Docker usa a **5433**. Veja os [problemas comuns do README](../README.md#problemas-comuns).
 - **O `next dev` reescreve o começo do `AGENTS.md`.** Escreva as regras do projeto **depois** do bloco que ele gerencia.
 - **Fotos no computador de quem desenvolve** ficam em `public/enviados/`, que está fora do Git. Os links delas não funcionam em outro computador.
-- **`BLOB_STORE_ID` sozinho no `.env`** faz o envio de fotos falhar: fora do Vercel não há OIDC. No seu computador, deixe as duas variáveis do Blob vazias ou use a `BLOB_READ_WRITE_TOKEN`.
+- **Imagens de compartilhamento (`ImageResponse`):**
+  - toda `div` com mais de um filho precisa de `display: "flex"`. Texto com variáveis como `{a} · {b}` vira vários filhos: use uma template string;
+  - o gerador não lê WebP, woff2 nem fonte variável. Por isso as fotos em WebP viram monograma na prévia, e as fontes ficam em TTF em `assets/fontes`;
+  - uma página que define o `openGraph` apaga a imagem herdada do layout. Use o `metadadosDaPagina`, que põe a imagem geral do site, e passe `imagemPropria: true` só quando a pasta da página tem o seu `opengraph-image.tsx` ([#220](https://github.com/fabs-reis/Negocio-do-bem/issues/220));
+  - o gerador só faz PNG, e um PNG com foto de fundo passa de 1 MB, acima do limite de 600 KB do WhatsApp. Imagem com foto se faz de antemão, em JPEG, como a prévia das cidades ([#224](https://github.com/fabs-reis/Negocio-do-bem/issues/224)).
+- **O Worker não lê arquivos do projeto.** Um `readFile` de algo fora de `public/` funciona no `npm run dev` e falha no Cloudflare com ENOENT. Se o arquivo é lido ao carregar o módulo, como as fontes eram, todas as páginas que importam o módulo respondem 500. Embuta o arquivo num módulo, como em `npm run marca:fontes`.
+- **Conexão com o banco no Worker.** Uma conexão aberta numa requisição não pode ser usada em outra. Por isso, o `db` (`src/lib/db.ts`) cria um cliente por requisição no Worker, e um só no Node.
+- **Senha (scrypt) no Worker.** Cada cálculo usa ~32 MB e ~100 ms de CPU. No Worker, o `scrypt` roda um de cada vez no isolate, mesmo com vários logins ao mesmo tempo, então a memória não soma: os logins esperam na fila. Medido no workerd local: 8 logins simultâneos terminam em ~0,8 s.
+- **Deploys de preview** precisam de bindings R2 e banco de teste próprios no Cloudflare Worker Previews; os padrões de `wrangler.jsonc` são para produção.
+- **Preview sem o cache preenchido trava.** Se as páginas de um preview respondem erro 1101 e o log diz que o código travou, confira se o preview command é o `npm run cf:preview`, e não só o `wrangler preview` ([#172](https://github.com/fabs-reis/Negocio-do-bem/issues/172)).
+- **A Preview base config só vale para previews novos.** Ela é copiada quando o preview de uma branch é criado. Mudou uma variável ou o preview command nela? Salve com a seta do Salvar, "Aplicar a pré-visualizações existentes", ou mude também na página de cada preview que já existe, como o da `stage`.
+- **Filtros no endereço multiplicam as páginas para os robôs.** Uma página nova que monta links com filtros no endereço (`?tipo=...&causa=...`) precisa entrar no `disallow` do `src/app/robots.ts`, como o `/explorar?`. Sem isso, um robô abre cada combinação e cada uma consulta o banco ([#141](https://github.com/fabs-reis/Negocio-do-bem/issues/141)).
+- **Status 200 não quer dizer que a página abriu.** Com o Cache Components, a página chega com status 200 e o erro do banco vem dentro do conteúdo. Para saber se o site está no ar, confira se a lista de negócios aparece, e não só o status.
+- **O log do Worker perde a mensagem de um erro passado como objeto.** `console.error("Falhou:", erro)` aparece no Observability só com a pilha, sem a mensagem. Escreva a mensagem no texto: `` console.error(`Falhou: ${erro.message}`) `` ([#198](https://github.com/fabs-reis/Negocio-do-bem/issues/198)). Para achar a função de uma linha da pilha (`worker.js:100013`), abra "Editar código" no painel do Worker e vá até a linha, sem implantar nada.
+- **O `glob` do OpenNext é forçado para a 14.0.3 pelo `overrides` do `package.json`.** O `@opennextjs/cloudflare` pede o `glob` 13, e o `@node-minify/core` 9, que entra pelo `@opennextjs/aws`, fixa o 10.3.3. O 10.3.3 deixava o `npm audit` com aviso alto em todo PR ([#217](https://github.com/fabs-reis/Negocio-do-bem/issues/217)): a falha da linha de comando do `glob` ([GHSA-5j98](https://github.com/advisories/GHSA-5j98-mcp5-4vw2)), que o projeto nem usa. Os dois ainda tinham o aviso moderado [GHSA-3g3m](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4), corrigido só no `glob` 14.0.2 ([#227](https://github.com/fabs-reis/Negocio-do-bem/issues/227)), e nenhuma versão do OpenNext corrige. Os dois só chamam `glob()` e `globSync()`, que não mudaram no 14. O `glob` 14 saiu em 28/10/2026 e entrou antes dos 30 dias de quarentena que o `dependabot.yml` dá às versões grandes. Cada override vale só dentro do pacote dele, para não alcançar outras dependências que tragam o `glob`, e não leva a versão do pacote (`@opennextjs/cloudflare@1.20.14`): assim continua valendo quando o Dependabot sobe o OpenNext. Fica o aviso moderado do `minimatch` antigo que vem com o ESLint: forçar a versão 11 quebra o `eslint-plugin-react`, o `eslint-plugin-import` e o `eslint-plugin-jsx-a11y`, que chamam `require("minimatch")` como função. Quando o OpenNext pedir um `glob` corrigido, tire os overrides, rode `npm install` e confira no `npm audit` que os avisos do `glob` não voltaram. Não basta a checagem do CI passar, porque ela só falha com aviso alto.
 
 ---
 
@@ -611,7 +1143,7 @@ O fluxo completo está no [CONTRIBUTING](../CONTRIBUTING.md). Em resumo:
 2. **Uma branch por issue,** criada a partir da `stage`, no formato `tipo/numero-da-issue-descricao-curta`. Exemplo: `bug/12-erro-no-login`.
 3. **Pull request para a `stage`,** com `Closes #N` ou `Refs #N`, explicando o que muda e por quê, com print se mexeu na interface.
 4. **A checagem "Lint, tipos e testes"** antes do merge, sempre por squash na `stage`. A publicação na `main` também precisa de uma aprovação.
-5. **Deploy só pelo merge.** A `stage` é a homologação, e um PR da `stage` para a `main`, com merge commit, publica em produção. Nada de deploy manual.
+5. **Deploy só pelo merge.** A `stage` é a homologação, e um PR da `stage` para a `main`, com merge commit, publica em produção. Nada de deploy manual, salvo o caso de emergência descrito na seção de deploy.
 
 E dois combinados que mantêm esta documentação útil:
 

@@ -1,13 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { exigirUsuario } from "@/lib/auth/sessao";
-import { cnpjValido, limparCnpj } from "@/lib/cnpj";
+import { AVISOS } from "@/lib/avisos";
 import { db } from "@/lib/db";
-import { campoSite, errosPorCampo, texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
-import { perfilOficial } from "@/lib/instagram";
-import { cancelar, ErroReivindicacao, iniciarPorCodigoDm, solicitarPorDocumento } from "@/lib/reivindicacao";
+import { errosPorCampo, texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
+import { medir } from "@/lib/medicao-servidor";
+import { avisarNovaReivindicacao } from "@/lib/notificacoes";
+import { cancelar, ErroReivindicacao, solicitarPorDocumento } from "@/lib/reivindicacao";
 
 async function carregar(dados: FormData) {
   const empresa = await db.empresa.findUnique({ where: { id: texto(dados, "empresaId") } });
@@ -17,43 +19,17 @@ async function carregar(dados: FormData) {
   return { empresa, usuario, caminho };
 }
 
-export async function gerarCodigoDm(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
-  const { empresa, usuario, caminho } = await carregar(dados);
-  if (!perfilOficial()) return { erro: "A verificação por DM está desligada. Envie os dados do negócio abaixo." };
-  try {
-    await iniciarPorCodigoDm(empresa.id, usuario.id);
-  } catch (erro) {
-    if (erro instanceof ErroReivindicacao) return { erro: erro.message };
-    throw erro;
-  }
-  redirect(`${caminho}?aviso=codigo_gerado#codigo`);
-}
-
+// O CNPJ, o nome completo e o CPF vêm depois, no pedido de verificação do painel (#293).
 const esquemaDocumento = z.object({
-  cnpj: z
-    .string()
-    .trim()
-    .transform((valor, ctx) => {
-      if (!valor) return null;
-      if (!cnpjValido(valor)) {
-        ctx.addIssue({ code: "custom", message: "Este CNPJ não parece válido. Confira os números." });
-        return z.NEVER;
-      }
-      return limparCnpj(valor);
-    }),
-  site: campoSite,
   relacao: z.string().trim().min(2, "Conte qual é a sua relação com o negócio.").max(120),
-  contato: z.string().trim().min(5, "Deixe um WhatsApp ou e-mail para a moderação falar com você.").max(160),
   mensagem: z.string().trim().max(1000, "Use até 1.000 caracteres."),
 });
 
 export async function enviarDocumento(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
   const { empresa, usuario, caminho } = await carregar(dados);
+  if (!usuario.emailConfirmado) return { erro: AVISOS.confirmar_email.texto, valores: valoresDoFormulario(dados) };
   const resultado = esquemaDocumento.safeParse({
-    cnpj: texto(dados, "cnpj"),
-    site: texto(dados, "site"),
     relacao: texto(dados, "relacao"),
-    contato: texto(dados, "contato"),
     mensagem: texto(dados, "mensagem"),
   });
   if (!resultado.success) return { erros: errosPorCampo(resultado.error), valores: valoresDoFormulario(dados) };
@@ -63,7 +39,11 @@ export async function enviarDocumento(_estado: EstadoFormulario, dados: FormData
     const pedido = await solicitarPorDocumento({
       empresaId: empresa.id,
       usuarioId: usuario.id,
-      ...resultado.data,
+      cnpj: null,
+      site: null,
+      relacao: resultado.data.relacao,
+      // A moderação fala com a pessoa pelo e-mail da conta.
+      contato: usuario.email,
       mensagem: resultado.data.mensagem || null,
     });
     aprovada = pedido.status === "aprovada";
@@ -71,7 +51,11 @@ export async function enviarDocumento(_estado: EstadoFormulario, dados: FormData
     if (erro instanceof ErroReivindicacao) return { erro: erro.message, valores: valoresDoFormulario(dados) };
     throw erro;
   }
-  redirect(aprovada ? `/painel/${empresa.instagramUsername}?aviso=verificada` : `${caminho}?aviso=documento_enviado`);
+  if (!aprovada) after(() => avisarNovaReivindicacao(empresa.id));
+  await medir({ nome: "perfil_reivindicado", params: { method: "documento", resultado: aprovada ? "verificada" : "em_analise" } });
+  if (aprovada) redirect(`/painel/${empresa.instagramUsername}?aviso=verificada`);
+  const temDono = (await db.empresaMembro.count({ where: { empresaId: empresa.id } })) > 0;
+  redirect(`${caminho}?aviso=${temDono ? "documento_enviado" : "documento_em_analise"}`);
 }
 
 export async function cancelarReivindicacao(dados: FormData): Promise<void> {

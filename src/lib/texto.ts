@@ -53,8 +53,8 @@ export function formatarMunicipio(cidade: string, uf: string): string {
   return `${cidade}, ${uf}`;
 }
 
-/** "5511991488052" → "(11) 99148-8052". */
-export function formatarWhatsapp(digitos: string): string {
+/** "5511991488052" → "(11) 99148-8052". Serve para o WhatsApp e o telefone comercial. */
+export function formatarTelefone(digitos: string): string {
   const local = digitos.replace(/^55/, "");
   const ddd = local.slice(0, 2);
   const numero = local.slice(2);
@@ -62,8 +62,30 @@ export function formatarWhatsapp(digitos: string): string {
   return `(${ddd}) ${numero.slice(0, corte)}-${numero.slice(corte)}`;
 }
 
+/** Fecha a frase com ponto, sem dobrar: "O contato mudou" e "O contato mudou." viram "O contato mudou.". */
+export function comPontoFinal(texto: string): string {
+  const limpo = texto.trim();
+  return !limpo || /[.!?…]$/.test(limpo) ? limpo : `${limpo}.`;
+}
+
+/** "Ninguém favoritou ainda", "1 pessoa favoritou", "1.234 pessoas favoritaram". */
+export function formatarFavoritos(total: number): string {
+  if (total === 0) return "Ninguém favoritou ainda";
+  return total === 1 ? "1 pessoa favoritou" : `${total.toLocaleString("pt-BR")} pessoas favoritaram`;
+}
+
 export function formatarData(data: Date): string {
   return new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric" }).format(data);
+}
+
+/** "29/10/2026", no horário de Brasília. */
+export function formatarDataCurta(data: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" }).format(data);
+}
+
+/** "29/10": dia e mês, no horário de Brasília. */
+export function formatarDiaMes(data: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(data);
 }
 
 export function formatarDataHora(data: Date): string {
@@ -75,4 +97,15 @@ export function formatarDataHora(data: Date): string {
     minute: "2-digit",
     timeZone: "America/Sao_Paulo",
   }).format(data);
+}
+
+/** "Termina em 3 dias e 4 h"; nas últimas 24 horas, "Termina em 3 h 12 min"; depois, "Terminou". */
+export function textoDoPrazo(fim: Date, agora: Date): string {
+  const minutos = Math.floor((fim.getTime() - agora.getTime()) / 60_000);
+  if (minutos <= 0) return "Terminou";
+  const dias = Math.floor(minutos / 1440);
+  const horas = Math.floor((minutos % 1440) / 60);
+  if (dias > 0) return `Termina em ${dias} ${dias === 1 ? "dia" : "dias"}${horas ? ` e ${horas} h` : ""}`;
+  if (horas > 0) return `Termina em ${horas} h${minutos % 60 ? ` ${minutos % 60} min` : ""}`;
+  return `Termina em ${minutos} min`;
 }

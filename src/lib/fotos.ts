@@ -7,19 +7,22 @@ export type TipoDeFoto = (typeof TIPOS_DE_FOTO)[number];
 export const TAMANHO_MAXIMO_FOTO = 3 * 1024 * 1024;
 
 /**
- * Só mostramos imagens guardadas pelo próprio site: as do Vercel Blob ou, em
+ * Só mostramos imagens guardadas pelo próprio site: as do R2 ou, em
  * desenvolvimento, as da pasta public/enviados. Uma imagem de outro endereço
  * avisaria aquele servidor a cada visita ao perfil.
  *
- * Vale qualquer store do Vercel Blob, não um endereço fixo: a produção e os
- * previews guardam as fotos em stores diferentes, cada um com o seu endereço.
+ * O domínio do R2 vem da variável pública configurada para este ambiente. As
+ * fotos antigas do Vercel Blob foram copiadas para o R2 em outubro de 2026 (#177),
+ * e um endereço do Blob que sobrar no banco não aparece mais.
  */
 export function ehFotoDoSite(url: string | null | undefined): url is string {
   if (!url) return false;
   if (url.startsWith("/enviados/")) return !url.includes("..") && !url.includes("\\");
   try {
     const { protocol, hostname } = new URL(url);
-    return protocol === "https:" && hostname.endsWith(".public.blob.vercel-storage.com");
+    if (protocol !== "https:") return false;
+    const dominioR2 = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+    return dominioR2 ? new URL(dominioR2).hostname === hostname : false;
   } catch {
     return false;
   }

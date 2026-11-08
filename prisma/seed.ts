@@ -4,12 +4,13 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { ambienteDeDeploy } from "../src/lib/ambiente";
 import { gerarHashSenha } from "../src/lib/auth/senha";
 import { textoDeBusca } from "../src/lib/texto";
 
-// No Vercel, quem diz o ambiente é VERCEL_ENV: o build dos previews também roda o seed.
-const emProducao = process.env.VERCEL_ENV
-  ? process.env.VERCEL_ENV === "production"
+// O build dos previews também roda o seed, nunca o de produção.
+const emProducao = ambienteDeDeploy()
+  ? ambienteDeDeploy() === "production"
   : process.env.NODE_ENV === "production";
 if (emProducao) {
   throw new Error("O seed cria contas com senha conhecida e não pode rodar em produção.");
@@ -192,11 +193,23 @@ const DEPOIMENTOS: { negocio: string; autor: string; texto: string; resposta?: s
   },
 ];
 
+// Os @ terminam em ".exemplo": a consulta ao Instagram não acha nenhum e deixa os números como estão.
+const EMBAIXADORES = [
+  { nome: "Marina Lopes", instagramUsername: "marinalopes.exemplo", titulo: "embaixadora", cidade: "Salvador", uf: "BA", seguidores: 48231 },
+  { nome: "Camila Rocha", instagramUsername: "camilarocha.exemplo", titulo: "embaixadora", cidade: "São Paulo", uf: "SP", seguidores: 64018 },
+  { nome: "Júlia Andrade", instagramUsername: "juliaandrade.exemplo", titulo: "embaixadora", cidade: null, uf: "BA", seguidores: 131204 },
+  { nome: "Rafael Nunes", instagramUsername: "rafanunes.exemplo", titulo: "embaixador", cidade: "Belo Horizonte", uf: "MG", seguidores: 12740 },
+  { nome: "Diego Martins", instagramUsername: "diegomartins.exemplo", titulo: "embaixador", cidade: "Recife", uf: "PE", seguidores: 27512 },
+  { nome: "Beatriz Costa", instagramUsername: "bia.costa.exemplo", titulo: "embaixadora", cidade: "Florianópolis", uf: "SC", seguidores: 8940 },
+  { nome: "Pedro Henrique", instagramUsername: "pedrohenrique.exemplo", titulo: "embaixador", cidade: "Fortaleza", uf: "CE", seguidores: 15873 },
+  { nome: "Larissa Melo", instagramUsername: "larissamelo.exemplo", titulo: "embaixadora", cidade: "Goiânia", uf: "GO", seguidores: 9402 },
+];
+
 async function main() {
-  // No Vercel, só preenche um banco vazio. Um preview ligado por engano ao banco
-  // de produção encontra usuários reais e não cria as contas de senha conhecida.
-  if (process.env.VERCEL && (await db.usuario.count()) > 0) {
-    console.log("O banco já tem usuários. No Vercel, o seed só preenche um banco vazio.");
+  // Em deploy, só preenche banco vazio. Um preview ligado por engano à produção
+  // encontra usuários reais e não cria as contas de senha conhecida.
+  if ((ambienteDeDeploy() || process.env.VERCEL) && (await db.usuario.count()) > 0) {
+    console.log("O banco já tem usuários. Em deploy, o seed só preenche banco vazio.");
     return;
   }
 
@@ -206,12 +219,14 @@ async function main() {
   }
 
   const senhaHash = await gerarHashSenha(SENHA_DEMO);
+  // As contas de exemplo já vêm com o e-mail confirmado, para indicar e escrever sem abrir link nenhum.
+  const emailConfirmadoEm = new Date();
   const pessoas = {
-    moderacao: await db.usuario.create({ data: { nome: "Equipe de Moderação", email: "moderacao@exemplo.com", senhaHash, papel: "moderador" } }),
-    ana: await db.usuario.create({ data: { nome: "Ana Lúcia Santos", email: "ana@exemplo.com", senhaHash } }),
-    joao: await db.usuario.create({ data: { nome: "João Batista", email: "joao@exemplo.com", senhaHash } }),
-    bia: await db.usuario.create({ data: { nome: "Bia Fernandes", email: "bia@exemplo.com", senhaHash } }),
-    carla: await db.usuario.create({ data: { nome: "Carla Moreira", email: "carla@exemplo.com", senhaHash } }),
+    moderacao: await db.usuario.create({ data: { nome: "Equipe de Moderação", email: "moderacao@exemplo.com", senhaHash, emailConfirmadoEm, papel: "moderador" } }),
+    ana: await db.usuario.create({ data: { nome: "Ana Lúcia Santos", email: "ana@exemplo.com", senhaHash, emailConfirmadoEm } }),
+    joao: await db.usuario.create({ data: { nome: "João Batista", email: "joao@exemplo.com", senhaHash, emailConfirmadoEm } }),
+    bia: await db.usuario.create({ data: { nome: "Bia Fernandes", email: "bia@exemplo.com", senhaHash, emailConfirmadoEm } }),
+    carla: await db.usuario.create({ data: { nome: "Carla Moreira", email: "carla@exemplo.com", senhaHash, emailConfirmadoEm } }),
   };
 
   const empresas = new Map<string, string>();
@@ -262,6 +277,10 @@ async function main() {
       expiraEm: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
   });
+
+  // Embaixadores fictícios, para ver a faixa da página inicial, /embaixadores e o bloco da cidade.
+  // Sem foto: o site mostra as iniciais.
+  await db.embaixador.createMany({ data: EMBAIXADORES.map((e, ordem) => ({ ...e, ordem })) });
 
   console.log(`Dados de exemplo criados. Todas as contas usam a senha "${SENHA_DEMO}":`);
   for (const p of Object.values(pessoas)) console.log(`  ${p.email}`);

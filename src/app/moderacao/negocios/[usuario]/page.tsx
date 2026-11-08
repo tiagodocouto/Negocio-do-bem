@@ -8,7 +8,11 @@ import { AvisoDaUrl } from "@/components/Avisos";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
-import { normalizarUsername } from "@/lib/instagram";
+import { rotuloDoInstagram } from "@/lib/endereco";
+import { normalizarEndereco } from "@/lib/instagram";
+import { Clube } from "./Clube";
+import { Donos } from "./Donos";
+import { seguirEnderecoAntigo } from "@/lib/troca-de-arroba";
 
 export const metadata: Metadata = { title: "Editar perfil · Moderação", robots: { index: false } };
 
@@ -24,15 +28,19 @@ export default function EditarPelaModeracao(props: PageProps<"/moderacao/negocio
 
 async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/negocios/[usuario]">, "params" | "searchParams">) {
   await exigirModerador();
-  const username = normalizarUsername((await params).usuario);
+  const username = normalizarEndereco((await params).usuario);
   if (!username) notFound();
   const empresa = await db.empresa.findUnique({
     where: { instagramUsername: username },
     include: { causas: { select: { causa: true } }, _count: { select: { membros: true } } },
   });
+  if (!empresa) await seguirEnderecoAntigo(username, (atual) => `/moderacao/negocios/${atual}`);
   if (!empresa) notFound();
-  const { aviso } = await searchParams;
+  const { aviso, cnpj } = await searchParams;
   const temDono = empresa._count.membros > 0;
+  // Os avisos do clube e dos donos aparecem na própria seção, para onde a página volta.
+  const codigo = typeof aviso === "string" ? aviso : undefined;
+  const daSecao = (prefixo: string) => (codigo?.startsWith(prefixo) ? codigo : undefined);
 
   return (
     <div className="space-y-10">
@@ -45,7 +53,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/neg
             <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Edição pela moderação</p>
             <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
             <p className="text-suave">
-              @{empresa.instagramUsername} · {MODERACAO_EMPRESA[empresa.moderacao]} · {temDono ? "tem dono" : "sem dono"}
+              {rotuloDoInstagram(empresa.instagramUsername)} · {MODERACAO_EMPRESA[empresa.moderacao]} · {temDono ? "tem dono" : "sem dono"}
               {empresa.oculta && " · oculto pelo dono"}
             </p>
           </div>
@@ -57,10 +65,18 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/neg
           Você está editando como moderação. {temDono && "Este negócio tem dono, então mude só o necessário. "}Cada
           alteração fica registrada na auditoria.
         </Aviso>
-        <AvisoDaUrl codigo={aviso} />
+        {!daSecao("clube_") && !daSecao("dono_") && <AvisoDaUrl codigo={codigo} />}
       </div>
 
+      <Donos empresa={empresa} aviso={daSecao("dono_")} />
+
       <EdicaoEmpresa empresa={empresa} voltar={`/moderacao/negocios/${empresa.instagramUsername}`} />
+
+      <Clube
+        empresa={empresa}
+        cnpjDaUrl={typeof cnpj === "string" && cnpj.trim() ? cnpj.trim() : undefined}
+        aviso={daSecao("clube_")}
+      />
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
+import { AvisoDaUrl } from "@/components/Avisos";
 import { caminhoSeguro, usuarioAtual } from "@/lib/auth/sessao";
 
-/** Moldura das páginas de entrar/cadastrar: quem já está logado segue direto. */
+/** Moldura das páginas de entrar/cadastrar: quem já está logado segue direto. Mostra o ?aviso= da URL. */
 export function PaginaConta({
   titulo,
   subtitulo,
@@ -34,7 +35,13 @@ async function Conteudo({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
   formulario: (voltar: string) => ReactNode;
 }) {
-  const voltar = caminhoSeguro((await searchParams).voltar);
+  const busca = await searchParams;
+  const voltar = caminhoSeguro(busca.voltar);
   if (await usuarioAtual()) redirect(voltar);
-  return formulario(voltar);
+  return (
+    <div className="space-y-6">
+      <AvisoDaUrl codigo={busca.aviso} />
+      {formulario(voltar)}
+    </div>
+  );
 }

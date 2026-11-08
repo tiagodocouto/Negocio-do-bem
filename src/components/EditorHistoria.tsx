@@ -83,8 +83,9 @@ export function EditorHistoria({
     onUpdate: ({ editor }) => aoMudar(editor.getMarkdown()),
   });
 
+  // overflow-clip, e não hidden, para a barra de ferramentas continuar presa no topo ao rolar um texto longo.
   return (
-    <div className="overflow-hidden rounded-2xl border border-linha bg-superficie">
+    <div className="overflow-clip rounded-2xl border border-linha bg-superficie">
       {editor && <BarraDeFerramentas editor={editor} empresaId={empresaId} />}
       <EditorContent editor={editor} className="px-5 py-6 sm:px-8" />
     </div>
@@ -170,7 +171,7 @@ function BarraDeFerramentas({ editor, empresaId }: { editor: Editor; empresaId: 
           value={estado.estilo}
           onChange={(evento) => mudarEstilo(evento.target.value)}
           aria-label="Estilo do texto"
-          className="mr-1 rounded-lg border border-linha bg-superficie px-2 py-1.5 text-sm"
+          className="mr-1 rounded-lg border border-linha bg-superficie px-2 py-1.5 text-base sm:text-sm"
         >
           <option value="paragrafo">Parágrafo</option>
           <option value="titulo">Título</option>
@@ -229,7 +230,7 @@ function BarraDeFerramentas({ editor, empresaId }: { editor: Editor; empresaId: 
             }}
             placeholder="Cole o endereço (ex.: www.meunegocio.com.br)"
             aria-label="Endereço do link"
-            className="campo min-w-0 flex-1 py-1.5 text-sm"
+            className="campo min-w-0 flex-1 py-1.5 sm:text-sm"
           />
           <button type="button" className="botao botao-pequeno" onClick={aplicarLink}>
             {endereco.trim() ? "Aplicar" : "Tirar link"}

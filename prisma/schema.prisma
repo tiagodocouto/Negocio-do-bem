@@ -13,22 +13,38 @@ datasource db {
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  nome      String
-  email     String   @unique
-  senhaHash String
+  id                String    @id @default(cuid())
+  nome              String
+  email             String    @unique
+  // Vazio na conta criada pelo Google: ela entra pelo Google ou por link no e-mail.
+  senhaHash         String?
+  // "sub" da conta do Google ligada a esta, que não muda nem quando o Gmail muda.
+  googleId          String?   @unique
+  // Só os dígitos, com o 55 do Brasil: "5511991488052". Obrigatório no cadastro;
+  // vazio nas contas criadas antes dele.
+  telefone          String?
   // "membro" | "moderador"
-  papel     String   @default("membro")
-  criadoEm  DateTime @default(now())
+  papel             String    @default("membro")
+  // Quando a pessoa abriu um link mandado para o e-mail dela. Sem isso a conta entra,
+  // mas não indica, não escreve nem denuncia depoimentos e não reivindica negócios.
+  emailConfirmadoEm DateTime?
+  criadoEm          DateTime  @default(now())
 
-  sessoes             Sessao[]
-  indicacoes          Empresa[]        @relation("IndicadaPor")
-  depoimentos         Depoimento[]     @relation("AutorDepoimento")
-  denuncias           Depoimento[]     @relation("DenunciadoPor")
-  empresas            EmpresaMembro[]
-  reivindicacoes      Reivindicacao[]  @relation("Solicitante")
-  revisoes            Reivindicacao[]  @relation("Revisor")
-  registrosAuditoria  RegistroAuditoria[]
+  sessoes            Sessao[]
+  links              LinkEmail[]
+  indicacoes         Empresa[]           @relation("IndicadaPor")
+  depoimentos        Depoimento[]        @relation("AutorDepoimento")
+  denuncias          Depoimento[]        @relation("DenunciadoPor")
+  empresas           EmpresaMembro[]
+  favoritas          EmpresaFavorita[]
+  reivindicacoes     Reivindicacao[]     @relation("Solicitante")
+  revisoes           Reivindicacao[]     @relation("Revisor")
+  registrosAuditoria RegistroAuditoria[]
+  liberacoesClube    LiberacaoClube[]    @relation("LiberadoNoClube")
+  decisoesClube      LiberacaoClube[]    @relation("DecisaoNoClube")
+  ofertasCriadas     Oferta[]            @relation("OfertasCriadas")
+  cupons             Cupom[]             @relation("CuponsGerados")
+  cuponsValidados    Cupom[]             @relation("CuponsValidados")
 }
 
 model Sessao {
@@ -42,13 +58,63 @@ model Sessao {
   @@index([usuarioId])
 }
 
+model TentativaAcesso {
+  chave            String   @id
+  contagem         Int
+  janelaIniciadaEm DateTime
+  // sha256 do e-mail, nas linhas do limite por e-mail: trocar a senha zera as de todas as origens de uma vez
+  email            String?
+
+  @@index([janelaIniciadaEm])
+  @@index([email])
+}
+
+// Link mandado por e-mail para confirmar o endereço, entrar sem senha ou criar uma senha nova (src/lib/auth/links.ts).
+model LinkEmail {
+  // sha256 do token que vai no link, como na Sessao
+  id         String    @id
+  usuarioId  String
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  // "confirmar" | "entrar" | "redefinir"
+  finalidade String
+  // Endereço para onde o link foi: ele só vale enquanto a conta tiver este e-mail.
+  email      String
+  // Caminho interno aonde a pessoa vai depois de usar o link.
+  destino    String    @default("/")
+  expiraEm   DateTime
+  // Cada link vale uma vez só.
+  usadoEm    DateTime?
+  criadoEm   DateTime  @default(now())
+
+  @@index([usuarioId, criadoEm])
+}
+
+// Conta nova pelo Google esperando o telefone: o Google já disse quem é a pessoa,
+// e a conta só é criada quando ela informa o telefone em /cadastrar/google.
+model CadastroGoogle {
+  // sha256 do token guardado no cookie, como na Sessao
+  id       String   @id
+  googleId String
+  email    String
+  nome     String
+  // Caminho interno aonde a pessoa vai depois de criar a conta.
+  destino  String   @default("/")
+  expiraEm DateTime
+  criadoEm DateTime @default(now())
+
+  @@index([expiraEm])
+}
+
 model Empresa {
   id                String   @id @default(cuid())
   // @ atual do Instagram, minúsculo e sem "@". Também é o endereço da página.
+  // Negócio sem Instagram: endereço feito do nome e da cidade, com hífen, que o
+  // Instagram não aceita no @ (ver src/lib/instagram.ts).
   instagramUsername String   @unique
   // ID fixo da conta profissional, obtido no "Entrar com Instagram".
   instagramUserId   String?  @unique
-  // ID da conta no escopo do nosso perfil (IGSID), obtido quando o dono manda DM.
+  // ID da conta no escopo do nosso perfil (IGSID). Só vem de pedidos antigos por
+  // código de DM, caminho que não é mais oferecido.
   instagramIgsid    String?  @unique
   nome              String
   resumo            String
@@ -62,7 +128,12 @@ model Empresa {
   // Só dígitos, com o 55 do Brasil (ex.: 5511991488052).
   whatsapp          String?
   emailContato      String?
-  // "indicada" (sem dono) | "verificada" (tem dono que provou controlar o @)
+  // Telefone do negócio, no mesmo formato do WhatsApp. Aparece no perfil.
+  telefoneComercial String?
+  // Contato de quem cadastrou o negócio como dono. Só o dono e a moderação veem.
+  emailDoDono       String?
+  telefoneDoDono    String?
+  // "indicada" (sem dono) | "verificada" (perfil assumido por uma conta; não certifica a identidade)
   status            String   @default("indicada")
   // "pendente" | "aprovada" | "rejeitada" — só "aprovada" aparece no diretório
   moderacao         String   @default("pendente")
@@ -76,10 +147,14 @@ model Empresa {
   criadoEm          DateTime @default(now())
   atualizadoEm      DateTime @updatedAt
 
-  causas         EmpresaCausa[]
-  depoimentos    Depoimento[]
-  membros        EmpresaMembro[]
-  reivindicacoes Reivindicacao[]
+  causas           EmpresaCausa[]
+  depoimentos      Depoimento[]
+  membros          EmpresaMembro[]
+  favoritos        EmpresaFavorita[]
+  enderecosAntigos EnderecoAntigo[]
+  liberacoesClube  LiberacaoClube[]
+  ofertas          Oferta[]
+  reivindicacoes   Reivindicacao[]
 
   @@index([moderacao, oculta, status])
   @@index([uf])
@@ -108,25 +183,130 @@ model EmpresaMembro {
   @@index([usuarioId])
 }
 
+// Endereços que o negócio já teve: quando o dono troca o @, o antigo redireciona
+// para o atual, para não quebrar links e QR codes já divulgados (#298).
+model EnderecoAntigo {
+  endereco  String   @id
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  criadoEm  DateTime @default(now())
+
+  @@index([empresaId])
+}
+
+// Os negócios que cada pessoa favoritou (Clube do Bem, #248). Só a própria pessoa
+// vê os favoritos dela; o dono vê só quantas pessoas favoritaram o negócio.
+model EmpresaFavorita {
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  criadoEm  DateTime @default(now())
+
+  @@id([empresaId, usuarioId])
+  @@index([usuarioId, criadoEm])
+}
+
+// Liberação de um dono para criar ofertas do Clube do Bem (#248). Nesta versão, só a
+// moderação libera, depois de conferir na Receita o CNPJ e o quadro de sócios. Vale por
+// dono: num negócio com dois donos, cada um precisa da sua. Só vale enquanto a pessoa
+// continuar dona do negócio (ver src/lib/clube.ts).
+model LiberacaoClube {
+  id            String   @id @default(cuid())
+  empresaId     String
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuarioId     String
+  usuario       Usuario  @relation("LiberadoNoClube", fields: [usuarioId], references: [id], onDelete: Cascade)
+  // O CNPJ conferido, sem pontuação, como em Reivindicacao.cnpj. Só a moderação vê.
+  cnpj          String
+  // O que a pessoa informou ao pedir a verificação (#293): o nome como no documento e o CPF
+  // só mascarado (os 6 dígitos do meio). O CPF inteiro nunca é guardado. Só a moderação vê.
+  nomeCompleto  String?
+  cpfMascarado  String?
+  // Chaves dos documentos (RG ou CNH) no bucket R2 privado DOCUMENTOS. Só existem enquanto o
+  // pedido espera: somem quando a moderação decide, ou depois de 30 dias sem decisão.
+  documentoChaves String[] @default([])
+  // "liberada" | "suspensa"
+  status        String   @default("liberada")
+  // Motivo da suspensão, escrito pela moderação.
+  motivo        String?
+  decididoPorId String?
+  decididoPor   Usuario? @relation("DecisaoNoClube", fields: [decididoPorId], references: [id], onDelete: SetNull)
+  decididoEm    DateTime @default(now())
+  criadoEm      DateTime @default(now())
+
+  @@unique([empresaId, usuarioId])
+  @@index([usuarioId])
+}
+
+// Oferta do Clube do Bem (#248): um desconto por pouco tempo, criado por um dono liberado
+// (ver src/lib/ofertas.ts). Depois de criada, não muda: o dono só pode encerrar antes.
+model Oferta {
+  id            String   @id @default(cuid())
+  empresaId     String
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  criadaPorId   String?
+  criadaPor     Usuario? @relation("OfertasCriadas", fields: [criadaPorId], references: [id], onDelete: SetNull)
+  titulo        String
+  // "percentual" | "valor" | "brinde"
+  tipo          String
+  // Percentual (1 a 50) ou reais inteiros. Vazio no brinde.
+  valor         Int?
+  condicoes     String?
+  // Onde vale, separado por vírgula: "local", "whatsapp", "site".
+  ondeVale      String
+  inicio        DateTime @default(now())
+  // 23h59 (horário de Brasília) do último dia. Os cupons valem até aqui, mesmo se o dono encerrar antes.
+  fim           DateTime
+  // Quantos cupons a oferta dá, no máximo. Vazio: sem limite.
+  limite        Int?
+  cuponsGerados Int      @default(0)
+  // "ativa" | "encerrada" (pelo dono) | "suspensa" (a liberação do clube foi suspensa)
+  status        String   @default("ativa")
+  criadoEm      DateTime @default(now())
+
+  cupons Cupom[]
+
+  @@index([empresaId, status, fim])
+}
+
+// Cupom de uma oferta, gerado por quem favoritou o negócio. Uso único, validado pelo dono.
+model Cupom {
+  id            String    @id @default(cuid())
+  ofertaId      String
+  oferta        Oferta    @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
+  usuarioId     String
+  usuario       Usuario   @relation("CuponsGerados", fields: [usuarioId], references: [id], onDelete: Cascade)
+  // 6 caracteres sem os que se confundem (0 e O, 1 e I).
+  codigo        String    @unique
+  criadoEm      DateTime  @default(now())
+  usadoEm       DateTime?
+  validadoPorId String?
+  validadoPor   Usuario?  @relation("CuponsValidados", fields: [validadoPorId], references: [id], onDelete: SetNull)
+
+  @@unique([ofertaId, usuarioId])
+  @@index([usuarioId, criadoEm])
+}
+
 model Reivindicacao {
   id              String    @id @default(cuid())
   empresaId       String
   empresa         Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   usuarioId       String
   usuario         Usuario   @relation("Solicitante", fields: [usuarioId], references: [id], onDelete: Cascade)
-  // "instagram_login" | "codigo_dm" | "documento"
+  // "instagram_login" | "documento" | "codigo_dm" (este só em pedidos antigos)
   metodo          String
-  // Código que o dono envia por DM (só no método "codigo_dm").
+  // Código que o dono enviava por DM (só nos pedidos antigos com "codigo_dm").
   codigo          String?   @unique
   // "pendente" | "aprovada" | "recusada" | "expirada" | "cancelada"
   status          String    @default("pendente")
-  // Método "documento" (dados do negócio conferidos pela moderação)
+  // Método "documento" (dados do negócio enviados pela pessoa; a moderação só revisa os pedidos que não são aprovados na hora)
   cnpj            String?
   site            String?
   relacao         String?
   contato         String?
   mensagem        String?
-  // Anotações do sistema para a moderação (ex.: "DM recebida de @outra_conta").
+  // Anotações do sistema para a moderação (ex.: "Login confirmado como @conta").
   notas           String    @default("")
   // Motivo informado pela moderação ao recusar.
   motivoRecusa    String?
@@ -167,9 +347,45 @@ model Depoimento {
   @@index([denunciado])
 }
 
+// Embaixador do bem (#250): quem leva o projeto para uma cidade ou um estado inteiro.
+// Só a moderação cadastra. Aparece na página inicial, em /embaixadores e na página da cidade.
+model Embaixador {
+  id                String    @id @default(cuid())
+  // Nome que aparece no site.
+  nome              String
+  // @ atual do Instagram, minúsculo e sem "@".
+  instagramUsername String    @unique
+  // Como a página da cidade chama a pessoa: chave de TITULOS_EMBAIXADOR (src/lib/dominio.ts).
+  titulo            String    @default("embaixadora")
+  // Nome oficial do IBGE. Vazio quando a pessoa cobre o estado inteiro.
+  cidade            String?
+  uf                String
+  // Foto do perfil, enviada pela moderação ou vinda do Instagram (ver src/lib/embaixadores.ts).
+  fotoUrl           String?
+  // Texto da página do embaixador. Começa com a bio do Instagram, e a moderação ajusta.
+  sobre             String?
+  seguidores        Int?
+  // O número foi digitado pela moderação (conta pessoal ou privada): a consulta ao Instagram não mexe nele.
+  seguidoresManual  Boolean   @default(false)
+  // Quando o número veio do Instagram pela última vez.
+  seguidoresEm      DateTime?
+  // A última consulta ao Instagram, com ou sem resposta: no máximo uma por dia.
+  consultadoEm      DateTime?
+  // Ordem na página inicial e em /embaixadores, do menor para o maior; empate vai pelo nome.
+  ordem             Int       @default(0)
+  // Entra na faixa da página inicial.
+  naInicial         Boolean   @default(true)
+  // Fora do ar, não aparece em lugar nenhum do site.
+  ativo             Boolean   @default(true)
+  criadoEm          DateTime  @default(now())
+  atualizadoEm      DateTime  @updatedAt
+
+  @@index([ativo, uf])
+}
+
 model RegistroAuditoria {
   id        String   @id @default(cuid())
-  // null quando a ação foi automática (ex.: webhook do Instagram)
+  // null quando a ação foi automática (ex.: aprovação na hora pelos dados do negócio)
   usuarioId String?
   usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
   acao      String

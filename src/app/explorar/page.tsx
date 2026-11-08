@@ -5,8 +5,10 @@ import { BuscaDiretorio } from "@/components/BuscaDiretorio";
 import { EmpresaCard } from "@/components/EmpresaCard";
 import { EmpresaLinha } from "@/components/EmpresaLinha";
 import { IconeCategoria } from "@/components/IconeCategoria";
+import { Paginacao } from "@/components/Paginacao";
 import { buscarCausa, CAUSAS, GRUPOS, type GrupoCausa } from "@/lib/causas";
-import { buscarDiretorio } from "@/lib/consultas";
+import { usuarioAtual } from "@/lib/auth/sessao";
+import { buscarDiretorio, coracoesDaLista } from "@/lib/consultas";
 import {
   alternar,
   hrefDiretorio,
@@ -19,12 +21,18 @@ import {
   type Ordem,
 } from "@/lib/diretorio";
 import { CATEGORIAS } from "@/lib/dominio";
+import { metadadosDaPagina } from "@/lib/seo";
 import { OrdenarPor } from "./OrdenarPor";
 
-export const metadata: Metadata = {
-  title: "Explorar negócios",
-  description: "Busque negócios do bem por cidade, tipo de negócio e pelas causas que importam para você.",
-};
+// Com filtros, o canônico continua sendo /explorar: as combinações de filtros
+// não viram páginas separadas na busca. Os links dos filtros levam nofollow, e o
+// robots.txt bloqueia /explorar?..., para os robôs não abrirem cada combinação.
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Explorar negócios",
+  descricao:
+    "Busque negócios do bem por cidade, tipo de negócio e pelas causas que importam para você: liderados por mulheres, afroempreendedores, opções veganas, sustentáveis e mais.",
+  caminho: "/explorar",
+});
 
 // Os tipos com mais negócios aparecem direto; o resto fica em "Ver todos".
 const TIPOS_VISIVEIS = 8;
@@ -57,6 +65,7 @@ export default function Explorar(props: PageProps<"/explorar">) {
 async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchParams">) {
   const filtros = lerFiltros(await searchParams);
   const resultado = await buscarDiretorio(filtros);
+  const coracoes = await coracoesDaLista(await usuarioAtual(), resultado.itens.map((empresa) => empresa.id), hrefDiretorio(filtros));
   const ativos = filtrosAtivos(filtros, resultado.local);
   const marcados = filtros.tipos.length + filtros.causas.length + (filtros.verificados ? 1 : 0);
 
@@ -118,7 +127,7 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
                 <Link
                   key={ativo.rotulo}
                   href={ativo.href}
-                  scroll={false}
+                  scroll={false} rel="nofollow"
                   aria-label={`Tirar o filtro ${ativo.rotulo}`}
                   className="inline-flex items-center gap-2 rounded-full border border-tinta/60 bg-superficie py-1.5 pr-2.5 pl-3.5 text-sm font-medium transition hover:border-tinta"
                 >
@@ -135,13 +144,13 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
             filtros.vista === "lista" ? (
               <div className="mt-5 flex flex-col gap-2">
                 {resultado.itens.map((empresa) => (
-                  <EmpresaLinha key={empresa.instagramUsername} empresa={empresa} />
+                  <EmpresaLinha key={empresa.instagramUsername} empresa={empresa} favorito={coracoes(empresa.id)} />
                 ))}
               </div>
             ) : (
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {resultado.itens.map((empresa) => (
-                  <EmpresaCard key={empresa.instagramUsername} empresa={empresa} />
+                  <EmpresaCard key={empresa.instagramUsername} empresa={empresa} favorito={coracoes(empresa.id)} />
                 ))}
               </div>
             )
@@ -149,28 +158,7 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
             <Vazio filtros={filtros} resultado={resultado} />
           )}
 
-          {resultado.paginas > 1 && (
-            <nav aria-label="Paginação" className="mt-8 flex flex-wrap items-center justify-center gap-2">
-              {paginasVisiveis(Math.min(filtros.pagina, resultado.paginas), resultado.paginas).map((pagina, i) =>
-                pagina === null ? (
-                  <span key={`intervalo-${i}`} className="px-1 text-suave" aria-hidden="true">
-                    …
-                  </span>
-                ) : (
-                  <Link
-                    key={pagina}
-                    href={hrefDiretorio({ ...filtros, pagina })}
-                    aria-current={pagina === filtros.pagina ? "page" : undefined}
-                    className={`grid h-10 min-w-10 place-items-center rounded-full border px-3 text-sm font-semibold transition ${
-                      pagina === filtros.pagina ? "border-tinta bg-tinta text-papel" : "border-linha bg-superficie hover:border-tinta/40"
-                    }`}
-                  >
-                    {pagina}
-                  </Link>
-                ),
-              )}
-            </nav>
-          )}
+          <Paginacao atual={filtros.pagina} total={resultado.paginas} href={(pagina) => hrefDiretorio({ ...filtros, pagina })} />
         </div>
       </div>
     </>
@@ -197,7 +185,7 @@ function Filtros({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado:
           Filtros
         </p>
         {temMarcados && (
-          <Link href={mudarFiltro(filtros, { tipos: [], causas: [], verificados: false })} scroll={false} className="link text-sm">
+          <Link href={mudarFiltro(filtros, { tipos: [], causas: [], verificados: false })} scroll={false} rel="nofollow" className="link text-sm">
             Limpar
           </Link>
         )}
@@ -243,14 +231,14 @@ function Filtros({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado:
 
       <Link
         href={mudarFiltro(filtros, { verificados: !filtros.verificados })}
-        scroll={false}
+        scroll={false} rel="nofollow"
         aria-current={filtros.verificados ? "true" : undefined}
         className="cartao flex items-center justify-between gap-3 p-4 transition hover:border-tinta/30"
       >
         <span>
-          <span className="block text-sm font-semibold">Só verificados pelo dono</span>
+          <span className="block text-sm font-semibold">Só perfis assumidos</span>
           <span className="mt-0.5 block text-xs text-suave">
-            {resultado.verificados} {resultado.verificados === 1 ? "negócio confirmado" : "negócios confirmados"} pelo dono
+            {resultado.verificados} {resultado.verificados === 1 ? "perfil assumido" : "perfis assumidos"}
           </span>
         </span>
         <span
@@ -280,7 +268,7 @@ function OpcaoFiltro({ href, ativo, total, children }: { href: string; ativo: bo
   return (
     <Link
       href={href}
-      scroll={false}
+      scroll={false} rel="nofollow"
       aria-current={ativo ? "true" : undefined}
       className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-sm transition hover:bg-papel ${total === 0 && !ativo ? "opacity-55" : ""}`}
     >
@@ -307,7 +295,7 @@ function BotaoVista({ href, ativo, rotulo, children }: { href: string; ativo: bo
   return (
     <Link
       href={href}
-      scroll={false}
+      scroll={false} rel="nofollow"
       aria-label={rotulo}
       aria-current={ativo ? "true" : undefined}
       className={`grid h-8 w-9 place-items-center rounded-full transition ${ativo ? "bg-tinta text-papel" : "text-suave hover:text-tinta"}`}
@@ -344,7 +332,7 @@ function Vazio({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado: R
         <Link href="/explorar" className="botao-claro">
           Limpar a busca
         </Link>
-        <Link href="/indicar" className="botao-coral">
+        <Link href="/participar" className="botao-coral">
           Indicar um negócio
         </Link>
       </div>
@@ -361,16 +349,8 @@ function filtrosAtivos(filtros: FiltrosDiretorio, local: Local | null) {
   for (const causa of filtros.causas) {
     ativos.push({ rotulo: buscarCausa(causa)?.nome ?? causa, href: mudarFiltro(filtros, { causas: alternar(filtros.causas, causa) }) });
   }
-  if (filtros.verificados) ativos.push({ rotulo: "Só verificados", href: mudarFiltro(filtros, { verificados: false }) });
+  if (filtros.verificados) ativos.push({ rotulo: "Só perfis assumidos", href: mudarFiltro(filtros, { verificados: false }) });
   return ativos;
-}
-
-/** Números da paginação: todos até 7 páginas; depois, a primeira, a última e as vizinhas da atual. */
-function paginasVisiveis(atual: number, total: number): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const perto = [1, atual - 1, atual, atual + 1, total].filter((p) => p >= 1 && p <= total);
-  const unicas = [...new Set(perto)].sort((a, b) => a - b);
-  return unicas.flatMap((p, i) => (i > 0 && p - unicas[i - 1]! > 1 ? [null, p] : [p]));
 }
 
 function IconeFiltros() {
@@ -388,7 +368,7 @@ function DiretorioCarregando() {
       <div className="mt-5 h-[4.5rem] animate-pulse rounded-3xl bg-superficie" />
       <div className="mt-8 flex gap-8">
         <div className="hidden h-[36rem] w-64 shrink-0 animate-pulse rounded-3xl bg-superficie lg:block" />
-        <div className="grid flex-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 flex-1 gap-4 sm:grid-cols-2">
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="h-60 animate-pulse rounded-3xl bg-superficie" />
           ))}

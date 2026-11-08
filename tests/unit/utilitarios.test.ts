@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { gerarHashSenha, verificarSenha } from "@/lib/auth/senha";
 import { filtrarCausas } from "@/lib/causas";
 import { cnpjValido, formatarCnpj } from "@/lib/cnpj";
-import { campoEmail, campoSite, campoWhatsapp } from "@/lib/formulario";
-import { formatarWhatsapp, iniciais, normalizarTexto, tempoDeLeitura } from "@/lib/texto";
+import { campoEmail, campoSite, campoTelefone, campoWhatsapp } from "@/lib/formulario";
+import { comPontoFinal, formatarFavoritos, formatarTelefone, iniciais, normalizarTexto, tempoDeLeitura, textoDoPrazo } from "@/lib/texto";
 
 describe("cnpjValido", () => {
   it("aceita CNPJ numérico válido, com ou sem pontuação", () => {
@@ -92,8 +92,26 @@ describe("campoWhatsapp", () => {
   });
 
   it("formata para exibir", () => {
-    expect(formatarWhatsapp("5511991488052")).toBe("(11) 99148-8052");
-    expect(formatarWhatsapp("552134567890")).toBe("(21) 3456-7890");
+    expect(formatarTelefone("5511991488052")).toBe("(11) 99148-8052");
+    expect(formatarTelefone("552134567890")).toBe("(21) 3456-7890");
+  });
+});
+
+describe("campoTelefone", () => {
+  it("guarda como o WhatsApp: só os dígitos, com o 55 do Brasil", () => {
+    expect(campoTelefone.parse("(11) 99148-8052")).toBe("5511991488052");
+    expect(campoTelefone.parse(" +55 11 99148-8052 ")).toBe("5511991488052");
+    expect(campoTelefone.parse("(21) 3456-7890")).toBe("552134567890");
+  });
+
+  it("é obrigatório", () => {
+    const resultado = campoTelefone.safeParse("");
+    expect(resultado.success).toBe(false);
+    expect(resultado.error?.issues[0]?.message).toBe("Informe seu telefone com DDD.");
+  });
+
+  it.each(["99148-8052", "+1 415 555 0100", "(11) 1234-5678", "(01) 99148-8052", "1".repeat(31)])("recusa %j", (valor) => {
+    expect(campoTelefone.safeParse(valor).success).toBe(false);
   });
 });
 
@@ -116,11 +134,41 @@ describe("tempoDeLeitura", () => {
   });
 
   it("não conta o endereço das fotos e dos links", () => {
-    const foto = "![legenda](https://abc.public.blob.vercel-storage.com/historias/x.jpg)";
+    const foto = "![legenda](https://fotos.exemplo.com/historias/x.jpg)";
     expect(tempoDeLeitura(`${foto}\n\n[site](https://exemplo.com)`)).toBe(1);
   });
 
   it("nunca dá zero", () => {
     expect(tempoDeLeitura("")).toBe(1);
+  });
+});
+
+describe("comPontoFinal", () => {
+  it("fecha a frase com ponto, sem dobrar o que já tem pontuação", () => {
+    expect(comPontoFinal("O contato do perfil mudou")).toBe("O contato do perfil mudou.");
+    expect(comPontoFinal("Golpe confirmado. ")).toBe("Golpe confirmado.");
+    expect(comPontoFinal("Vendeu o negócio?")).toBe("Vendeu o negócio?");
+    expect(comPontoFinal("  ")).toBe("");
+  });
+});
+
+describe("formatarFavoritos", () => {
+  it("diz quantas pessoas favoritaram, no singular e no plural", () => {
+    expect(formatarFavoritos(0)).toBe("Ninguém favoritou ainda");
+    expect(formatarFavoritos(1)).toBe("1 pessoa favoritou");
+    expect(formatarFavoritos(1234)).toBe("1.234 pessoas favoritaram");
+  });
+});
+
+describe("textoDoPrazo", () => {
+  const agora = new Date("2026-11-06T12:00:00Z");
+  const daqui = (minutos: number) => new Date(agora.getTime() + minutos * 60_000);
+
+  it("mostra dias e horas, e horas e minutos no último dia", () => {
+    expect(textoDoPrazo(daqui(3 * 1440 + 4 * 60 + 30), agora)).toBe("Termina em 3 dias e 4 h");
+    expect(textoDoPrazo(daqui(1440), agora)).toBe("Termina em 1 dia");
+    expect(textoDoPrazo(daqui(3 * 60 + 12), agora)).toBe("Termina em 3 h 12 min");
+    expect(textoDoPrazo(daqui(12), agora)).toBe("Termina em 12 min");
+    expect(textoDoPrazo(daqui(0), agora)).toBe("Terminou");
   });
 });

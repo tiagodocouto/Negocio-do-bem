@@ -1,7 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { usuarioAtual } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { buscarContaConectada, configLogin, COOKIE_ESTADO, trocarCodigoPorToken } from "@/lib/instagram";
+import { medir } from "@/lib/medicao-servidor";
+import { avisarNovaReivindicacao } from "@/lib/notificacoes";
 import { ErroReivindicacao, processarLoginInstagram } from "@/lib/reivindicacao";
 
 /** Retorno do Instagram depois do login (redirect_uri cadastrada no app da Meta). */
@@ -39,8 +41,15 @@ export async function GET(request: NextRequest) {
     // O token não é guardado: ele só serviu para provar quem controla a conta.
     const resultado = await processarLoginInstagram({ empresaId: empresaId!, usuarioId: usuario.id, conta });
 
-    if (resultado.tipo === "verificada") return voltar("verificada", {}, `/empresas/${empresa.instagramUsername}`);
-    if (resultado.tipo === "em_analise") return voltar("em_analise");
+    if (resultado.tipo === "verificada") {
+      await medir({ nome: "perfil_reivindicado", params: { method: "instagram", resultado: "verificada" } });
+      return voltar("verificada", {}, `/empresas/${empresa.instagramUsername}`);
+    }
+    if (resultado.tipo === "em_analise") {
+      await medir({ nome: "perfil_reivindicado", params: { method: "instagram", resultado: "em_analise" } });
+      after(() => avisarNovaReivindicacao(empresaId!));
+      return voltar("em_analise");
+    }
     return voltar("ig_conta_diferente", { conectada: resultado.conectada });
   } catch (erro) {
     if (erro instanceof ErroReivindicacao) return voltar("limite");

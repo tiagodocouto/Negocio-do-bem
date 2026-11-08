@@ -9,11 +9,14 @@ import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { exigirUsuario } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
-import { normalizarUsername } from "@/lib/instagram";
-import { formatarData } from "@/lib/texto";
+import { rotuloDoInstagram } from "@/lib/endereco";
+import { normalizarEndereco } from "@/lib/instagram";
+import { formatarData, formatarFavoritos } from "@/lib/texto";
 import { EdicaoEmpresa } from "./EdicaoEmpresa";
+import { FORA_DA_BUSCA } from "@/lib/seo";
+import { seguirEnderecoAntigo } from "@/lib/troca-de-arroba";
 
-export const metadata: Metadata = { title: "Editar perfil" };
+export const metadata: Metadata = { title: "Editar perfil", robots: FORA_DA_BUSCA };
 
 export default function EditarEmpresa(props: PageProps<"/painel/[usuario]">) {
   return (
@@ -26,7 +29,7 @@ export default function EditarEmpresa(props: PageProps<"/painel/[usuario]">) {
 }
 
 async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuario]">, "params" | "searchParams">) {
-  const username = normalizarUsername((await params).usuario);
+  const username = normalizarEndereco((await params).usuario);
   if (!username) notFound();
   const usuario = await exigirUsuario(`/painel/${username}`);
   const empresa = await db.empresa.findUnique({
@@ -34,6 +37,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
     include: {
       membros: { select: { usuarioId: true } },
       causas: { select: { causa: true } },
+      _count: { select: { favoritos: true } },
       depoimentos: {
         where: { status: "publicado" },
         orderBy: { criadoEm: "desc" },
@@ -41,8 +45,13 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
       },
     },
   });
+  if (!empresa) await seguirEnderecoAntigo(username, (atual) => `/painel/${atual}`);
   if (!empresa || !empresa.membros.some((m) => m.usuarioId === usuario.id)) notFound();
   const { aviso } = await searchParams;
+  const liberacao = await db.liberacaoClube.findUnique({
+    where: { empresaId_usuarioId: { empresaId: empresa.id, usuarioId: usuario.id } },
+    select: { status: true },
+  });
 
   return (
     <div className="space-y-10">
@@ -54,14 +63,21 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
           <div>
             <h1 className="font-serif text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
             <p className="text-suave">
-              @{empresa.instagramUsername} · {empresa.oculta ? "Oculto do diretório" : MODERACAO_EMPRESA[empresa.moderacao]}
+              {rotuloDoInstagram(empresa.instagramUsername)} · {empresa.oculta ? "Oculto do diretório" : MODERACAO_EMPRESA[empresa.moderacao]} ·{" "}
+              {formatarFavoritos(empresa._count.favoritos)}
             </p>
           </div>
-          <Link href={`/empresas/${empresa.instagramUsername}`} className="botao-claro botao-pequeno">
-            Ver perfil público ↗
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/painel/${empresa.instagramUsername}/clube`} className="botao-claro botao-pequeno">
+              Clube do Bem
+            </Link>
+            <Link href={`/empresas/${empresa.instagramUsername}`} className="botao-claro botao-pequeno">
+              Ver perfil público ↗
+            </Link>
+          </div>
         </div>
         <AvisoDaUrl codigo={aviso} />
+        <ChamadaDoClube username={empresa.instagramUsername} status={liberacao?.status} />
       </div>
 
       <EdicaoEmpresa empresa={empresa} voltar={`/painel/${empresa.instagramUsername}`} />
@@ -92,7 +108,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
                   maxLength={1000}
                   defaultValue={d.resposta ?? ""}
                   placeholder="Escreva uma resposta (opcional)…"
-                  className="campo text-sm"
+                  className="campo sm:text-sm"
                 />
                 <BotaoEnviar className="botao-claro botao-pequeno" enviando="Salvando…">
                   {d.resposta ? "Atualizar resposta" : "Responder"}
@@ -118,6 +134,38 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
           </BotaoEnviar>
         </form>
       </section>
+    </div>
+  );
+}
+
+/** O convite do Clube do Bem para o dono que ainda não foi verificado, ou o pedido em análise. */
+function ChamadaDoClube({ username, status }: { username: string; status?: string }) {
+  if (status === "liberada") return null;
+  if (status === "pendente") {
+    return (
+      <p className="cartao p-4 text-sm text-suave">
+        🎟️ A verificação do seu negócio para o Clube do Bem está em análise. A resposta aparece no{" "}
+        <Link href={`/painel/${username}/clube`} className="link">
+          painel do clube
+        </Link>
+        .
+      </p>
+    );
+  }
+  const deNovo = status === "recusada" || status === "suspensa";
+  return (
+    <div className="cartao flex flex-col gap-4 border-coral/40 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-serif text-xl font-semibold">🎟️ Verifique a sua empresa e seja Parceiro do Clube do Bem</p>
+        <p className="mt-1 text-sm leading-relaxed text-suave">
+          {deNovo
+            ? "A liberação do seu negócio não está valendo. Veja o motivo e peça a verificação de novo."
+            : "Com o CNPJ, o seu nome completo e o seu CPF, a nossa equipe confere o negócio. Verificado, o perfil ganha o selo e você divulga promoções e cupons no perfil. É de graça."}
+        </p>
+      </div>
+      <Link href={`/painel/${username}/clube#verificar`} className="botao-coral botao-pequeno whitespace-nowrap">
+        Verificar meu negócio
+      </Link>
     </div>
   );
 }

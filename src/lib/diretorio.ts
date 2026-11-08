@@ -1,5 +1,6 @@
 // Filtros do diretório (/explorar): o que vem na URL, os links que mudam um filtro
-// e o campo "Onde?". Sem banco, para valer no servidor, no navegador e nos testes.
+// e o campo "Onde?". Também os endereços das páginas de cidade, causa e tipo.
+// Sem banco, para valer no servidor, no navegador e nos testes.
 // As consultas ficam em src/lib/consultas.ts.
 
 import { buscarCausa, filtrarCausas } from "@/lib/causas";
@@ -7,7 +8,7 @@ import { CATEGORIAS, NOMES_UF, UFS, type Uf } from "@/lib/dominio";
 import { normalizarTexto } from "@/lib/texto";
 
 export const ORDENS = {
-  verificados: "Verificados primeiro",
+  verificados: "Assumidos primeiro",
   recentes: "Mais recentes",
   az: "Nome (A–Z)",
 } as const;
@@ -37,9 +38,21 @@ export const SEM_FILTROS: FiltrosDiretorio = {
   pagina: 1,
 };
 
+function paraSlug(texto: string): string {
+  return normalizarTexto(texto).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 /** Endereço de uma categoria na URL: "Café e padaria" → "cafe-e-padaria". */
 export function slugCategoria(categoria: string): string {
-  return normalizarTexto(categoria).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return paraSlug(categoria);
+}
+
+/**
+ * Endereço da página de uma cidade: "São Paulo", "SP" → "sao-paulo-sp". Sem acento
+ * nem maiúscula, então grafias diferentes da mesma cidade dão o mesmo endereço.
+ */
+export function slugCidade(cidade: string, uf: string): string {
+  return paraSlug(`${cidade} ${uf}`);
 }
 
 const CATEGORIA_POR_SLUG = new Map<string, string>(CATEGORIAS.map((c) => [slugCategoria(c), c]));
@@ -96,6 +109,38 @@ export function alternar(valores: string[], valor: string): string[] {
   return valores.includes(valor) ? valores.filter((v) => v !== valor) : [...valores, valor];
 }
 
+// --- Páginas de cidade, causa e tipo ------------------------------------------
+// Páginas fixas para a busca do Google ("negócios do bem em Salvador"). O
+// /explorar com filtros tem sempre o mesmo canônico e não entra na busca.
+
+export function hrefCidade(cidade: string, uf: string): string {
+  return `/cidades/${slugCidade(cidade, uf)}`;
+}
+
+export function hrefCausa(slug: string): string {
+  return `/causas/${slug}`;
+}
+
+/** "Outros" não tem página: não diz nada para quem busca. */
+export function temPaginaDeTipo(categoria: string): boolean {
+  return categoria !== "Outros" && CATEGORIA_POR_SLUG.has(slugCategoria(categoria));
+}
+
+export function hrefTipo(categoria: string): string {
+  return `/tipos/${slugCategoria(categoria)}`;
+}
+
+/** A categoria de um endereço de /tipos, ou undefined se ela não tem página. */
+export function categoriaDoSlug(slug: string): string | undefined {
+  const categoria = CATEGORIA_POR_SLUG.get(slug);
+  return categoria && temPaginaDeTipo(categoria) ? categoria : undefined;
+}
+
+/** "Negócios de café e padaria": título da página de um tipo. */
+export function tituloDoTipo(categoria: string): string {
+  return `Negócios de ${categoria.toLowerCase()}`;
+}
+
 // --- "Onde?" ---------------------------------------------------------------
 
 /** Uma cidade que tem negócios no diretório. */
@@ -123,7 +168,8 @@ export function interpretarLocal(texto: string, cidades: CidadeComNegocios[]): L
   const estado = ESTADOS.find((e) => e.busca === busca || e.uf.toLowerCase() === busca);
   if (estado) return { uf: estado.uf, rotulo: estado.nome };
 
-  const partes = /^(.+?)\s*(?:,|\/|\s-|\s)\s*([a-z]{2})$/.exec(busca);
+  const mesmoNome = cidades.filter((c) => normalizarTexto(c.cidade) === busca);
+  const partes = mesmoNome.length === 0 ? /^(.+?)\s*(?:,|\/|\s-|\s)\s*([a-z]{2})$/.exec(busca) : null;
   const uf = partes && UFS.find((u) => u.toLowerCase() === partes[2]);
   if (partes && uf) {
     const cidade = cidades.find((c) => c.uf === uf && normalizarTexto(c.cidade) === partes[1]);
@@ -132,7 +178,6 @@ export function interpretarLocal(texto: string, cidades: CidadeComNegocios[]): L
     return { cidade: nome, uf, rotulo: `${nome}, ${uf}` };
   }
 
-  const mesmoNome = cidades.filter((c) => normalizarTexto(c.cidade) === busca);
   if (mesmoNome.length === 1) {
     const [cidade] = mesmoNome;
     return { cidade: cidade!.cidade, uf: cidade!.uf, rotulo: `${cidade!.cidade}, ${cidade!.uf}` };

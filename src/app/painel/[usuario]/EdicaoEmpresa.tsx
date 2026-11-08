@@ -1,7 +1,8 @@
 import { FormFoto } from "@/components/FormFoto";
 import { fotoDe } from "@/components/FotoEmpresa";
-import { formatarWhatsapp } from "@/lib/texto";
+import { formatarTelefone } from "@/lib/texto";
 import { FormEmpresa } from "./FormEmpresa";
+import { FormInstagram } from "./FormInstagram";
 
 type Empresa = {
   id: string;
@@ -15,6 +16,9 @@ type Empresa = {
   site: string | null;
   whatsapp: string | null;
   emailContato: string | null;
+  telefoneComercial: string | null;
+  emailDoDono: string | null;
+  telefoneDoDono: string | null;
   historia: string;
   causas: { causa: string }[];
 };
@@ -28,6 +32,8 @@ export function EdicaoEmpresa({ empresa, voltar }: { empresa: Empresa; voltar: s
         <FormFoto empresa={fotoDe(empresa)} voltar={voltar} />
       </section>
 
+      <FormInstagram empresa={empresa} voltar={voltar} />
+
       <FormEmpresa
         voltar={voltar}
         empresa={{
@@ -38,8 +44,11 @@ export function EdicaoEmpresa({ empresa, voltar }: { empresa: Empresa; voltar: s
           cidade: empresa.cidade,
           uf: empresa.uf,
           site: empresa.site ?? "",
-          whatsapp: empresa.whatsapp ? formatarWhatsapp(empresa.whatsapp) : "",
+          whatsapp: empresa.whatsapp ? formatarTelefone(empresa.whatsapp) : "",
           emailContato: empresa.emailContato ?? "",
+          telefoneComercial: empresa.telefoneComercial ? formatarTelefone(empresa.telefoneComercial) : "",
+          emailDoDono: empresa.emailDoDono ?? "",
+          telefoneDoDono: empresa.telefoneDoDono ? formatarTelefone(empresa.telefoneDoDono) : "",
           historia: empresa.historia,
           causas: empresa.causas.map((c) => c.causa),
         }}

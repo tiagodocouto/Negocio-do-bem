@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CausaBadge } from "@/components/CausaBadge";
 import { CAUSAS, GRUPOS, type GrupoCausa } from "@/lib/causas";
+import { hrefCausa } from "@/lib/diretorio";
 import { REPOSITORIO } from "@/lib/dominio";
+import { metadadosDaPagina } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Como funciona",
-  description: "O que é o Negócio do Bem, como os donos assumem seus perfis e como cuidamos da privacidade.",
-};
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Como funciona",
+  descricao: "O que é o Negócio do Bem, como os donos assumem seus perfis e como cuidamos da privacidade.",
+  caminho: "/sobre",
+});
 
 export default function Sobre() {
   return (
@@ -49,7 +52,8 @@ export default function Sobre() {
         <p>
           Procure seu negócio no{" "}
           <Link href="/explorar">diretório</Link> e clique em <strong>&ldquo;Sou o dono&rdquo;</strong>. Se ele ainda não
-          estiver lá, <Link href="/indicar">cadastre</Link> marcando &ldquo;Este negócio é meu&rdquo;.
+          estiver lá, <Link href="/participar?dono=sim">cadastre</Link> pelo @ do Instagram e escolha &ldquo;Sou dono
+          deste negócio&rdquo;. Sem Instagram também dá.
         </p>
         <p>
           Depois, envie os dados do negócio: CNPJ ou MEI (se tiver), site e um contato. Se ninguém assumiu o perfil
@@ -58,6 +62,10 @@ export default function Sobre() {
         <p>
           Se outra pessoa já assumiu o seu perfil, use a mesma página para pedir a revisão. Qualquer disputa vai para a
           moderação, e todas as decisões ficam registradas.
+        </p>
+        <p>
+          Negócios com CNPJ também podem oferecer cupons de desconto no <strong>Clube do Bem</strong>, de graça.{" "}
+          <Link href="/clube-do-bem">Veja como funciona</Link>.
         </p>
 
         <h2 id="privacidade" className="scroll-mt-24">
@@ -68,13 +76,28 @@ export default function Sobre() {
           acima e, no painel, clique em &ldquo;Ocultar meu negócio&rdquo;. Ele sai do diretório na hora.
         </p>
         <p>
-          <strong>Que dados vocês guardam?</strong> Da sua conta, nome e e-mail. Dos negócios, só o que aparece no perfil:
+          <strong>Que dados vocês guardam?</strong> Da sua conta, nome, e-mail e telefone. O e-mail e o telefone nunca
+          aparecem no site: só a moderação vê. O e-mail serve para você entrar e para receber avisos sobre os seus
+          pedidos e o seu negócio, como a decisão da moderação ou um depoimento novo. O telefone serve só para esses
+          avisos, nunca para divulgação. Se você entra com o Google, guardamos também o número que o
+          Google dá à sua conta, para reconhecê-la da próxima vez. Os seus negócios favoritos ficam guardados também: só
+          você vê essa lista, e o perfil do negócio mostra apenas quantas pessoas o favoritaram. Dos negócios, só o que aparece no perfil:
           textos, fotos e contatos públicos.
           Não fazemos raspagem do Instagram e não guardamos tokens de acesso.
         </p>
         <p>
-          <strong>Vocês medem as visitas?</strong> Sim, com o Google Analytics, para saber quantas pessoas visitam o site e
-          quais páginas e buscas são mais comuns. Ele usa cookies no seu navegador e não recebe seu nome nem seu e-mail.
+          <strong>E para verificar o meu negócio?</strong> Você informa o CNPJ, o seu nome completo e o seu CPF, envia a
+          foto do seu RG ou da sua CNH e marca uma autorização. A moderação compara esses dados com o quadro de sócios na Receita Federal. Do CPF guardamos só os
+          6 dígitos do meio, que a Receita também mostra dos sócios: o número inteiro é conferido e descartado. Só a moderação
+          vê esses dados, e eles servem só para decidir o pedido. A foto do documento fica num espaço privado, sem endereço
+          público, e é apagada quando a moderação decide (ou depois de 30 dias, se o pedido ficar parado).
+        </p>
+        <p>
+          <strong>Vocês medem as visitas?</strong> Sim, com o Google Analytics, para saber quantas pessoas visitam o site,
+          quais páginas e buscas são mais comuns, quantas contas e negócios são cadastrados e quantos contatos os negócios
+          recebem pelo site. Ele usa cookies no seu navegador e não recebe seu nome, seu e-mail, seu telefone nem o nome do
+          negócio: só a categoria, a cidade e o estado, que já estão no perfil. O Cloudflare, que hospeda o site, também
+          conta as visitas e mede quanto as páginas demoram para abrir, sem cookies e sem identificar quem visita.
         </p>
         <p>
           <strong>E os depoimentos?</strong> Ficam no ar com o nome de quem escreveu. Donos podem responder, mas não
@@ -104,10 +127,12 @@ export default function Sobre() {
         {(Object.keys(GRUPOS) as GrupoCausa[]).map((grupo) => (
           <section key={grupo}>
             <h3 className="font-serif text-xl font-semibold">{GRUPOS[grupo]}</h3>
-            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {CAUSAS.filter((c) => c.grupo === grupo).map((causa) => (
                 <li key={causa.slug} className="cartao p-4">
-                  <CausaBadge slug={causa.slug} />
+                  <Link href={hrefCausa(causa.slug)} className="transition hover:opacity-80">
+                    <CausaBadge slug={causa.slug} />
+                  </Link>
                   <p className="mt-2 text-sm text-suave">{causa.descricao}</p>
                 </li>
               ))}
